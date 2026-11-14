@@ -1,28 +1,95 @@
 # agroX
 
-## Scraper de datos
+## Recolector de datos
+
+### La idea en corto
+
+Bajar "todo" de estas fuentes no es posible ni útil: Landsat, Sentinel-2 o SMAP suman petabytes de todo el planeta.
+Por eso el recolector **pide solo un pedazo de mapa y un rango de fechas** (el "área", en `scraper/sources.json`)
+y a cada fuente le pide los datos de ese pedazo.
+
+Casi ninguna de estas fuentes es una página con enlaces para descargar. Son **APIs**: como una ventanilla
+donde pides algo con un formato fijo ("dame la lluvia de este punto entre estas fechas") y te lo entregan.
+Por eso cada fuente tiene un **conector** pequeño en `scraper/sites/` que sabe cómo pedirle a su ventanilla.
+
+### Cómo usarlo
 
 ```bash
 pip install -r requirements.txt
-python scraper/scrape.py              # todas las fuentes habilitadas
-python scraper/scrape.py siap inegi   # solo algunas
+python scraper/scrape.py                 # todas las fuentes
+python scraper/scrape.py power cdl smap  # solo algunas
 ```
 
-Los archivos quedan en `data/raw/<id>/` y cada descarga se anota en `data/manifest.csv`
-(fuente, URL, ruta, sha256, tamaño, fecha). `data/` no se sube a git.
-Si se vuelve a correr, salta lo que ya se bajó.
+- Lo descargado queda en `data/raw/<fuente>/` y cada archivo se anota en `data/manifest.csv` (de dónde vino, cuándo, tamaño, huella sha256). `data/` no se sube a git.
+- Si lo vuelves a correr, no repite lo que ya bajó.
+- Si una fuente falla, avisa y sigue con las demás.
 
-### Agregar un sitio
+### Cambiar la zona o las fechas
 
-1. Agrega un bloque a `scraper/sources.json`:
-   ```json
-   {"id": "siap", "url": "https://.../datos-abiertos"}
-   ```
-   Por defecto baja todos los links a `.csv .xlsx .xls .json .zip .xml .geojson .parquet .txt`.
-   Opcional: `"pattern"` (regex sobre la URL) o `"exts"` para cambiar el filtro, y `"enabled": false` para pausarlo.
-2. Si el sitio usa una API, paginación o JavaScript, copia `scraper/sites/_plantilla.py`
-   como `scraper/sites/<id>.py` y haz que `links()` devuelva las URLs a bajar.
+Edita `"area"` en `scraper/sources.json`:
 
-Para repartir los 28 sitios: cada quien trabaja en su archivo `sites/<id>.py` y su bloque en `sources.json`.
+| Campo | Qué es |
+|---|---|
+| `bbox` | Rectángulo `[oeste, sur, este, norte]` en grados. Ahora: 10×10 km cerca de Ames, Iowa |
+| `start`, `end` | Rango de fechas |
+| `state`, `county_fips`, `county_name`, `ssurgo_area` | Estado y condado (para datos que vienen por condado) |
+
+### Llaves (cuentas gratis)
+
+Copia `.env.example` como `.env` y llena las que consigas. Sin llave, esa fuente se marca como **SALTADA** y lo demás sigue.
+
+| Variable | Para | Dónde se saca |
+|---|---|---|
+| `EARTHDATA_TOKEN` | SMAP, IMERG, ECOSTRESS, VIIRS, NLDAS, GLDAS, GEDI | https://urs.earthdata.nasa.gov → Generate Token |
+| `NASS_API_KEY` | QuickStats | https://quickstats.nass.usda.gov/api |
+| `AMS_API_KEY` | Market News | https://mymarketnews.ams.usda.gov |
+| `CDS_API_KEY` | ERA5 (y aceptar la licencia del dataset en su página) | https://cds.climate.copernicus.eu |
+| `OPENET_API_KEY` | OpenET (solo oeste de EE.UU.) | https://etdata.org |
+| `LANDFIRE_EMAIL` | LANDFIRE (pide un correo, no cuenta) | — |
+
+### Qué hace cada fuente
+
+Estado al 14-nov-2026 con la zona de prueba: ✅ = descargado y revisado · 🔑 = listo, falta la llave · ⚠️ = escrito pero no probado de punta a punta.
+
+| id | Fuente | Qué baja | Cómo | Estado |
+|---|---|---|---|---|
+| `power` | NASA POWER | Clima diario (temp., lluvia, radiación, humedad de suelo, heladas) en el centro del área | API | ✅ |
+| `nwis` | USGS NWIS | Caudal diario y nivel freático del condado + estaciones | API | ✅ (no hay pozos con datos diarios en Story) |
+| `cdl` | CropScape CDL | Mapa de qué cultivo hubo en cada pixel de 30 m, 2021-2024 | API | ✅ |
+| `ssurgo` | SSURGO / STATSGO2 / Web Soil Survey | Base de suelos completa del condado y del estado (zips oficiales de WSS) | API + descarga | ✅ |
+| `prism` | PRISM | Lluvia y temperatura mensual 4 km, EE.UU. continental | Servicio de descarga | ✅ |
+| `cocorahs` | CoCoRaHS | Lluvia diaria de cada estación voluntaria del estado | Exportación CSV | ✅ |
+| `nlcd` | USGS NLCD | Cobertura del suelo 2019 y 2021, recortada | WCS (servicio de mapas) | ✅ |
+| `gaez` | FAO GAEZ v4 | Aptitud de 7 cultivos (maíz, soya, trigo, alfalfa, avena, centeno, sorgo), global | ArcGIS ImageServer | ✅ |
+| `agdatacommons` | USDA Ag Data Commons | Tablas de estudios con "rotation", "cover crop", "soil health", "corn", "soybean" en el título | API de Figshare | ✅ |
+| `sentinel2` | ESA Sentinel-2 | Bandas rojo, infrarrojo y máscara de nubes, may-sep 2024, recortadas | Planetary Computer (STAC) | ✅ |
+| `landsat` | Landsat 8/9 | Rojo, infrarrojo y temperatura, may-sep 2024, recortadas | Planetary Computer | ✅ |
+| `modis_ndvi` | MODIS | NDVI cada 16 días, 250 m | Planetary Computer | ✅ |
+| `naip` | NAIP | Foto aérea ~1 m | Planetary Computer | ✅ |
+| `srtm` | SRTM (NASADEM) | Elevación | Planetary Computer | ✅ |
+| `smap` | SMAP | Humedad del suelo diaria 9 km | Earthdata (CMR) | 🔑 |
+| `imerg` | GPM IMERG | Lluvia mensual | Earthdata | 🔑 |
+| `ecostress_lst`, `ecostress_et` | ECOSTRESS | Temperatura de superficie y evapotranspiración, 70 m | Earthdata | 🔑 |
+| `viirs_ndvi` | VIIRS | Índices de vegetación 500 m | Earthdata | 🔑 |
+| `nldas`, `gldas` | NLDAS / GLDAS | Clima y humedad de suelo modelados, mensual | Earthdata | 🔑 |
+| `gedi` | GEDI L4A | Biomasa (cada archivo es una órbita, pesado) | Earthdata | 🔑 |
+| `nass` | USDA NASS QuickStats | Rendimientos y superficie sembrada, condado y estado, desde 2000 | API | 🔑 |
+| `ams` | USDA AMS Market News | Precios del reporte 2850 (granos en Iowa) | API | 🔑 ⚠️ |
+| `era5` | ERA5 (Copernicus) | Temperatura, lluvia y humedad de suelo mensual, recortado | API por pedidos | 🔑 ⚠️ |
+| `landfire` | LANDFIRE | Tipo, cobertura y altura de vegetación + pendiente | API por trabajos | 🔑 ⚠️ |
+| `openet` | OpenET | Evapotranspiración mensual | API | apagada: no cubre Iowa |
+
+Notas:
+- **Sentinel-2** se baja del espejo gratuito de Microsoft Planetary Computer (mismos datos de ESA, sin cuenta), no de Copernicus Data Space.
+- **Web Soil Survey** es la página para ver SSURGO; los datos son los mismos zips que baja `ssurgo`.
+- **SRTM** viene como NASADEM, la versión reprocesada por NASA.
+- **MODIS/VIIRS**: MODIS sale de Planetary Computer; VIIRS de Earthdata.
+- Los rásteres de satélite se bajan **ya recortados** al área, así pesan KB o pocos MB en vez de cientos de MB.
+
+### Agregar o cambiar una fuente
+
+1. Agrega un bloque en `scraper/sources.json` con un `id`.
+2. Si la fuente es una página con enlaces a archivos, con `"url"` basta (el recolector busca los `.csv`, `.zip`, etc.).
+3. Si es una API, copia `scraper/sites/_plantilla.py` como `scraper/sites/<id>.py`. Si varias fuentes usan la misma API, comparten conector con `"hook"` (como `stac` y `earthdata`).
 
 Pruebas: `python scraper/test_scrape.py`

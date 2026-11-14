@@ -1,12 +1,12 @@
-"""Plantilla para un sitio que no se resuelve buscando links en el HTML (API, CKAN, paginación, JS).
+"""Plantilla de conector. Copia como scraper/sites/<id>.py (mismo id que en sources.json).
 
-Copia este archivo como scraper/sites/<id>.py, con el mismo id que en sources.json.
-Debe devolver la lista de URLs a descargar; scrape.py se encarga de bajarlas.
+links(session, src) devuelve lo que hay que descargar: URLs sueltas o dicts con
+  url, name (nombre del archivo), params, headers, json (si lo trae, se manda como POST).
+src trae el bloque de sources.json y src["area"] (bbox, fechas, condado...).
+Si falta una llave: from common import need; need("MI_API_KEY", "dónde sacarla") la salta sin error.
 """
 
 
 def links(session, src):
-    # Ejemplo con un portal CKAN (muchos portales de datos abiertos lo usan):
-    r = session.get(src["url"], params={"q": "agricultura", "rows": 1000}, timeout=60)
-    r.raise_for_status()
-    return [res["url"] for ds in r.json()["result"]["results"] for res in ds["resources"]]
+    a = src["area"]
+    return [{"url": "https://ejemplo.org/api/datos", "params": {"bbox": ",".join(map(str, a["bbox"]))}, "name": "datos.csv"}]

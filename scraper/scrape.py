@@ -1,8 +1,8 @@
-"""Descarga los datasets de cada fuente en sources.json a data/raw/<id>/.
+"""Descarga los datos de cada fuente en sources.json a data/raw/<id>/.
 
 Uso:
-    python scraper/scrape.py            # todas las fuentes habilitadas
-    python scraper/scrape.py siap inegi # solo esas
+    python scraper/scrape.py               # todas las fuentes habilitadas
+    python scraper/scrape.py power cdl     # solo esas
 """
 import csv
 import hashlib
@@ -19,9 +19,11 @@ from urllib.robotparser import RobotFileParser
 import requests
 from bs4 import BeautifulSoup
 
+from common import Skip, load_env
+
 ROOT = Path(__file__).parent
 DATA = ROOT.parent / "data"
-UA = "agroX-hackathon-scraper/0.1"
+UA = "agroX-hackathon-scraper/0.2"
 DELAY = 1.0  # segundos entre descargas, para no saturar los sitios
 EXTS = (".csv", ".xlsx", ".xls", ".json", ".zip", ".xml", ".geojson", ".parquet", ".txt")
 MANIFEST_COLS = ["source", "url", "path", "sha256", "bytes", "fetched_at"]
@@ -59,26 +61,32 @@ def allowed(url: str) -> bool:
     return rp is None or rp.can_fetch(UA, url)
 
 
-def links_for(session: requests.Session, src: dict) -> list[str]:
-    """Usa scraper/sites/<id>.py si existe (sitios con API o JS); si no, busca links en la página."""
-    hook = ROOT / "sites" / f"{src['id']}.py"
+def links_for(session: requests.Session, src: dict) -> tuple[list[dict], bool]:
+    """Devuelve (items, es_api). Usa scraper/sites/<hook o id>.py si existe; si no, busca links en la página.
+
+    Un conector puede devolver URLs sueltas o dicts con: url, name, params, headers, json (manda POST).
+    """
+    name = src.get("hook", src["id"])
+    hook = ROOT / "sites" / f"{name}.py"
     if hook.exists():
-        spec = importlib.util.spec_from_file_location(src["id"], hook)
+        spec = importlib.util.spec_from_file_location(name, hook)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        return mod.links(session, src)
+        return [i if isinstance(i, dict) else {"url": i} for i in mod.links(session, src)], True
     r = session.get(src["url"], timeout=60)
     r.raise_for_status()
-    return find_links(r.text, r.url, src.get("pattern"), src.get("exts", EXTS))
+    return [{"url": u} for u in find_links(r.text, r.url, src.get("pattern"), src.get("exts", EXTS))], False
 
 
-def download(session: requests.Session, url: str, dest: Path) -> tuple[str, int] | None:
+def download(session: requests.Session, item: dict, dest: Path) -> tuple[str, int] | None:
     """Descarga en streaming. Devuelve (sha256, bytes), o None si ya existía."""
     if dest.exists():
         return None
     tmp = dest.with_suffix(dest.suffix + ".part")
     h, size = hashlib.sha256(), 0
-    with session.get(url, stream=True, timeout=120) as r:
+    method = "POST" if "json" in item else "GET"
+    with session.request(method, item["url"], params=item.get("params"), json=item.get("json"),
+                         headers=item.get("headers"), stream=True, timeout=300) as r:
         r.raise_for_status()
         with open(tmp, "wb") as f:
             for chunk in r.iter_content(1 << 16):
@@ -90,40 +98,52 @@ def download(session: requests.Session, url: str, dest: Path) -> tuple[str, int]
 
 
 def run(ids: list[str]) -> int:
-    sources = json.loads((ROOT / "sources.json").read_text(encoding="utf-8"))
-    sources = [s for s in sources if (s["id"] in ids if ids else s.get("enabled", True))]
+    load_env(ROOT.parent / ".env")
+    cfg = json.loads((ROOT / "sources.json").read_text(encoding="utf-8"))
+    unknown = set(ids) - {s["id"] for s in cfg["sources"]}
+    if unknown:
+        print(f"Fuentes desconocidas: {', '.join(sorted(unknown))}")
+        return 2
+    sources = [s for s in cfg["sources"] if (s["id"] in ids if ids else s.get("enabled", True))]
     session = requests.Session()
     session.headers["User-Agent"] = UA
     manifest = DATA / "manifest.csv"
     manifest.parent.mkdir(parents=True, exist_ok=True)
     new_file = not manifest.exists()
-    failures = 0
+    failures, skipped = [], []
 
     with open(manifest, "a", newline="", encoding="utf-8") as mf:
         writer = csv.DictWriter(mf, MANIFEST_COLS)
         if new_file:
             writer.writeheader()
         for src in sources:
+            src = {**src, "area": cfg["area"]}
             print(f"== {src['id']}")
             try:
-                urls = links_for(session, src)
+                items, is_api = links_for(session, src)
+            except Skip as e:
+                print(f"   SALTADA: {e}")
+                skipped.append(src["id"])
+                continue
             except Exception as e:
                 print(f"   ERROR listando: {e}")
-                failures += 1
+                failures.append(src["id"])
                 continue
-            print(f"   {len(urls)} archivos encontrados")
+            print(f"   {len(items)} archivos encontrados")
             out_dir = DATA / "raw" / src["id"]
             out_dir.mkdir(parents=True, exist_ok=True)
-            for url in urls:
-                if not allowed(url):
+            for item in items:
+                url = item["url"]
+                # robots.txt aplica a páginas que rastreamos; las APIs oficiales están hechas para esto.
+                if not is_api and not allowed(url):
                     print(f"   robots.txt bloquea {url}")
                     continue
-                dest = out_dir / filename_for(url)
+                dest = out_dir / (item.get("name") or filename_for(url))
                 try:
-                    res = download(session, url, dest)
+                    res = download(session, item, dest)
                 except Exception as e:
-                    print(f"   ERROR {url}: {e}")
-                    failures += 1
+                    print(f"   ERROR {dest.name}: {e}")
+                    failures.append(src["id"])
                     continue
                 if res is None:
                     continue
@@ -134,6 +154,8 @@ def run(ids: list[str]) -> int:
                 mf.flush()
                 print(f"   ok {dest.name} ({size:,} B)")
                 time.sleep(DELAY)
+
+    print(f"\nListo. Con errores: {sorted(set(failures)) or 'ninguna'}. Saltadas: {skipped or 'ninguna'}")
     return 1 if failures else 0
 
 
