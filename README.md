@@ -29,7 +29,7 @@ Por eso cada fuente tiene un **conector** pequeño en `scraper/sites/` que sabe 
    python scraper/scrape.py
    ```
 
-Cuánto pesa (zona de prueba): ~400 MB las fuentes sin llave, ~3 GB las de NASA con token, **y SMAP ~20 GB por sí solo** (cada archivo es del planeta entero).
+Cuánto pesa (zona de prueba): ~400 MB las fuentes sin llave y ~1 GB las de NASA con token (casi todo es ECOSTRESS). SMAP, IMERG y GEDI se recortan en los servidores de NASA (Harmony), así que bajan solo tu zona.
 Si solo quieres algunas fuentes, pásale sus ids: `python scraper/scrape.py power cdl prism`.
 
 Mi recomendación: que **una persona** baje todo y lo comparta (Drive, USB) en vez de que cada quien baje 25 GB.
@@ -88,12 +88,12 @@ Estado al 14-nov-2026 con la zona de prueba: ✅ = descargado y revisado · 🔑
 | `modis_ndvi` | MODIS | NDVI cada 16 días, 250 m | Planetary Computer | ✅ |
 | `naip` | NAIP | Foto aérea ~1 m | Planetary Computer | ✅ |
 | `srtm` | SRTM (NASADEM) | Elevación | Planetary Computer | ✅ |
-| `smap` | SMAP | Humedad del suelo diaria 9 km | Earthdata (CMR) | 🔑 |
-| `imerg` | GPM IMERG | Lluvia mensual | Earthdata | 🔑 |
-| `ecostress_lst`, `ecostress_et` | ECOSTRESS | Temperatura de superficie y evapotranspiración, 70 m | Earthdata | 🔑 |
-| `viirs_ndvi` | VIIRS | Índices de vegetación 500 m | Earthdata | 🔑 |
-| `nldas`, `gldas` | NLDAS / GLDAS | Clima y humedad de suelo modelados, mensual | Earthdata | 🔑 |
-| `gedi` | GEDI L4A | Biomasa (cada archivo es una órbita, pesado) | Earthdata | 🔑 |
+| `smap` | SMAP | Humedad del suelo diaria 9 km, recortada al área (~1.4 MB/día en vez de 658 MB) | Harmony (NASA) | 🔑 ✅ |
+| `imerg` | GPM IMERG | Lluvia mensual, recortada | Harmony (NASA) | 🔑 requiere autorizar GES DISC |
+| `ecostress_lst`, `ecostress_et` | ECOSTRESS | Temperatura de superficie y evapotranspiración, 70 m | Earthdata | 🔑 ✅ |
+| `viirs_ndvi` | VIIRS | Índices de vegetación 500 m | Earthdata | apagada: ~100 MB/archivo sin recorte; MODIS NDVI ya lo cubre |
+| `nldas`, `gldas` | NLDAS / GLDAS | Clima y humedad de suelo modelados, mensual (~10-24 MB por mes) | Earthdata | 🔑 requiere autorizar GES DISC |
+| `gedi` | GEDI L4A | Biomasa, solo los disparos dentro del área | Harmony (NASA) | 🔑 |
 | `nass` | USDA NASS QuickStats | Rendimientos y superficie sembrada, condado y estado, desde 2000 | API | 🔑 ✅ probado con llave |
 | `ams` | USDA AMS Market News | Precios del reporte 2850 (granos en Iowa) | API | 🔑 ✅ probado con llave |
 | `era5` | ERA5 (Copernicus) | Temperatura, lluvia y humedad de suelo mensual, recortado | API por pedidos | 🔑 ⚠️ |
@@ -104,7 +104,8 @@ Notas:
 - **Sentinel-2** se baja del espejo gratuito de Microsoft Planetary Computer (mismos datos de ESA, sin cuenta), no de Copernicus Data Space.
 - **Web Soil Survey** es la página para ver SSURGO; los datos son los mismos zips que baja `ssurgo`.
 - **SRTM** viene como NASADEM, la versión reprocesada por NASA.
-- **MODIS/VIIRS**: MODIS sale de Planetary Computer; VIIRS de Earthdata.
+- **MODIS/VIIRS**: MODIS sale de Planetary Computer ya recortado; VIIRS está apagado porque Harmony no lo recorta.
+- **Ahorro de datos:** todo lo que se puede se pide recortado al área en el servidor (Planetary Computer, Harmony, WCS de NLCD). Solo bajan archivos completos los que vienen así de origen: PRISM y CoCoRaHS (tablas chicas), GAEZ (global pero ~1 MB), SSURGO (zip del condado) y ECOSTRESS (tiles de pocos MB).
 - Los rásteres de satélite se bajan **ya recortados** al área, así pesan KB o pocos MB en vez de cientos de MB.
 
 ### Agregar o cambiar una fuente
