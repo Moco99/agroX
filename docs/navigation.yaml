@@ -1,0 +1,312 @@
+# AGROX docs navigation graph for coding agents.
+# Read this file first, then load only the docs of your task_path (already closed under depends_on and ordered).
+version: 1
+entry: README.md
+last_review: "2026-11-14"
+
+rules:
+  - "Lee este archivo primero; carga solo los docs de tu task_path, en orden."
+  - "Cada task_path ya incluye sus depends_on transitivos; no cargues nada más salvo que el brief lo pida."
+  - "Si cargas un doc fuera de tu task_path, carga antes sus depends_on transitivos."
+  - "Lee el bloque TL;DR de cada doc; si no aplica a tu tarea, no sigas leyendo ese doc."
+  - "Ante contradicción gana el doc dueño del tema y, sobre todos, decisions."
+  - "Si agregas, renombras o borras un doc, actualiza este archivo en el mismo PR."
+  - "est_tokens es aproximado (bytes/4)."
+
+docs:
+  # ── 00-overview ──
+  - id: glossary
+    path: 00-overview/glossary.md
+    title: Glosario
+    summary: Términos, IDs de módulos y cultivos, enums (DataState, TwinLevel, PhenoStage) y unidades canónicas.
+    depends_on: []
+    read_when: Siempre; base de vocabulario para cualquier tarea.
+    audience: [all]
+    status: draft
+    est_tokens: 1200
+  - id: project-brief
+    path: 00-overview/project-brief.md
+    title: Project brief
+    summary: Qué es AGROX, piloto Iowa, módulos, recorrido de demo, fuera de alcance.
+    depends_on: [glossary]
+    read_when: Planificar, priorizar, escribir textos de producto o pitch.
+    audience: [head, all]
+    status: draft
+    est_tokens: 1000
+  - id: decisions
+    path: 00-overview/decisions.md
+    title: Decisiones (ADRs)
+    summary: ADR-001..011 (incl. R3F vs Streamlit, mockups ilustrativos, tema oscuro/NDVI) y decisiones abiertas O-1..O-17.
+    depends_on: [project-brief]
+    read_when: Antes de tomar o cuestionar una decisión de arquitectura o alcance.
+    audience: [head, reviewer]
+    status: draft
+    est_tokens: 2200
+
+  # ── 01-architecture ──
+  - id: tech-stack
+    path: 01-architecture/tech-stack.md
+    title: Tech stack
+    summary: FastAPI+Pydantic+pandas; React+Vite+TS+Leaflet+R3F(+three-globe stretch)+Recharts; tokens, i18n; JSON versionado; despliegue.
+    depends_on: []
+    read_when: Crear esqueletos, añadir dependencias, decidir despliegue.
+    audience: [builder, head]
+    status: draft
+    est_tokens: 750
+  - id: system-architecture
+    path: 01-architecture/system-architecture.md
+    title: Arquitectura del sistema
+    summary: Capas router→service→engine puro→provider; puertos y adaptadores Synthetic*/Real*.
+    depends_on: [glossary]
+    read_when: Cualquier tarea de backend o que cruce capas.
+    audience: [builder, reviewer, head]
+    status: draft
+    est_tokens: 1000
+  - id: repo-structure
+    path: 01-architecture/repo-structure.md
+    title: Estructura del repo
+    summary: Árbol objetivo (scraper, pipeline, backend, frontend, data, docs) y reglas de ubicación.
+    depends_on: [system-architecture]
+    read_when: Crear carpetas/archivos nuevos o el esqueleto F0.
+    audience: [builder]
+    status: draft
+    est_tokens: 900
+  - id: data-contracts
+    path: 01-architecture/data-contracts.md
+    title: Contratos de datos y API
+    summary: Endpoints (incl. observations NDVI), modelos Pydantic base, Farm/FarmZone por zonas (propuesta), provenance, ejemplos JSON, versionado.
+    depends_on: [glossary]
+    read_when: Tocar API, schemas, providers o tipos del frontend.
+    audience: [builder, reviewer]
+    status: draft
+    est_tokens: 1650
+
+  # ── 02-modules ──
+  - id: digital-twin-engine
+    path: 02-modules/digital-twin-engine.md
+    title: Digital Twin Engine
+    summary: Estado diario, sincronización con observaciones, simulación por bifurcación, gemelo por zona y riego (propuesta); API del engine.
+    depends_on: [system-architecture, data-contracts, model-specs]
+    read_when: Implementar o revisar el gemelo, escenarios o sincronización.
+    audience: [builder, reviewer, head]
+    status: draft
+    est_tokens: 1450
+  - id: earth-scanner
+    path: 02-modules/earth-scanner.md
+    title: Earth Scanner
+    summary: Clima POWER e indicadores (acumulados, umbrales, GDD, ET0, anomalía, SPI); pantallas S1/S2 y overlay NDVI.
+    depends_on: [data-contracts]
+    read_when: Endpoint /api/climate o pantalla de indicadores.
+    audience: [builder]
+    status: draft
+    est_tokens: 1000
+  - id: digital-farm-3d
+    path: 02-modules/digital-farm-3d.md
+    title: Digital Farm (2D + 3D)
+    summary: Mapa Leaflet y diorama isométrico R3F por zonas (capas NDVI/estrés/riego, timeline, globo stretch); ilustrativo.
+    depends_on: [data-contracts, design-tokens, ui-spec]
+    read_when: Cualquier trabajo de mapa, escena 3D o globo.
+    audience: [builder]
+    status: draft
+    est_tokens: 1450
+  - id: rotation-engine
+    path: 02-modules/rotation-engine.md
+    title: Rotation Engine
+    summary: Candidatos, reglas, indicadores A/Ssuelo/C, ranking S, sensibilidad.
+    depends_on: [data-contracts, crop-catalog, model-specs]
+    read_when: Implementar o revisar recomendaciones de rotación.
+    audience: [builder, reviewer]
+    status: draft
+    est_tokens: 950
+  - id: what-if-scenarios
+    path: 02-modules/what-if-scenarios.md
+    title: What If
+    summary: Controles de escenario (incl. riego y presets), años análogos, Monte Carlo; todo SIMULATED.
+    depends_on: [digital-twin-engine, rotation-engine]
+    read_when: Implementar escenarios o sus controles de UI.
+    audience: [builder]
+    status: draft
+    est_tokens: 1000
+  - id: ai-copilot
+    path: 02-modules/ai-copilot.md
+    title: AI Copilot
+    summary: Explicaciones redactadas sobre datos estructurados; modo template obligatorio.
+    depends_on: [data-contracts]
+    read_when: Implementar /api/copilot/explain.
+    audience: [builder]
+    status: draft
+    est_tokens: 500
+  - id: crop-catalog
+    path: 02-modules/crop-catalog.md
+    title: Crop Catalog
+    summary: Campos por cultivo, catalog_v1 piloto (valores TBD), formato JSON, reglas de verificación.
+    depends_on: [data-contracts]
+    read_when: Tocar parámetros de cultivo, reglas de rotación o el catálogo.
+    audience: [builder, reviewer]
+    status: draft
+    est_tokens: 850
+  - id: data-pipeline
+    path: 02-modules/data-pipeline.md
+    title: Data pipeline
+    summary: scraper→raw→pipeline→derived; contrato de archivos derived; deuda técnica del recolector.
+    depends_on: [sources]
+    read_when: Ingesta de datos reales o cambios en scraper/pipeline.
+    audience: [builder]
+    status: draft
+    est_tokens: 950
+
+  # ── 07-design ──
+  - id: design-tokens
+    path: 07-design/design-tokens.md
+    title: Design tokens
+    summary: Tema oscuro muestreado de los mockups (superficies, acentos, texto, estados, radios, tipografía) y escala NDVI canónica.
+    depends_on: []
+    read_when: Estilos, tema Tailwind, leyendas o colores de la escena 3D.
+    audience: [builder, reviewer]
+    status: draft
+    est_tokens: 1250
+  - id: ui-spec
+    path: 07-design/ui-spec.md
+    title: UI spec
+    summary: Layout compartido, pantallas S1-S3 en texto, menú→módulo→vista, elemento UI→endpoint→data_state→prioridad, brecha mockup↔real.
+    depends_on: [data-contracts]
+    read_when: Construir o revisar cualquier pantalla o texto de UI; antes de abrir los mockups.
+    audience: [builder, reviewer, head]
+    status: draft
+    est_tokens: 2500
+
+  # ── 03-models ──
+  - id: models-catalog
+    path: 03-models/models-catalog.md
+    title: Catálogo de modelos
+    summary: Los 18 modelos con clase, MVP, dónde se usan y por qué.
+    depends_on: [glossary]
+    read_when: Saber qué modelo aplica y si está en el MVP; pitch científico.
+    audience: [head, builder, reviewer]
+    status: draft
+    est_tokens: 1300
+  - id: model-specs
+    path: 03-models/model-specs.md
+    title: Especificaciones de modelos
+    summary: Ecuaciones, entradas, salidas y unidades (ET0, Kc, balance hídrico, GDD, score, NDVI...).
+    depends_on: [models-catalog]
+    read_when: Implementar o revisar cualquier cálculo científico.
+    audience: [builder, reviewer]
+    status: draft
+    est_tokens: 1400
+
+  # ── 04-data ──
+  - id: sources
+    path: 04-data/sources.md
+    title: Fuentes de datos
+    summary: Fuentes del recolector, estado, llave requerida, uso y si entran al MVP.
+    depends_on: []
+    read_when: Elegir o integrar una fuente real.
+    audience: [builder, head]
+    status: draft
+    est_tokens: 1000
+  - id: storage-s3
+    path: 04-data/storage-s3.md
+    title: Almacenamiento S3
+    summary: Bucket privado raw/ y derived/, IAM mínimo, variables de entorno con placeholders.
+    depends_on: [data-pipeline]
+    read_when: Subir/bajar datos o empaquetar derived para la demo.
+    audience: [builder]
+    status: draft
+    est_tokens: 800
+  - id: synthetic-data
+    path: 04-data/synthetic-data.md
+    title: Datos sintéticos
+    summary: Generadores con seed fija, etiquetado SYNTHETIC, banner en UI, cómo se reemplaza.
+    depends_on: [data-contracts]
+    read_when: Construir o usar adaptadores Synthetic* o fixtures.
+    audience: [builder, reviewer]
+    status: draft
+    est_tokens: 900
+
+  # ── 05-development ──
+  - id: roadmap
+    path: 05-development/roadmap.md
+    title: Roadmap
+    summary: Fases F0–F5 con entregable, criterio de salida, líder y paralelismo; checklist sintético→real.
+    depends_on: [project-brief]
+    read_when: Planificar, escribir briefs o sustituir sintético por real.
+    audience: [head, builder]
+    status: draft
+    est_tokens: 1250
+  - id: git-workflow
+    path: 05-development/git-workflow.md
+    title: Git workflow
+    summary: Ramas feat/fix/chore desde main, worktrees, Conventional Commits, plantilla de PR.
+    depends_on: []
+    read_when: Antes de crear una rama o abrir un PR.
+    audience: [all]
+    status: draft
+    est_tokens: 750
+  - id: conventions
+    path: 05-development/conventions.md
+    title: Convenciones de código
+    summary: Comentarios arriba y del porqué, banners, nombres, TS strict, Python tipado, capas.
+    depends_on: []
+    read_when: Antes de escribir o revisar código.
+    audience: [builder, reviewer]
+    status: draft
+    est_tokens: 950
+  - id: testing-strategy
+    path: 05-development/testing-strategy.md
+    title: Estrategia de pruebas
+    summary: Unidad, contrato (Synthetic*/Real*), golden, API, arquitectura, Vitest, Playwright.
+    depends_on: [conventions]
+    read_when: Escribir o revisar tests.
+    audience: [builder, reviewer]
+    status: draft
+    est_tokens: 850
+
+  # ── 06-agents ──
+  - id: agent-routing
+    path: 06-agents/agent-routing.md
+    title: Ruteo de modelos
+    summary: Fable HEAD, Opus núcleo y revisión de lógica, Sonnet volumen; matriz tarea→modelo→revisor.
+    depends_on: []
+    read_when: Asignar una tarea o elegir revisor.
+    audience: [head, all]
+    status: draft
+    est_tokens: 1250
+  - id: agent-playbook
+    path: 06-agents/agent-playbook.md
+    title: Playbook de agentes
+    summary: Arranque de constructor y revisor, definición de terminado, plantilla de brief.
+    depends_on: [agent-routing, git-workflow, conventions]
+    read_when: Al empezar cualquier tarea como agente.
+    audience: [all]
+    status: draft
+    est_tokens: 850
+
+# Minimum mandatory reading per role (closed under depends_on).
+by_role:
+  head: [glossary, project-brief, decisions, roadmap, agent-routing]
+  builder: [glossary, conventions, git-workflow, agent-routing, agent-playbook]
+  reviewer: [glossary, conventions, testing-strategy, git-workflow, agent-routing, agent-playbook]
+
+# Ordered, closed reading lists per task type. Builders read by_role.builder first if not already loaded.
+task_paths:
+  plan-or-decide: [glossary, project-brief, decisions, roadmap, agent-routing]
+  write-pitch: [glossary, project-brief, decisions, models-catalog]
+  setup-skeleton: [glossary, system-architecture, repo-structure, tech-stack, data-contracts, conventions, testing-strategy]
+  build-api-endpoints: [glossary, system-architecture, repo-structure, data-contracts, conventions, testing-strategy]
+  build-synthetic-data: [glossary, data-contracts, synthetic-data, conventions, testing-strategy]
+  implement-twin-engine: [glossary, system-architecture, data-contracts, models-catalog, model-specs, digital-twin-engine, synthetic-data, conventions, testing-strategy]
+  implement-earth-scanner: [glossary, data-contracts, models-catalog, model-specs, earth-scanner, conventions, testing-strategy]
+  implement-rotation-engine: [glossary, data-contracts, crop-catalog, models-catalog, model-specs, rotation-engine, conventions, testing-strategy]
+  implement-what-if: [glossary, system-architecture, data-contracts, crop-catalog, models-catalog, model-specs, digital-twin-engine, rotation-engine, what-if-scenarios, conventions, testing-strategy]
+  build-3d-scene: [glossary, data-contracts, design-tokens, ui-spec, digital-farm-3d, conventions]
+  build-frontend-ui: [glossary, data-contracts, design-tokens, ui-spec, digital-farm-3d, earth-scanner, conventions, testing-strategy]
+  build-ui-shell: [glossary, system-architecture, repo-structure, tech-stack, data-contracts, design-tokens, ui-spec, conventions, testing-strategy]
+  design-review: [glossary, project-brief, decisions, data-contracts, design-tokens, ui-spec, agent-routing]
+  build-copilot: [glossary, data-contracts, ai-copilot, conventions]
+  integrate-real-weather: [glossary, project-brief, data-contracts, sources, data-pipeline, models-catalog, model-specs, roadmap, conventions, testing-strategy]
+  integrate-real-soil-and-catalog: [glossary, project-brief, data-contracts, crop-catalog, sources, data-pipeline, roadmap, conventions, testing-strategy]
+  integrate-satellite-sync: [glossary, system-architecture, data-contracts, models-catalog, model-specs, digital-twin-engine, sources, data-pipeline, conventions, testing-strategy]
+  manage-data-storage: [sources, data-pipeline, storage-s3]
+  review-pr: [glossary, data-contracts, conventions, testing-strategy, git-workflow, agent-routing, agent-playbook]
+  update-docs: [glossary, git-workflow]

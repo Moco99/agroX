@@ -1,0 +1,94 @@
+# UI spec: layout y pantallas
+
+> TL;DR: Descripción en texto de los 3 mockups (globo, parcela con NDVI, gemelo digital 3D), mapeo elemento de UI → módulo → dato → `data_state` → prioridad, y la brecha honesta entre mockup y capacidad real. Leer esto basta; abrir las imágenes es opcional.
+> Depende de: [data-contracts](../01-architecture/data-contracts.md)
+> Estado: draft (endpoints marcados PROPUESTA siguen a [data-contracts](../01-architecture/data-contracts.md))
+> Última revisión: 2026-11-14
+
+Los mockups son **referencia visual ilustrativa** (ADR-010 en [decisions](../00-overview/decisions.md)): mandan las reglas de honestidad, no los números de las imágenes. Colores y escala NDVI: [design-tokens](design-tokens.md). Escena 3D: [digital-farm-3d](../02-modules/digital-farm-3d.md).
+
+| Mockup | Archivo |
+|---|---|
+| S1 Exploración (globo) | [01-globe-exploration.jpg](mockups/01-globe-exploration.jpg) |
+| S2 Parcela con NDVI | [02-parcel-ndvi.jpg](mockups/02-parcel-ndvi.jpg) |
+| S3 Gemelo digital | [03-digital-twin.jpg](mockups/03-digital-twin.jpg) |
+
+## Layout compartido (app shell)
+
+| Zona | Contenido | Notas |
+|---|---|---|
+| Barra lateral izq. (~250 px) | Logo AGROX; menú: Exploración, Vegetación, Clima, Rotaciones, Escenarios, Informes; separador; tarjeta "AGROX AI · Análisis y recomendaciones" | Ítem activo con fondo verde tenue; iconos de línea |
+| Barra superior | Búsqueda "Buscar ubicación, establecimiento o área…" con atajo ⌘K; selector de rango de fechas; selector "Capas (n)"; notificaciones; ayuda; avatar | En MVP la búsqueda solo resuelve la parcela piloto (stretch: geocoding) |
+| Zona central | Lienzo (globo / mapa / escena 3D) con controles flotantes a la izquierda: zoom +/−, ubicarme, pantalla completa; barra de escala | Controles en DOM, encima del lienzo |
+| Panel derecho (~470 px) | Tarjeta con título, subtítulo de ubicación, pestañas y bloques de KPI | Scroll propio |
+| Barra inferior | "Capas activas (n)" con casillas + reproductor (play, línea de tiempo con hitos, fecha, ◀ ▶) | Fecha sincronizada con el store |
+| Aviso de datos | Banner "Datos sintéticos — no representan la parcela real" ([synthetic-data](../04-data/synthetic-data.md)) | **Obligatorio**, no aparece en mockups |
+
+Tema oscuro predominante (ADR-011). Copy en es-MX centralizado en `frontend/src/i18n/es.ts` (propuesta): ningún texto de UI suelto en componentes.
+
+## Menú → módulo → vista del dossier
+
+| Menú | Módulo(s) | Vista dossier (1–5) | Pantalla |
+|---|---|---|---|
+| Exploración | `earth_scanner`, `digital_farm` | 1 Workspace | S1 (stretch) → S2 |
+| Vegetación | `twin` (NDVI observado vs simulado), `digital_farm` | 2 Earth Scanner (pestaña vegetación) | S2 con capa NDVI |
+| Clima | `earth_scanner` | 2 Earth Scanner | Panel de indicadores + gráficas |
+| Rotaciones | `rotation`, `crop_catalog` | 3 Rotaciones | Pestaña Rotación de S2/S3 |
+| Escenarios | `what_if`, `twin`, `digital_farm` | 4 Farm 3D | S3 |
+| Informes | todos (solo lectura) | 5 Informe | F5 |
+| Tarjeta AGROX AI | `copilot` (opcional) | transversal | Cajas "Análisis…/Explicación de AGROX AI" |
+
+## S1 · Exploración (globo) — stretch
+
+Globo 3D sobre fondo estelar ocupa el centro. Panel "Análisis de región" con selector de región; 4 KPI (NDVI prom., Precipitación mm, Temperatura °C, Radiación solar MJ/m²) cada uno con delta ▲/▼ y referencia ("vs. período anterior" / "vs. promedio histórico"); gráfica de área "Evolución del NDVI" con selector "Últimos 6 meses" y tooltip; "Compatibilidad de cultivos" con barras horizontales por cultivo y chevron. Barra inferior de capas: NDVI, Precipitación, Temperatura, Límites + reproductor. Opciones técnicas del globo: [digital-farm-3d](../02-modules/digital-farm-3d.md).
+
+## S2 · Parcela con NDVI (MVP)
+
+Stepper superior: 1 Ubicación → 2 Granja → 3 Análisis (✓ en pasos completos). Mapa satelital con polígono de la parcela (borde verde brillante), mapa de calor NDVI recortado al polígono, etiqueta flotante (nombre + ha), leyenda NDVI y escala. Alternador "Imagen satelital / NDVI". Panel derecho: nombre de granja, ubicación, área, botón Editar; pestañas Resumen/Cultivos/Rotación/Escenarios; "Estado de la vegetación (NDVI)" (valor + delta + mini-serie); "Condiciones recientes (prom. últimos 30 días)": temperatura, precipitación, radiación; caja "Análisis de la parcela" (texto AI con check); CTA "Ver recomendaciones de cultivo". Abajo: "Evolución del NDVI" con reproductor. Detalle: [earth-scanner](../02-modules/earth-scanner.md).
+
+## S3 · Gemelo digital (MVP)
+
+Pestañas del lienzo: Gemelo digital / Mapa 2D / Vista satelital; selector "Escenario: <preset>". Diorama isométrico low-poly de la granja en 4 zonas con etiquetas (zona, cultivo, ha, vigor NDVI), coloreadas rojo→verde por vigor; camino, casa, silo, estanque, árboles, aspersores; leyenda "Vigor vegetal (NDVI)", rosa de los vientos y escala. Panel derecho "Gemelo digital de la granja": pestañas Resumen/Cultivos/Escenario/Rotación; "Condiciones de simulación": sliders de reducción de precipitación y aumento de temperatura, segmentado "Nivel de riego" (Sin riego/Bajo/Medio/Alto), humedad del suelo prom., etapa del cultivo; 5 mosaicos KPI (NDVI, Temperatura, Precipitación, Humedad del suelo, Estrés esperado) con deltas; caja "Explicación de AGROX AI" con "Recomendación". Abajo: capas (NDVI, Humedad del suelo, Temperatura, Riego, Estrés hídrico) y línea de tiempo por etapas (Siembra, Desarrollo, Floración, Llenado, Cosecha) con reproductor. Detalle: [digital-farm-3d](../02-modules/digital-farm-3d.md), [what-if-scenarios](../02-modules/what-if-scenarios.md).
+
+## Elemento de UI → dato
+
+| Elemento | Pant. | Módulo | Endpoint / dato fuente | `data_state` | Prioridad |
+|---|---|---|---|---|---|
+| Shell (sidebar, topbar, rango de fechas, capas) | todas | — | store | — | MVP |
+| Banner datos sintéticos | todas | — | `data_mode` de cada respuesta | SYNTHETIC | MVP |
+| Globo + capas diarias | S1 | `digital_farm` | textura NASA + GIBS (verificar) | MEASURED (imagen) | stretch |
+| KPI de región + deltas | S1 | `earth_scanner` | `GET /api/climate` | MEASURED / SYNTHETIC | stretch |
+| Compatibilidad de cultivos | S1/S2 | `rotation` | `POST /api/rotations/recommend` (indicadores A/Ssuelo/C) | ESTIMATED / SYNTHETIC | stretch |
+| Stepper Ubicación→Granja→Análisis | S2 | `digital_farm` | `POST /api/farms/analyze` + entradas `DECLARED` | DECLARED | MVP |
+| Polígono de parcela y zonas | S2/S3 | `digital_farm` | `derived/parcel/<parcel_id>.geojson` | DECLARED | MVP |
+| Overlay NDVI (mapa de calor) | S2 | `twin` (obs.) | `GET /api/observations/ndvi-overlay` (PROPUESTA) | MEASURED / SYNTHETIC | MVP (sintético) |
+| Serie "Evolución del NDVI" | S1/S2 | `twin` | `GET /api/observations/ndvi` (PROPUESTA) | MEASURED / SYNTHETIC | MVP |
+| Condiciones recientes 30 d | S2 | `earth_scanner` | `GET /api/climate` | MEASURED / SYNTHETIC | MVP |
+| Caja "Análisis/Explicación de AGROX AI" | S2/S3 | `copilot` | `POST /api/copilot/explain` (modo `template`) | hereda de la entrada | MVP (template) |
+| CTA recomendaciones / pestaña Rotación | S2/S3 | `rotation` | `POST /api/rotations/recommend` | ESTIMATED / SYNTHETIC | MVP |
+| Diorama 3D por zonas | S3 | `digital_farm` | `POST /api/twin/simulate` (zonas, PROPUESTA) | SIMULATED / SYNTHETIC | MVP |
+| Sliders precip./temp., preset | S3 | `what_if` | `POST /api/twin/simulate` `scenario` | SIMULATED | MVP |
+| Nivel de riego | S3 | `what_if`, `twin` | `irrigation_level` (PROPUESTA) | DECLARED (entrada) | MVP |
+| KPI humedad del suelo | S3 | `twin` | `TwinState.root_zone_depletion_mm` / `taw_mm` | ESTIMATED / SIMULATED | MVP |
+| KPI estrés esperado | S3 | `twin` | `TwinState.ks` + umbrales (TBD) | SIMULATED | MVP |
+| Timeline por etapas | S3 | `twin` | `TwinState.stage`, `gdd_cum` | ESTIMATED / SIMULATED | MVP |
+| Capas Temperatura/Riego/Estrés en 3D | S3 | `digital_farm` | salidas por zona | SIMULATED | MVP (NDVI, estrés) · stretch (resto) |
+| Búsqueda ⌘K, notificaciones, avatar | todas | — | — | — | stretch (placeholders inertes) |
+
+Cada KPI muestra insignia `data_state` (MEASURED/ESTIMATED/SIMULATED/SYNTHETIC) junto al valor.
+
+## Brecha mockup ↔ capacidad real
+
+| # | Mockup | Realidad / regla |
+|---|---|---|
+| a | Argentina / Veracruz, globo | Piloto Iowa (ADR-001, pendiente O-1): textos y datos de demo usan la parcela piloto. |
+| b | "Compatibilidad 92 %" | No es probabilidad: índice comparativo 0–100 ("92/100") con enlace a metodología y fuentes. |
+| c | Texto de AGROX AI y "sorgo" | Solo resultados del motor ([ai-copilot](../02-modules/ai-copilot.md)); si `sorghum` no está en el catálogo ni lo rankea el motor, no se recomienda. |
+| d | Timeline 1 ene–28 feb | Irreal para maíz/soya de Iowa: temporada real 2024 (may–sep) o calendario sintético etiquetado. |
+| e | "Humedad del suelo 22 %" | POWER `GWETROOT`/`GWETTOP` son índices adimensionales 0–1 (verificar en doc de POWER); el gemelo da agua en suelo en mm. Mostrar uno, con unidad y etiqueta (O-13). |
+| f | Mapa de calor NDVI fino | Requiere Sentinel-2/Landsat recortado (serie truncada, ver [data-pipeline](../02-modules/data-pipeline.md)) o MODIS 250 m (grueso): la leyenda declara resolución y fecha. |
+| g | "Estrés esperado Medio-alto" | Requiere umbrales sobre `ks` en [model-specs](../03-models/model-specs.md) (TBD, O-16). |
+| h | KPI sin procedencia | Insignia `data_state` en cada KPI; en F1 aviso visible "datos sintéticos". |
+| i | Nivel de riego | Input nuevo del balance hídrico (`I_i`); mm aplicados por nivel = TBD (O-15). |
+| j | 4 zonas con cultivos distintos | Gemelo **por zona**: cada zona = instancia con su cultivo y suelo; granja = lista de zonas; MVP 1–4 zonas. |
+| k | Vigor NDVI que cambia con el escenario | El gemelo no simula NDVI: bajo escenario la capa por defecto del 3D es estrés hídrico (`ks`, SIMULATED); NDVI queda como último observado con su fecha. |
