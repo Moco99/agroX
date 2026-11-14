@@ -1,0 +1,8 @@
+[
+  {
+    "id": "ejemplo",
+    "url": "https://example.org/datos-abiertos",
+    "enabled": false,
+    "notes": "Copia este bloque por cada sitio. Opcional: \"pattern\" (regex de URL) o \"exts\" ([\".csv\", \".pdf\"])."
+  }
+]
