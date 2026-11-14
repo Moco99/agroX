@@ -12,10 +12,31 @@ Casi ninguna de estas fuentes es una página con enlaces para descargar. Son **A
 donde pides algo con un formato fijo ("dame la lluvia de este punto entre estas fechas") y te lo entregan.
 Por eso cada fuente tiene un **conector** pequeño en `scraper/sites/` que sabe cómo pedirle a su ventanilla.
 
+### Para el equipo: bajar los datos en tu compu
+
+1. Clona el repo y entra a la carpeta:
+   ```bash
+   git clone https://github.com/Moco99/agroX.git
+   cd agroX
+   ```
+2. Instala lo necesario (Python 3.10 o más nuevo):
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. **Opcional, para las fuentes con llave:** copia `.env.example` como `.env` y pon tus llaves (ver "Llaves" abajo). Sin `.env` funcionan 14 fuentes.
+4. Corre:
+   ```bash
+   python scraper/scrape.py
+   ```
+
+Cuánto pesa (zona de prueba): ~400 MB las fuentes sin llave, ~3 GB las de NASA con token, **y SMAP ~20 GB por sí solo** (cada archivo es del planeta entero).
+Si solo quieres algunas fuentes, pásale sus ids: `python scraper/scrape.py power cdl prism`.
+
+Mi recomendación: que **una persona** baje todo y lo comparta (Drive, USB) en vez de que cada quien baje 25 GB.
+
 ### Cómo usarlo
 
 ```bash
-pip install -r requirements.txt
 python scraper/scrape.py                 # todas las fuentes
 python scraper/scrape.py power cdl smap  # solo algunas
 ```
@@ -40,7 +61,7 @@ Copia `.env.example` como `.env` y llena las que consigas. Sin llave, esa fuente
 
 | Variable | Para | Dónde se saca |
 |---|---|---|
-| `EARTHDATA_TOKEN` | SMAP, IMERG, ECOSTRESS, VIIRS, NLDAS, GLDAS, GEDI | https://urs.earthdata.nasa.gov → Generate Token |
+| `EARTHDATA_TOKEN` | SMAP, IMERG, ECOSTRESS, VIIRS, NLDAS, GLDAS, GEDI | https://urs.earthdata.nasa.gov → Generate Token. Para IMERG, NLDAS y GLDAS además autoriza "NASA GESDISC DATA ARCHIVE" en https://urs.earthdata.nasa.gov/approve_app?client_id=e2WVk8Pw6weeLUKZYOxvTQ (si no, sale "EULA Acceptance Failure") |
 | `NASS_API_KEY` | QuickStats | https://quickstats.nass.usda.gov/api |
 | `AMS_API_KEY` | Market News | https://mymarketnews.ams.usda.gov |
 | `CDS_API_KEY` | ERA5 (y aceptar la licencia del dataset en su página) | https://cds.climate.copernicus.eu |
@@ -73,11 +94,11 @@ Estado al 14-nov-2026 con la zona de prueba: ✅ = descargado y revisado · 🔑
 | `viirs_ndvi` | VIIRS | Índices de vegetación 500 m | Earthdata | 🔑 |
 | `nldas`, `gldas` | NLDAS / GLDAS | Clima y humedad de suelo modelados, mensual | Earthdata | 🔑 |
 | `gedi` | GEDI L4A | Biomasa (cada archivo es una órbita, pesado) | Earthdata | 🔑 |
-| `nass` | USDA NASS QuickStats | Rendimientos y superficie sembrada, condado y estado, desde 2000 | API | 🔑 |
-| `ams` | USDA AMS Market News | Precios del reporte 2850 (granos en Iowa) | API | 🔑 ⚠️ |
+| `nass` | USDA NASS QuickStats | Rendimientos y superficie sembrada, condado y estado, desde 2000 | API | 🔑 ✅ probado con llave |
+| `ams` | USDA AMS Market News | Precios del reporte 2850 (granos en Iowa) | API | 🔑 ✅ probado con llave |
 | `era5` | ERA5 (Copernicus) | Temperatura, lluvia y humedad de suelo mensual, recortado | API por pedidos | 🔑 ⚠️ |
 | `landfire` | LANDFIRE | Tipo, cobertura y altura de vegetación + pendiente | API por trabajos | 🔑 ⚠️ |
-| `openet` | OpenET | Evapotranspiración mensual | API | apagada: no cubre Iowa |
+| `openet` | OpenET | Evapotranspiración mensual | API | apagada: no cubre Iowa (llave probada con un punto en California) |
 
 Notas:
 - **Sentinel-2** se baja del espejo gratuito de Microsoft Planetary Computer (mismos datos de ESA, sin cuenta), no de Copernicus Data Space.

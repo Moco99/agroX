@@ -26,7 +26,7 @@
     {"id": "naip", "hook": "stac", "collection": "naip", "assets": ["image"], "max_items": 2, "max_size": 4000, "notes": "NAIP foto aerea ~1 m"},
     {"id": "srtm", "hook": "stac", "collection": "nasadem", "assets": ["elevation"], "max_items": 1, "max_size": 1000, "all_dates": true, "notes": "NASADEM = SRTM reprocesado por NASA"},
 
-    {"id": "smap", "hook": "earthdata", "short_name": "SPL3SMP_E", "max_granules": 30, "notes": "SMAP humedad de suelo diaria 9 km (global)"},
+    {"id": "smap", "hook": "earthdata", "short_name": "SPL3SMP_E", "max_granules": 30, "notes": "SMAP humedad de suelo diaria 9 km. Cada archivo es GLOBAL (~650 MB): 30 archivos ~ 20 GB"},
     {"id": "imerg", "hook": "earthdata", "short_name": "GPM_3IMERGM", "max_granules": 24, "notes": "GPM IMERG lluvia mensual (global)"},
     {"id": "ecostress_lst", "hook": "earthdata", "short_name": "ECO_L2T_LSTE", "version": "002", "max_granules": 20, "notes": "ECOSTRESS temperatura de superficie (tiles 70 m)"},
     {"id": "ecostress_et", "hook": "earthdata", "short_name": "ECO_L3T_JET", "version": "002", "max_granules": 20, "notes": "ECOSTRESS evapotranspiracion (tiles 70 m)"},
