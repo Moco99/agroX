@@ -1,12 +1,14 @@
 import { create } from "zustand";
 import { GLOBE_VIEW, PILOT_VIEW, type CameraView } from "../lib/globe-view";
+import { useParcelStore } from "./parcel-store";
 import { useStageStore } from "./stage-store";
 
 // ─────────────────────────────────────────
 // Section: Geographic view state shared by the globe/map stages, the top bar and the point query
 // ─────────────────────────────────────────
 
-export type FlightTarget = "pilot" | "globe" | CameraView;
+// "parcel" is the active parcel (the pilot until the user opens another one)
+export type FlightTarget = "pilot" | "parcel" | "globe" | CameraView;
 
 export interface FlightRequest {
   view: CameraView;
@@ -39,11 +41,17 @@ let flightSeq = 0;
 
 // Deep links to the farm or the twin start the camera at the farm so "back" lands on the polygons
 export function initialCamera(stage = useStageStore.getState().stage): CameraView {
-  return stage === "globe" ? GLOBE_VIEW : PILOT_VIEW;
+  return stage === "globe" ? GLOBE_VIEW : parcelView();
+}
+
+// Same framing as the pilot view, centred on whichever parcel is active
+export function parcelView(): CameraView {
+  return { ...PILOT_VIEW, center: useParcelStore.getState().center };
 }
 
 export function resolveFlight(target: FlightTarget): CameraView {
   if (target === "pilot") return PILOT_VIEW;
+  if (target === "parcel") return parcelView();
   if (target === "globe") return GLOBE_VIEW;
   return target;
 }
@@ -58,8 +66,8 @@ export const useMapStore = create<MapStore>((set) => ({
   flyTo: (target) => {
     flightSeq += 1;
     set({ flight: { view: resolveFlight(target), id: flightSeq }, interacted: true });
-    // Only the pilot has a farm stage; any other destination is still "exploration"
-    useStageStore.getState().startFlight(target === "pilot" ? "map" : "globe");
+    // Only a parcel (the pilot or an opened one) has a farm stage; any other destination is still "exploration"
+    useStageStore.getState().startFlight(target === "pilot" || target === "parcel" ? "map" : "globe");
   },
   markInteracted: () => set({ interacted: true }),
   consumeFlight: (id) => set((s) => (s.flight?.id === id ? { flight: null } : {})),

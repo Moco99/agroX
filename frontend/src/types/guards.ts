@@ -16,6 +16,7 @@ import type {
   TwinConfig,
   TwinSimulateResponse,
 } from "./api";
+import type { CropCatalogLite } from "./parcel";
 
 // ─────────────────────────────────────────
 // Section: Runtime guards for API payloads
@@ -245,4 +246,21 @@ export function toRegionSummary(v: unknown): RegionSummary | null {
 
 export function isClimateResponse(value: unknown): value is ClimateResponse {
   return isRecord(value) && isRecord(value.series) && Array.isArray(value.series.days) && isRecord(value.indicators);
+}
+
+// ─────────────────────────────────────────
+// Section: Crop catalog (declaration form)
+// ─────────────────────────────────────────
+
+export function isCropCatalog(value: unknown): value is CropCatalogLite {
+  if (!isRecord(value) || !hasArray(value, "crops") || typeof value.catalog_version !== "string") return false;
+  return (value.crops as unknown[]).every(
+    (c) =>
+      isRecord(c) &&
+      typeof c.crop_id === "string" &&
+      typeof c.name_es === "string" &&
+      typeof c.cycle_days === "number" &&
+      isRecord(c.planting_window) &&
+      typeof c.planting_window.start_mmdd === "string",
+  );
 }

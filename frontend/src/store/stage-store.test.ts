@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GLOBE_VIEW, PILOT_VIEW } from "../lib/globe-view";
+import { useParcelStore } from "./parcel-store";
 import { initialCamera, resolveFlight, useMapStore } from "./map-store";
 import { FADE_MS, readDeepLink, REVEAL_MS, useStageStore } from "./stage-store";
 
@@ -80,7 +81,15 @@ describe("map store", () => {
     expect(resolveFlight("pilot")).toBe(PILOT_VIEW);
     expect(resolveFlight("globe")).toBe(GLOBE_VIEW);
     expect(initialCamera("globe")).toBe(GLOBE_VIEW);
-    expect(initialCamera("twin")).toBe(PILOT_VIEW);
+    expect(initialCamera("twin")).toEqual(PILOT_VIEW);
+  });
+
+  it("flies to the active parcel and lands on the farm stage", () => {
+    useParcelStore.getState().setFarm("pt_18.83_-96.78");
+    expect(resolveFlight("parcel").center).toEqual([-96.78, 18.83]);
+    useMapStore.getState().flyTo("parcel");
+    expect(useStageStore.getState()).toMatchObject({ phase: "flying", pending: "map" });
+    useParcelStore.getState().setFarm("story_pilot_farm");
   });
 
   it("issues monotonic flight ids, stops the idle spin and is consumed once", () => {

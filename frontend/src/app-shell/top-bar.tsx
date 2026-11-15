@@ -2,7 +2,9 @@ import { PointSearch } from "../screens/point/point-search";
 import { useEffect, useState } from "react";
 import { es, fmtDate } from "../i18n/es";
 import { useStageStore } from "../store/stage-store";
-import { SEASONS, seasonRange, useTwinStore } from "../store/twin-store";
+import { isPilotFarm } from "../lib/parcel";
+import { useParcelStore } from "../store/parcel-store";
+import { SEASONS, useTwinStore } from "../store/twin-store";
 
 // ─────────────────────────────────────────
 // Section: Top bar (search ⌘K, season range, layer count, notifications, help, avatar)
@@ -16,7 +18,10 @@ export function TopBar() {
   const setShowCredits = useStageStore((s) => s.setShowCredits);
   const showCredits = useStageStore((s) => s.showCredits);
   const [searchOpen, setSearchOpen] = useState(false);
-  const { start, end } = seasonRange(year);
+  const span = useTwinStore((s) => s.span);
+  const farmId = useParcelStore((s) => s.farmId);
+  const pilot = isPilotFarm(farmId);
+  const { start, end } = span;
   // The twin stage always has exactly one active layer (radio); globe/map count their two pilot toggles
   const layerCount = stage === "twin" ? 1 : [mapLayers.ndvi, mapLayers.boundaries].filter(Boolean).length;
 
@@ -52,22 +57,24 @@ export function TopBar() {
         )}
       </div>
       <div className="top-bar-right">
-        <label className="date-range" title={es.geo.pilotSeason}>
+        <label className="date-range" title={pilot ? es.geo.pilotSeason : es.openParcel.seasonTitle}>
           <span aria-hidden>▦</span>
           <span>
-            Iowa · {fmtDate(start)} – {fmtDate(end)}
+            {pilot ? "Iowa" : es.openParcel.seasonLabel} · {fmtDate(start)} – {fmtDate(end)}
           </span>
-          <select
-            value={year}
-            onChange={(e) => void loadSeason(Number(e.target.value))}
-            aria-label={es.geo.pilotSeason}
-          >
-            {SEASONS.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
+          {pilot && (
+            <select
+              value={year}
+              onChange={(e) => void loadSeason(Number(e.target.value))}
+              aria-label={es.geo.pilotSeason}
+            >
+              {SEASONS.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          )}
         </label>
         <span className="chip-button" title={es.layers.title}>
           <span aria-hidden>▤</span> {es.topbar.layers(layerCount)}

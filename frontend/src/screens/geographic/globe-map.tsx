@@ -24,10 +24,14 @@ import {
   stageForCamera,
   type CameraView,
 } from "../../lib/globe-view";
+import { observedNdvi } from "../../lib/derive";
 import { api } from "../../services/api";
 import { useMapStore } from "../../store/map-store";
+import { openPilot } from "../../store/open-parcel";
+import { useParcelStore } from "../../store/parcel-store";
 import { useStageStore } from "../../store/stage-store";
-import { FARM_ID, useTwinStore } from "../../store/twin-store";
+import { useTwinStore } from "../../store/twin-store";
+import { NDVI_RAMP, rampColor } from "../../styles/tokens";
 import type { GeoBounds } from "../../types/api";
 
 setWorkerUrl(workerUrl);
@@ -52,7 +56,7 @@ const SPIN_MAX_ZOOM = 3;
 // Consecutive failed network tiles (with no success in between) before declaring the imagery offline
 const OFFLINE_AFTER_ERRORS = 4;
 // Farm overlays appear once the farm covers a few pixels; below that they would only add clutter
-const PILOT_MIN_ZOOM = 10;
+const PARCEL_MIN_ZOOM = 10;
 
 export interface MapStatus {
   zoom: number;
@@ -116,8 +120,11 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
   const flight = useMapStore((s) => s.flight);
   const interacted = useMapStore((s) => s.interacted);
   const farm = useTwinStore((s) => s.farm)?.farm;
+  const farmId = useParcelStore((s) => s.farmId);
   const meta = useTwinStore((s) => s.imageryMeta);
   const ndviDate = useTwinStore((s) => s.ndviDate);
+  const sentinel2 = useTwinStore((s) => s.sentinel2);
+  const plan = useTwinStore((s) => s.plan);
   const layers = useTwinStore((s) => s.mapLayers);
   const watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
   const statusRef = useRef(onStatus);
@@ -188,8 +195,9 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
       const st = useStageStore.getState();
       if (st.stage === "twin") return;
       // A flight lands wherever the camera ended (also when the user interrupted it): only the pilot is "map"
-      if (st.phase === "flying") st.endFlight(stageForCamera("globe", camera));
-      else st.setGeoStage(stageForCamera(st.stage, camera));
+      const anchor = useParcelStore.getState().center;
+      if (st.phase === "flying") st.endFlight(stageForCamera("globe", camera, anchor));
+      else st.setGeoStage(stageForCamera(st.stage, camera, anchor));
     });
 
     // Any direct manipulation stops the idle spin for good
@@ -265,7 +273,7 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
     if (reducedMotion) {
       map.jumpTo({ center, zoom, bearing, pitch });
       const st = useStageStore.getState();
-      if (st.phase === "flying") st.endFlight(stageForCamera("globe", cameraOf(map)));
+      if (st.phase === "flying") st.endFlight(stageForCamera("globe", cameraOf(map), useParcelStore.getState().center));
       return;
     }
     // curve > default zooms out further mid-flight, so a long hop reads as leaving and re-entering the Earth
@@ -274,7 +282,8 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
     if (watchdog.current) clearTimeout(watchdog.current);
     watchdog.current = setTimeout(() => {
       const st = useStageStore.getState();
-      if (st.phase === "flying" && mapRef.current) st.endFlight(stageForCamera("globe", cameraOf(mapRef.current)));
+      if (st.phase === "flying" && mapRef.current)
+        st.endFlight(stageForCamera("globe", cameraOf(mapRef.current), useParcelStore.getState().center));
     }, FLIGHT_MS + 1500);
   }, [flight, ready, reducedMotion]);
 
@@ -302,13 +311,14 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
     const el = pilotPinElement();
     const onClick = (e: MouseEvent) => {
       e.stopPropagation();
-      useMapStore.getState().flyTo("pilot");
+      // Visiting the pilot makes it the active parcel again (so every panel shows Iowa data)
+      openPilot();
     };
     el.addEventListener("click", onClick);
     const marker = new Marker({ element: el }).setLngLat(PILOT_CENTER).addTo(map);
     // The pin hands over to the drawn polygons once they become visible
     const sync = () => {
-      el.style.display = map.getZoom() < PILOT_MIN_ZOOM ? "" : "none";
+      el.style.display = map.getZoom() < PARCEL_MIN_ZOOM ? "" : "none";
     };
     sync();
     map.on("zoom", sync);
@@ -319,90 +329,167 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
     };
   }, [ready]);
 
-  // ── Farm polygon + zones (GeoJSON from the farm endpoint) ──
+  // ── Farm polygon + zones (GeoJSON from the farm endpoint); emptied when the active parcel has no farm yet ──
   useEffect(() => {
     const map = ready;
-    if (!map || !farm) return;
+    if (!map) return;
     const data = {
       type: "FeatureCollection" as const,
-      features: [
-        { type: "Feature" as const, properties: { kind: "farm", name: farm.name }, geometry: farm.geometry },
-        ...farm.zones.map((z) => ({
-          type: "Feature" as const,
-          properties: { kind: "zone", name: z.name },
-          geometry: z.geometry,
-        })),
-      ],
+      features: farm
+        ? [
+            { type: "Feature" as const, properties: { kind: "farm", name: farm.name }, geometry: farm.geometry },
+            ...farm.zones.map((z) => ({
+              type: "Feature" as const,
+              properties: { kind: "zone", name: z.name },
+              geometry: z.geometry,
+            })),
+          ]
+        : [],
     };
-    const source = map.getSource<GeoJSONSource>("pilot-farm");
+    const source = map.getSource<GeoJSONSource>("parcel-farm");
     if (source) {
       source.setData(data);
       return;
     }
-    map.addSource("pilot-farm", { type: "geojson", data });
+    map.addSource("parcel-farm", { type: "geojson", data });
     map.addLayer({
-      id: "pilot-zones-line",
+      id: "parcel-zones-line",
       type: "line",
-      source: "pilot-farm",
-      minzoom: PILOT_MIN_ZOOM,
+      source: "parcel-farm",
+      minzoom: PARCEL_MIN_ZOOM,
       filter: ["==", ["get", "kind"], "zone"],
       paint: { "line-color": "#f2ffe9", "line-width": 1.2, "line-opacity": 0.85, "line-dasharray": [2, 1.5] },
     });
     map.addLayer({
-      id: "pilot-farm-line",
+      id: "parcel-farm-line",
       type: "line",
-      source: "pilot-farm",
-      minzoom: PILOT_MIN_ZOOM,
+      source: "parcel-farm",
+      minzoom: PARCEL_MIN_ZOOM,
       filter: ["==", ["get", "kind"], "farm"],
       paint: { "line-color": "#9dff6a", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.5, 16, 3.5] },
     });
   }, [ready, farm]);
 
-  // ── NAIP orthophoto from the backend: the pilot still shows real imagery when the tile services are offline ──
+  // ── Zone labels (DOM markers: the globe style ships no glyphs for symbol layers) ──
   useEffect(() => {
     const map = ready;
-    if (!map || !meta) return;
-    if (!map.getSource("pilot-naip")) {
-      map.addSource("pilot-naip", { type: "image", url: api.basemapUrl(FARM_ID), coordinates: boundsCoordinates(meta.bounds) });
-      map.addLayer(
-        { id: "pilot-naip", type: "raster", source: "pilot-naip", minzoom: PILOT_MIN_ZOOM - 1, layout: { visibility: "none" } },
-        map.getLayer("pilot-ndvi") ? "pilot-ndvi" : map.getLayer("pilot-zones-line") ? "pilot-zones-line" : undefined,
-      );
-    }
-    map.setLayoutProperty("pilot-naip", "visibility", offline ? "visible" : "none");
-  }, [ready, meta, offline]);
+    if (!map || !farm || stage === "twin") return;
+    const markers = farm.zones.map((z) => {
+      const el = document.createElement("div");
+      el.className = "zone-label";
+      // textContent keeps backend-provided names from ever being parsed as markup
+      const name = document.createElement("strong");
+      name.textContent = z.name;
+      const crop = document.createElement("small");
+      const cropId = plan?.zoneCrops[z.zone_id] ?? z.crop_id;
+      crop.textContent = es.crops[cropId] ?? cropId;
+      el.append(name, crop);
+      return new Marker({ element: el, anchor: "center" }).setLngLat([z.centroid.lon, z.centroid.lat]).addTo(map);
+    });
+    // Labels hide below the zoom where the zones become readable, like the polygons themselves
+    const sync = () => {
+      const show = map.getZoom() >= PARCEL_MIN_ZOOM + 3.5 && useTwinStore.getState().mapLayers.boundaries;
+      for (const m of markers) m.getElement().style.display = show ? "" : "none";
+    };
+    sync();
+    map.on("zoom", sync);
+    return () => {
+      map.off("zoom", sync);
+      for (const m of markers) m.remove();
+    };
+  }, [ready, farm, plan, stage, layers.boundaries]);
 
-  // ── NDVI raster for the selected Sentinel-2 date (served by /api/imagery/ndvi) ──
+  // ── Basemap from the backend (pilot NAIP, or the parcel basemap): imagery still shows when tile services are offline ──
   useEffect(() => {
     const map = ready;
-    if (!map || !meta || !ndviDate) return;
+    if (!map) return;
+    if (map.getLayer("parcel-basemap")) map.removeLayer("parcel-basemap");
+    if (map.getSource("parcel-basemap")) map.removeSource("parcel-basemap");
+    if (!meta) return;
+    map.addSource("parcel-basemap", { type: "image", url: api.basemapUrl(farmId), coordinates: boundsCoordinates(meta.bounds) });
+    map.addLayer(
+      { id: "parcel-basemap", type: "raster", source: "parcel-basemap", minzoom: PARCEL_MIN_ZOOM - 1, layout: { visibility: "none" } },
+      map.getLayer("parcel-ndvi") ? "parcel-ndvi" : map.getLayer("parcel-zones-line") ? "parcel-zones-line" : undefined,
+    );
+  }, [ready, meta, farmId]);
+
+  useEffect(() => {
+    const map = ready;
+    if (!map || !map.getLayer("parcel-basemap")) return;
+    map.setLayoutProperty("parcel-basemap", "visibility", offline ? "visible" : "none");
+  }, [ready, meta, offline, farmId]);
+
+  // ── NDVI raster for the selected Sentinel-2 date (served by /api/imagery/ndvi); recreated per parcel ──
+  useEffect(() => {
+    const map = ready;
+    if (!map) return;
+    if (!meta || !ndviDate) {
+      if (map.getLayer("parcel-ndvi")) map.removeLayer("parcel-ndvi");
+      if (map.getSource("parcel-ndvi")) map.removeSource("parcel-ndvi");
+      return;
+    }
     const coordinates = boundsCoordinates(meta.bounds);
-    const url = api.ndviImageUrl(FARM_ID, ndviDate);
-    const src = map.getSource<ImageSource>("pilot-ndvi");
+    const url = api.ndviImageUrl(farmId, ndviDate);
+    const src = map.getSource<ImageSource>("parcel-ndvi");
     if (src) {
       src.updateImage({ url, coordinates });
       return;
     }
-    map.addSource("pilot-ndvi", { type: "image", url, coordinates });
+    map.addSource("parcel-ndvi", { type: "image", url, coordinates });
     map.addLayer(
       {
-        id: "pilot-ndvi",
+        id: "parcel-ndvi",
         type: "raster",
-        source: "pilot-ndvi",
-        minzoom: PILOT_MIN_ZOOM,
+        source: "parcel-ndvi",
+        minzoom: PARCEL_MIN_ZOOM,
         paint: { "raster-opacity": 0.72, "raster-fade-duration": 0 },
       },
-      map.getLayer("pilot-zones-line") ? "pilot-zones-line" : undefined,
+      map.getLayer("parcel-zones-line") ? "parcel-zones-line" : undefined,
     );
-  }, [ready, meta, ndviDate]);
+  }, [ready, meta, ndviDate, farmId]);
+
+  // ── Fallback NDVI: one colour per zone from the real zonal series when no NDVI raster exists for the parcel ──
+  useEffect(() => {
+    const map = ready;
+    if (!map) return;
+    const useZoneColour = !meta && !!farm && !!ndviDate && !!sentinel2;
+    const features = useZoneColour
+      ? farm.zones.map((z) => {
+          const obs = observedNdvi(z.zone_id, ndviDate, [sentinel2]);
+          return {
+            type: "Feature" as const,
+            properties: { fill: rampColor(NDVI_RAMP, obs?.point.value ?? null) },
+            geometry: z.geometry,
+          };
+        })
+      : [];
+    const data = { type: "FeatureCollection" as const, features };
+    const source = map.getSource<GeoJSONSource>("parcel-zones-ndvi");
+    if (source) {
+      source.setData(data);
+      return;
+    }
+    map.addSource("parcel-zones-ndvi", { type: "geojson", data });
+    map.addLayer(
+      {
+        id: "parcel-zones-ndvi",
+        type: "fill",
+        source: "parcel-zones-ndvi",
+        minzoom: PARCEL_MIN_ZOOM,
+        paint: { "fill-color": ["get", "fill"], "fill-opacity": 0.6 },
+      },
+      map.getLayer("parcel-zones-line") ? "parcel-zones-line" : undefined,
+    );
+  }, [ready, meta, farm, ndviDate, sentinel2]);
 
   // ── Layer toggles (bottom bar / imagery switch) ──
   useEffect(() => {
     const map = ready;
     if (!map) return;
     const vis = (on: boolean) => (on ? "visible" : "none");
-    if (map.getLayer("pilot-ndvi")) map.setLayoutProperty("pilot-ndvi", "visibility", vis(layers.ndvi));
-    for (const id of ["pilot-zones-line", "pilot-farm-line"])
+    for (const id of ["parcel-ndvi", "parcel-zones-ndvi"])
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis(layers.ndvi));
+    for (const id of ["parcel-zones-line", "parcel-farm-line"])
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis(layers.boundaries));
   }, [ready, layers, farm, meta, ndviDate]);
 
