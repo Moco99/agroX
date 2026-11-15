@@ -53,10 +53,11 @@ export function parseOverpassBuildings(body: unknown): Building[] {
 export const overpassQuery = (b: GeoBounds) =>
   `[out:json][timeout:8];way["building"](${b.south},${b.west},${b.north},${b.east});out geom ${MAX_BUILDINGS};`;
 
-const cache = new Map<string, Promise<Building[]>>();
+const cache = new Map<string, Promise<Building[] | null>>();
 
-// Never rejects: a timeout, an HTTP error or a bad payload all mean "no buildings"
-export function fetchBuildings(b: GeoBounds, signal?: AbortSignal): Promise<Building[]> {
+// Never rejects. `[]` means Overpass answered and the box has no buildings; `null` means the request
+// failed (timeout, HTTP error, abort), which callers must not read as an empty field.
+export function fetchBuildings(b: GeoBounds, signal?: AbortSignal): Promise<Building[] | null> {
   const key = [b.west, b.south, b.east, b.north].map((v) => v.toFixed(4)).join(",");
   const hit = cache.get(key);
   if (hit) return hit;
@@ -64,12 +65,15 @@ export function fetchBuildings(b: GeoBounds, signal?: AbortSignal): Promise<Buil
   const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
   signal?.addEventListener("abort", () => ctl.abort(), { once: true });
   const p = fetch(`${OVERPASS_URL}?data=${encodeURIComponent(overpassQuery(b))}`, { signal: ctl.signal })
-    .then((r) => (r.ok ? r.json() : null))
+    .then((r) => {
+      if (!r.ok) throw new Error(`overpass ${r.status}`);
+      return r.json();
+    })
     .then(parseOverpassBuildings)
     .catch(() => {
       // A failure must not be cached: the next view may succeed
       cache.delete(key);
-      return [] as Building[];
+      return null;
     })
     .finally(() => clearTimeout(timer));
   cache.set(key, p);
