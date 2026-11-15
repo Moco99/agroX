@@ -23,7 +23,7 @@ type ChartKey = "soil" | "ks" | "gdd" | "ndvi" | "smap";
 const KEYS: ChartKey[] = ["soil", "ks", "gdd", "ndvi", "smap"];
 const LABELS: Record<ChartKey, string> = es.chartHelp.tabs;
 // Each chart explains itself in one sentence and links to the white-box formula behind its line
-const HOW: Partial<Record<ChartKey, FormulaId>> = { soil: "waterBalance", ks: "ks", gdd: "gdd", ndvi: "ndvi" };
+const HOW: Partial<Record<ChartKey, FormulaId>> = { soil: "waterBalance", ks: "ks", gdd: "gddTwin", ndvi: "ndvi" };
 
 interface Props {
   baseZone: ZoneResult;
