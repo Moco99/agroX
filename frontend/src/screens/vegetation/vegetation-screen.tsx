@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { stageStatusOf } from "../../lib/farm-labels";
 import { DataStateBadge } from "../../components/data-state-badge";
 import { fmt, fmtDate, fmtDateShort } from "../../i18n/es";
-import { analyzeSeason, clearPoints, compareWithPreviousYears, EVENT_LABELS, VEG_PARAMS, verdictText } from "../../lib/vegetation";
+import { analyzeSeason, compareWithPreviousYears, downsample, groupClearByZone, EVENT_LABELS, VEG_PARAMS, verdictText } from "../../lib/vegetation";
 import { useTwinStore } from "../../store/twin-store";
 import { color, NDVI_RAMP, rampColor } from "../../styles/tokens";
 import type { ObservationPoint, ObservationSeries } from "../../types/api";
@@ -16,9 +17,12 @@ const YEAR_COLORS = ["#7EE36D", "#5AA9E6", "#F3B406", "#C08CF0", "#F15F48"];
 const tooltipStyle = { background: color.bg.card, border: `1px solid ${color.border.subtle}`, fontSize: 12 };
 const tick = { fontSize: 11, fill: color.text.muted };
 
-function zonePoints(series: ObservationSeries | null, zoneId: string): ObservationPoint[] {
-  return clearPoints((series?.points ?? []).filter((p) => p.zone_id === zoneId));
-}
+// Chart limits: a parcel can carry many zones and years of daily points; recharts freezes the tab past a few thousand dots
+const MAX_CHART_ROWS = 200;
+const MAX_CHART_ZONES = 6;
+const NO_POINTS: ObservationPoint[] = [];
+const NO_ZONES: { zone_id: string; name: string }[] = [];
+const chartProps = { isAnimationActive: false, dot: false, connectNulls: true } as const;
 
 export default function VegetationScreen() {
   const farm = useTwinStore((s) => s.farm);
@@ -28,31 +32,38 @@ export default function VegetationScreen() {
   const selectZone = useTwinStore((s) => s.selectZone);
   const [zoneId, setZoneId] = useState<string | null>(null);
 
-  const zones = farm?.farm.zones ?? [];
+  const zones = farm?.farm.zones ?? NO_ZONES;
   const activeId = zoneId ?? selectedZoneId ?? zones[0]?.zone_id ?? "";
   // Sentinel-2 drives the analysis; MODIS (pilot only) is the fallback and a dashed context line
   const primary = sentinel2 && sentinel2.points.length > 0 ? sentinel2 : modis;
-  const points = useMemo(() => zonePoints(primary, activeId), [primary, activeId]);
-  const modisPoints = useMemo(() => (primary === modis ? [] : zonePoints(modis, activeId)), [primary, modis, activeId]);
+  const byZone = useMemo(() => groupClearByZone(primary?.points ?? NO_POINTS), [primary]);
+  const modisByZone = useMemo(() => (primary === modis || !modis ? null : groupClearByZone(modis.points)), [primary, modis]);
+  const points = byZone.get(activeId) ?? NO_POINTS;
+  const modisPoints = modisByZone?.get(activeId) ?? NO_POINTS;
+  // Active zone first, then the rest, capped so the chart stays responsive
+  const chartZones = useMemo(
+    () => [...zones].sort((a, b) => Number(b.zone_id === activeId) - Number(a.zone_id === activeId)).slice(0, MAX_CHART_ZONES),
+    [zones, activeId],
+  );
   const latestYear = Number((points.at(-1)?.date ?? "").slice(0, 4)) || null;
   const season = useMemo(() => (latestYear ? analyzeSeason(points, latestYear) : null), [points, latestYear]);
   const comparison = useMemo(() => compareWithPreviousYears(points), [points]);
 
   const chartData = useMemo(() => {
     const rows = new Map<string, Record<string, number | string>>();
-    for (const z of zones) {
-      for (const p of zonePoints(primary, z.zone_id)) rows.set(p.date, { ...(rows.get(p.date) ?? { date: p.date }), [z.zone_id]: p.value });
+    for (const z of chartZones) {
+      for (const p of byZone.get(z.zone_id) ?? NO_POINTS) rows.set(p.date, { ...(rows.get(p.date) ?? { date: p.date }), [z.zone_id]: p.value });
     }
     for (const p of modisPoints) rows.set(p.date, { ...(rows.get(p.date) ?? { date: p.date }), modis: p.value });
-    return [...rows.values()].sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  }, [zones, primary, modisPoints]);
+    return downsample([...rows.values()].sort((a, b) => String(a.date).localeCompare(String(b.date))), MAX_CHART_ROWS);
+  }, [chartZones, byZone, modisPoints]);
 
   // Same-date view: one line per year over month-day, so seasons overlay
   const yearly = useMemo(() => {
     const years = [...new Set(points.map((p) => p.date.slice(0, 4)))];
     const rows = new Map<string, Record<string, number | string>>();
     for (const p of points) rows.set(p.date.slice(5), { ...(rows.get(p.date.slice(5)) ?? { md: p.date.slice(5) }), [p.date.slice(0, 4)]: p.value });
-    return { years, rows: [...rows.values()].sort((a, b) => String(a.md).localeCompare(String(b.md))) };
+    return { years, rows: downsample([...rows.values()].sort((a, b) => String(a.md).localeCompare(String(b.md))), MAX_CHART_ROWS) };
   }, [points]);
 
   if (!farm) {
@@ -65,6 +76,8 @@ export default function VegetationScreen() {
   }
   const warnings = [...new Set([...(sentinel2?.warnings ?? []), ...(modis?.warnings ?? [])])];
   const active = zones.find((z) => z.zone_id === activeId);
+  const ndviStage = stageStatusOf(farm, "ndvi");
+  const ndviPending = ndviStage === "pending" || ndviStage === "running" || ndviStage === "loading";
 
   return (
     <div className="module-screen vegetation-screen">
@@ -74,7 +87,7 @@ export default function VegetationScreen() {
       </header>
       {!primary || primary.points.length === 0 ? (
         <div className="card">
-          <p>Todavía no hay observaciones de NDVI para esta parcela. Si se está descargando, vuelve en unos minutos.</p>
+          <p role="status">{ndviPending ? "Descargando NDVI de la parcela… esta pantalla se actualiza sola cuando termine." : "Todavía no hay observaciones de NDVI para esta parcela. Si se está descargando, vuelve en unos minutos."}</p>
           {warnings.length > 0 && <ul className="climate-warnings">{warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
         </div>
       ) : (
@@ -86,7 +99,7 @@ export default function VegetationScreen() {
             </div>
             <div className="climate-kpis">
               {zones.map((z) => {
-                const last = zonePoints(primary, z.zone_id).at(-1);
+                const last = byZone.get(z.zone_id)?.at(-1);
                 return (
                   <button key={z.zone_id} type="button" className={`climate-kpi veg-zone${z.zone_id === activeId ? " is-selected" : ""}`}
                     onClick={() => { setZoneId(z.zone_id); selectZone(z.zone_id); }} aria-pressed={z.zone_id === activeId}>
@@ -115,8 +128,8 @@ export default function VegetationScreen() {
                   <YAxis domain={[0, 1]} ticks={[0, 0.25, 0.5, 0.75, 1]} tick={tick} />
                   <Tooltip contentStyle={tooltipStyle} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  {zones.map((z, i) => <Line key={z.zone_id} dataKey={z.zone_id} name={`${z.name} (${primary.source_id})`} stroke={ZONE_COLORS[i % ZONE_COLORS.length]} dot={{ r: 2 }} connectNulls />)}
-                  {modisPoints.length > 0 && <Line dataKey="modis" name={`${active?.name ?? "Zona"} (${modis?.source_id})`} stroke={color.text.muted} strokeDasharray="4 3" dot={false} connectNulls />}
+                  {chartZones.map((z, i) => <Line key={z.zone_id} {...chartProps} dataKey={z.zone_id} name={`${z.name} (${primary.source_id})`} stroke={ZONE_COLORS[i % ZONE_COLORS.length]} />)}
+                  {modisPoints.length > 0 && <Line {...chartProps} dataKey="modis" name={`${active?.name ?? "Zona"} (${modis?.source_id})`} stroke={color.text.muted} strokeDasharray="4 3" />}
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -164,7 +177,7 @@ export default function VegetationScreen() {
                     <YAxis domain={[0, 1]} ticks={[0, 0.25, 0.5, 0.75, 1]} tick={tick} />
                     <Tooltip contentStyle={tooltipStyle} labelFormatter={(v) => fmtDateShort(`2000-${String(v)}`)} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    {yearly.years.map((y, i) => <Line key={y} dataKey={y} stroke={YEAR_COLORS[i % YEAR_COLORS.length]} dot={{ r: 2 }} connectNulls />)}
+                    {yearly.years.map((y, i) => <Line key={y} {...chartProps} dataKey={y} stroke={YEAR_COLORS[i % YEAR_COLORS.length]} />)}
                   </LineChart>
                 </ResponsiveContainer>
               </div>

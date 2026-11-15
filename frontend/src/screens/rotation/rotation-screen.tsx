@@ -4,6 +4,9 @@ import { useTwinStore, type RotationPreview } from "../../store/twin-store";
 import { useStageStore } from "../../store/stage-store";
 import { useModuleView } from "../../store/module-store";
 import { useRotationView } from "../../store/rotation-store";
+import { useHistoryStore } from "../../store/history-store";
+import { openFromHistory } from "../../store/open-parcel";
+import { displayName } from "../../lib/parcel-history";
 import { recommendRotation, type RotationRecommendation, type RotationRequest, type RotationResponse, type RotationWindow } from "./rotation-api";
 import { isRecord } from "../../types/guards";
 import { periodError, rotationPresets, splitPeriod, windowsError } from "../../lib/rotation-dates";
@@ -76,6 +79,9 @@ export default function RotationScreen() {
   const twinReady = useTwinStore((s) => s.baseline?.farm_id === farmId && !s.loading && !s.simulating);
   const previewRotation = useTwinStore((s) => s.previewRotation);
   const close = useRotationView((s) => s.close);
+  const parcels = useHistoryStore((s) => s.items);
+  const [parcelError, setParcelError] = useState<string | null>(null);
+  const selected = parcels.find((p) => p.farmId === farmId);
   const [start, setStart] = useState(span.start);
   const [end, setEnd] = useState(span.end);
   const [cycles, setCycles] = useState(3);
@@ -183,7 +189,16 @@ export default function RotationScreen() {
       <button className="ghost-button" type="button" onClick={close}>Volver a la vista anterior</button></div>
     <div className="rotation-disclaimer">Índices comparativos exploratorios, no probabilidades ni pronósticos de rendimiento. Las reglas y el modelo requieren validación en campo.</div>
     <div className="rotation-layout"><form className="rotation-form" onChange={invalidate} onSubmit={(e) => void run(e)}>
-      <section className="card"><h2>Datos de la parcela</h2><p className="muted">Se usa el clima disponible para esta ubicación y periodo; la compatibilidad con suelo requiere pH declarado.</p>
+      <section className="card"><h2>Datos de la parcela</h2>
+        <label>Parcela<select value={farmId} onChange={(e) => {
+          const rec = parcels.find((p) => p.farmId === e.target.value);
+          setParcelError(null);
+          if (rec && rec.farmId !== farmId) void openFromHistory(rec).then(setParcelError);
+        }}>{!selected && <option value={farmId}>{farm?.farm.name ?? farmId}</option>}
+          {parcels.map((p) => <option key={p.farmId} value={p.farmId}>{displayName(p)}</option>)}</select></label>
+        <p className="muted">{farm?.farm.name ?? (selected ? displayName(selected) : farmId)}{(farm?.farm.area_ha ?? selected?.areaHa) != null ? ` · ${Number(farm?.farm.area_ha ?? selected?.areaHa).toFixed(1)} ha` : ""}</p>
+        {parcelError && <div className="error-box" role="alert">{parcelError}</div>}
+        <p className="muted">Se usa el clima disponible para esta ubicación y periodo; la compatibilidad con suelo requiere pH declarado.</p>
         <div className="rotation-grid">{!useWindows && <>
           <label>Desde<input type="date" required value={start} onChange={(e) => setStart(e.target.value)} /></label>
           <label>Hasta<input type="date" required value={end} onChange={(e) => setEnd(e.target.value)} /></label>

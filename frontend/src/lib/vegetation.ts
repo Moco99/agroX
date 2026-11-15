@@ -48,6 +48,25 @@ export function clearPoints(points: ObservationPoint[], minValid: number = VEG_P
   return points.filter((p) => p.valid_fraction == null || p.valid_fraction >= minValid);
 }
 
+// One pass over a series: clear points per zone, so the screen does not re-filter the whole series per zone and render
+export function groupClearByZone(points: ObservationPoint[]): Map<string, ObservationPoint[]> {
+  const by = new Map<string, ObservationPoint[]>();
+  for (const p of clearPoints(points)) {
+    const key = p.zone_id ?? "";
+    const list = by.get(key);
+    if (list) list.push(p);
+    else by.set(key, [p]);
+  }
+  return by;
+}
+
+// Keeps at most `max` rows evenly spaced (first and last always kept) so charts stay light on multi-year daily series
+export function downsample<T>(rows: T[], max: number): T[] {
+  if (rows.length <= max || max < 2) return rows;
+  const step = (rows.length - 1) / (max - 1);
+  return Array.from({ length: max }, (_, i) => rows[Math.round(i * step)] as T);
+}
+
 function dayOfYear(iso: string): number {
   const d = new Date(utc(iso));
   return Math.floor((d.getTime() - Date.UTC(d.getUTCFullYear(), 0, 0)) / DAY_MS);
@@ -127,11 +146,21 @@ export function compareWithPreviousYears(points: ObservationPoint[]): SameDateCo
   const year = Number(latest.date.slice(0, 4));
   const doy = dayOfYear(latest.date);
   const previous: { year: number; value: number }[] = [];
-  for (const y of new Set(sorted.map((p) => Number(p.date.slice(0, 4))))) {
+  const byYear = new Map<number, ObservationPoint[]>();
+  for (const p of sorted) {
+    const y = Number(p.date.slice(0, 4));
+    const list = byYear.get(y);
+    if (list) list.push(p);
+    else byYear.set(y, [p]);
+  }
+  for (const y of byYear.keys()) {
     if (y >= year) continue;
-    const near = sorted
-      .filter((p) => p.date.startsWith(`${y}-`) && Math.abs(dayOfYear(p.date) - doy) <= VEG_PARAMS.sameDateWindowDays)
-      .sort((a, b) => Math.abs(dayOfYear(a.date) - doy) - Math.abs(dayOfYear(b.date) - doy))[0];
+    let near: ObservationPoint | null = null;
+    let nearGap = Infinity;
+    for (const p of byYear.get(y) ?? []) {
+      const gap = Math.abs(dayOfYear(p.date) - doy);
+      if (gap <= VEG_PARAMS.sameDateWindowDays && gap < nearGap) { near = p; nearGap = gap; }
+    }
     if (near) previous.push({ year: y, value: near.value });
   }
   const base = { currentDate: latest.date, current: latest.value, previous };
