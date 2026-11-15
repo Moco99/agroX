@@ -56,6 +56,11 @@ function NdviLegend() {
   );
 }
 
+function fmtCoord(val: number, posHem: string, negHem: string): string {
+  const hem = val >= 0 ? posHem : negHem;
+  return `${Math.abs(val).toFixed(4)}° ${hem}`;
+}
+
 // ─────────────────────────────────────────
 // Section: Geographic screen (globe + farm stages over one MapLibre view)
 // ─────────────────────────────────────────
@@ -71,16 +76,75 @@ export default function GeographicScreen() {
   const onStatus = useCallback((s: MapStatus) => setStatus(s), []);
   const atFarm = stage === "map";
   const flying = phase === "flying";
+  const latVal = status ? status.lat : 41.878;
+  const lonVal = status ? status.lon : -93.0977;
+
   return (
     <div className="screen geographic-screen" data-geo-stage={stage}>
       <div className="canvas-area geographic-area">
         <GlobeMap onStatus={onStatus} />
+
+        {stage === "globe" && (
+          <svg className="globe-hud-rings" viewBox="0 0 600 600" aria-hidden>
+            <circle
+              cx="300"
+              cy="300"
+              r="225"
+              fill="none"
+              stroke="rgba(125, 180, 245, 0.18)"
+              strokeWidth="1"
+              strokeDasharray="4 6"
+            />
+            <circle
+              cx="300"
+              cy="300"
+              r="242"
+              fill="none"
+              stroke="rgba(125, 180, 245, 0.12)"
+              strokeWidth="0.8"
+            />
+            <path
+              d="M300 44V66M300 534V556M44 300H66M534 300H556"
+              stroke="rgba(148, 197, 255, 0.38)"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+            />
+            <path
+              d="M119 119L132 132M481 119L468 132M119 481L132 468M481 481L468 468"
+              stroke="rgba(148, 197, 255, 0.25)"
+              strokeWidth="1"
+              strokeLinecap="round"
+            />
+          </svg>
+        )}
+
+        <div className="hud-coords" aria-hidden>
+          <span className="hud-coords-label">COORDENADAS</span>
+          <strong>{fmtCoord(latVal, "N", "S")}</strong>
+          <strong>{fmtCoord(lonVal, "E", "W")}</strong>
+        </div>
+
         {status?.ready && (
           <div className="geographic-status" role="status">
-            {es.geo.zoom(status.zoom)} · {es.geo.scale(metresPerPixel(status.zoom, status.lat))} ·{" "}
-            {status.offline ? es.geo.offlineTitle : es.geo.source(status.zoom)}
+            <div className="hud-source-row">
+              <span className="hud-slashes" aria-hidden>
+                ///
+              </span>{" "}
+              <strong>{status.offline ? es.geo.offlineTitle : es.geo.source(status.zoom)}</strong>
+            </div>
+            <div className="hud-res-row">
+              Resolución: {es.geo.scale(metresPerPixel(status.zoom, status.lat))} · {es.geo.zoom(status.zoom)}
+            </div>
           </div>
         )}
+
+        {stage === "globe" && (
+          <div className="hud-imagery-credit" aria-hidden>
+            <strong>IMAGERY: NASA</strong>
+            <span>Earth Observatory (Blue Marble)</span>
+          </div>
+        )}
+
         {atFarm && !flying && <Stepper />}
         {flying && (
           <p className="flight-hint" role="status">

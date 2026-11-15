@@ -3,25 +3,25 @@
    ───────────────────────────────────────── */
 
 :root {
-  --bg-app: #0b121b;
-  --bg-sidebar: #121922;
-  --bg-panel: #161d26;
-  --bg-card: #1b232b;
-  --bg-card-raised: #202c34;
-  --bg-nav-active: #1b422e;
-  --border: #2b333e;
-  --accent: #7ee36d;
-  --accent-soft: #a0da94;
-  --accent-strong: #107432;
-  --accent-muted: #5a8549;
-  --text: #ffffff;
-  --text-2: #c5ced5;
-  --text-muted: #8a949e;
-  --up: #81d740;
-  --down: #f15f48;
-  --warn: #f3b406;
-  --radius-sm: 6px;
-  --radius-md: 10px;
+  --bg-app: #040811;
+  --bg-sidebar: #070d19;
+  --bg-panel: rgba(9, 16, 29, 0.84);
+  --bg-card: rgba(13, 23, 42, 0.78);
+  --bg-card-raised: rgba(18, 31, 56, 0.88);
+  --bg-nav-active: rgba(37, 99, 235, 0.28);
+  --border: rgba(110, 160, 225, 0.22);
+  --accent: #60a5fa;
+  --accent-soft: #93c5fd;
+  --accent-strong: #1d4ed8;
+  --accent-muted: #2563eb;
+  --text: #f0f6fc;
+  --text-2: #c8d7eb;
+  --text-muted: #7e93b0;
+  --up: #34d399;
+  --down: #f87171;
+  --warn: #fbbf24;
+  --radius-sm: 8px;
+  --radius-md: 12px;
   --radius-lg: 16px;
   color-scheme: dark;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -1369,5 +1369,839 @@ input[type="range"] {
   .climate-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+  }
+}
+
+
+/* ─────────────────────────────────────────
+   Section: Orbital Telemetry UI (nuevainterfaz — AGROX × NASA aesthetic)
+   ───────────────────────────────────────── */
+
+.app {
+  padding-top: 58px;
+  grid-template-columns: 224px 1fr;
+  background:
+    radial-gradient(ellipse 68% 24% at 54% 0%, rgba(56, 138, 245, 0.24) 0%, rgba(18, 54, 118, 0.1) 52%, transparent 80%),
+    linear-gradient(180deg, #060b16 0%, #040811 100%);
+}
+
+/* Full-width orbital header bar across top of viewport on desktop */
+.top-bar-orbital-row {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 58px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background:
+    radial-gradient(ellipse 46% 130% at 52% 0%, rgba(76, 158, 255, 0.28) 0%, rgba(28, 78, 166, 0.12) 48%, rgba(5, 10, 20, 0.92) 82%),
+    rgba(5, 10, 20, 0.9);
+  border-bottom: 1px solid rgba(110, 160, 225, 0.22);
+  backdrop-filter: blur(14px);
+}
+
+.top-bar-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand-agrox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-agrox-mark {
+  filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.35));
+}
+
+.brand-agrox-name {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #ffffff;
+}
+
+.brand-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(148, 184, 232, 0.26);
+}
+
+.brand-collab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-collab-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: #b4c6df;
+  white-space: nowrap;
+}
+
+.nasa-meatball {
+  display: block;
+  filter: drop-shadow(0 2px 8px rgba(11, 61, 145, 0.55));
+}
+
+/* Search bar row inside .main directly above the globe */
+.top-bar {
+  background: transparent;
+  border-bottom: 0;
+  padding: 12px 14px 4px;
+  justify-content: flex-start;
+}
+
+.search-wrap {
+  width: min(560px, 100%);
+}
+
+.search {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: rgba(11, 20, 37, 0.82);
+  border: 1px solid rgba(110, 160, 225, 0.26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 6px 20px rgba(0, 0, 0, 0.35);
+  color: var(--text-2);
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.search:hover,
+.search[aria-expanded="true"] {
+  border-color: rgba(96, 165, 250, 0.55);
+  box-shadow: 0 0 18px rgba(59, 130, 246, 0.2);
+}
+
+.search-icon {
+  color: #93c5fd;
+  flex-shrink: 0;
+}
+
+.search-placeholder {
+  flex: 1;
+  text-align: left;
+  font-size: 13px;
+  color: #9fb3ce;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search kbd {
+  background: rgba(30, 48, 78, 0.72);
+  border: 1px solid rgba(130, 175, 235, 0.28);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 11px;
+  color: #d6e4f7;
+}
+
+.search-pop {
+  background: rgba(10, 19, 36, 0.96);
+  border: 1px solid rgba(110, 160, 225, 0.32);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.75);
+}
+
+/* Right header pills */
+.top-bar-right {
+  gap: 10px;
+}
+
+.date-range,
+.chip-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 12.5px;
+  color: #e2ecf9;
+  background: rgba(12, 23, 43, 0.78);
+  border: 1px solid rgba(115, 165, 230, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.date-range select {
+  background: rgba(20, 36, 64, 0.85);
+  border: 1px solid rgba(115, 165, 230, 0.25);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11.5px;
+  color: #93c5fd;
+}
+
+.pill-chevron {
+  color: #8da4c4;
+}
+
+.icon-round,
+.avatar {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  background: rgba(12, 23, 43, 0.78);
+  border: 1px solid rgba(115, 165, 230, 0.28);
+  color: #d8e6f8;
+  padding: 0;
+}
+
+.icon-round:hover,
+.icon-round.is-active {
+  border-color: #60a5fa;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.32);
+}
+
+.icon-round .dot {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+}
+
+/* Left Sidebar */
+.sidebar {
+  background:
+    radial-gradient(ellipse 120% 28% at 50% 100%, rgba(37, 99, 235, 0.16) 0%, transparent 70%),
+    rgba(6, 11, 22, 0.88);
+  border-right: 1px solid rgba(110, 160, 225, 0.18);
+  padding: 18px 14px 16px;
+  gap: 14px;
+}
+
+.sidebar-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px 8px;
+  border-bottom: 1px solid rgba(110, 160, 225, 0.14);
+}
+
+.sidebar-eyebrow span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: #8ca3c2;
+}
+
+.sidebar nav {
+  gap: 6px;
+}
+
+.nav-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  color: #b8cae2;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background 0.16s, border-color 0.16s, color 0.16s, box-shadow 0.16s;
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  color: #8eb4e6;
+}
+
+.nav-item:not(:disabled):hover {
+  background: rgba(22, 39, 68, 0.65);
+  border-color: rgba(110, 160, 225, 0.2);
+  color: #f0f6fc;
+}
+
+.nav-item.is-active {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.38) 0%, rgba(29, 78, 216, 0.12) 100%);
+  border-color: rgba(96, 165, 250, 0.52);
+  color: #ffffff;
+  box-shadow: 0 0 22px rgba(37, 99, 235, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.nav-item.is-active .nav-icon {
+  color: #93c5fd;
+}
+
+.ai-card {
+  background:
+    radial-gradient(circle at 85% 15%, rgba(56, 189, 248, 0.16), transparent 60%),
+    rgba(11, 21, 40, 0.86);
+  border: 1px solid rgba(110, 160, 225, 0.26);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.ai-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f0f6fc;
+  font-size: 13px;
+}
+
+.ai-spark {
+  color: #60a5fa;
+  font-size: 14px;
+  filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.6));
+}
+
+.ai-arrow {
+  margin-left: auto;
+  color: #8ca3c2;
+  font-size: 14px;
+}
+
+.ai-card p {
+  margin: 8px 0 0;
+  color: #93a8c7;
+  line-height: 1.45;
+  font-size: 12px;
+}
+
+/* Geographic screen: framed globe viewport + glass right panel */
+.geographic-screen {
+  padding: 8px 14px 10px;
+  gap: 14px;
+}
+
+.geographic-area {
+  border-radius: 16px;
+  border: 1px solid rgba(110, 160, 225, 0.24);
+  overflow: hidden;
+  box-shadow: inset 0 0 60px rgba(15, 36, 74, 0.45), 0 12px 36px rgba(0, 0, 0, 0.45);
+}
+
+.geographic-map.geographic-map {
+  background:
+    radial-gradient(1px 1px at 12% 18%, #fff9, transparent 60%),
+    radial-gradient(1px 1px at 72% 12%, #fffa, transparent 60%),
+    radial-gradient(1.5px 1.5px at 38% 74%, #fff8, transparent 60%),
+    radial-gradient(1px 1px at 86% 64%, #fff9, transparent 60%),
+    radial-gradient(1px 1px at 22% 52%, #fff7, transparent 60%),
+    radial-gradient(1.5px 1.5px at 58% 34%, #fff6, transparent 60%),
+    radial-gradient(1px 1px at 93% 88%, #fff8, transparent 60%),
+    radial-gradient(1px 1px at 6% 90%, #fff7, transparent 60%),
+    radial-gradient(circle at 50% 50%, rgba(28, 76, 158, 0.32) 0%, #071124 52%, #02050d 82%);
+}
+
+/* Concentric orbital HUD reticle around the globe */
+.globe-hud-rings {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(86%, 540px);
+  height: min(86%, 540px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Top-left COORDENADAS readout with corner brackets */
+.hud-coords {
+  position: absolute;
+  top: 18px;
+  left: 58px;
+  z-index: 3;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  color: #dce9fa;
+  background:
+    linear-gradient(to right, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 0 0,
+    linear-gradient(to bottom, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 0 0,
+    linear-gradient(to left, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 100% 0,
+    linear-gradient(to bottom, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 100% 0,
+    linear-gradient(to right, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 0 100%,
+    linear-gradient(to top, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 0 100%,
+    linear-gradient(to left, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 100% 100%,
+    linear-gradient(to top, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 100% 100%;
+  background-repeat: no-repeat;
+  background-size: 7px 7px;
+}
+
+.hud-coords-label {
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  color: #8aa5c9;
+  margin-bottom: 2px;
+}
+
+.hud-coords strong {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+/* Top-right source & resolution readout */
+.geographic-status.geographic-status {
+  top: 16px;
+  right: 18px;
+  left: auto;
+  background: rgba(8, 16, 32, 0.65);
+  border: 1px solid rgba(115, 165, 230, 0.2);
+  border-radius: 10px;
+  padding: 8px 12px;
+  text-align: right;
+  color: #dce9fa;
+  backdrop-filter: blur(8px);
+}
+
+.hud-source-row {
+  font-size: 12px;
+  color: #f0f6fc;
+}
+
+.hud-slashes {
+  color: #60a5fa;
+  letter-spacing: 0.08em;
+  margin-right: 4px;
+}
+
+.hud-res-row {
+  font-size: 10.5px;
+  color: #8ea6c7;
+  margin-top: 2px;
+}
+
+/* Bottom-right IMAGERY: NASA readout */
+.hud-imagery-credit {
+  position: absolute;
+  right: 18px;
+  bottom: 28px;
+  z-index: 3;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 10.5px;
+  color: #8ea6c7;
+}
+
+.hud-imagery-credit strong {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #b8cce6;
+}
+
+/* Dark glass MapLibre controls */
+.maplibregl-ctrl-group {
+  background: rgba(11, 20, 38, 0.85) !important;
+  border: 1px solid rgba(115, 165, 230, 0.26) !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45) !important;
+}
+
+.maplibregl-ctrl-group button {
+  border-bottom-color: rgba(115, 165, 230, 0.18) !important;
+}
+
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.1);
+}
+
+/* Pilot pin on the globe */
+.pilot-pin-dot {
+  background: #ffffff;
+  border: 2px solid #38bdf8;
+  box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7);
+}
+
+.pilot-pin-label {
+  background: rgba(9, 18, 36, 0.9);
+  border: 1px solid rgba(125, 185, 255, 0.55);
+  color: #f0f6fc;
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* Right Panel */
+.geographic-screen .panel {
+  width: 430px;
+  border-left: 0;
+  border: 1px solid rgba(110, 160, 225, 0.24);
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse 90% 35% at 85% 12%, rgba(45, 108, 210, 0.18) 0%, transparent 70%),
+    rgba(9, 16, 30, 0.84);
+  backdrop-filter: blur(16px);
+  padding: 20px 18px;
+  gap: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+}
+
+.panel-head.has-satellite {
+  position: relative;
+  padding-right: 84px;
+}
+
+.eyebrow-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.eyebrow {
+  color: #8eb4e6;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+}
+
+.eyebrow-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(125, 175, 240, 0.35), transparent);
+}
+
+.panel-satellite-art {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 12px rgba(59, 130, 246, 0.25));
+}
+
+.panel-head h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+/* Right panel cards */
+.card {
+  background: rgba(13, 24, 45, 0.72);
+  border: 1px solid rgba(110, 160, 225, 0.22);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.card-action-shell {
+  padding: 10px 14px;
+}
+
+.action-row-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: 0;
+  padding: 4px 2px;
+  color: #f0f6fc;
+  text-align: left;
+}
+
+.action-row-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.action-row-chevron {
+  color: #8ca3c2;
+  flex-shrink: 0;
+}
+
+.card-lead-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  background: rgba(25, 48, 86, 0.65);
+  border: 1px solid rgba(115, 170, 240, 0.3);
+  color: #93c5fd;
+  flex-shrink: 0;
+}
+
+.card-icon-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.card-icon-header.is-clickable {
+  cursor: pointer;
+}
+
+.card-icon-header-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-icon-header-copy h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.card-icon-header-copy p {
+  margin: 0;
+}
+
+.pilot-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.draw-split-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.draw-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(18, 33, 60, 0.78);
+  border: 1px solid rgba(115, 165, 230, 0.28);
+  color: #e2ecf9;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.draw-action-btn:hover:not(:disabled),
+.draw-action-btn[aria-pressed="true"] {
+  background: rgba(37, 99, 235, 0.28);
+  border-color: #60a5fa;
+  color: #ffffff;
+}
+
+.play-button {
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  border: 1px solid rgba(147, 197, 253, 0.45);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.explore-cta,
+.twin-cta {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.42), rgba(15, 36, 74, 0.9));
+  border: 1px solid rgba(96, 165, 250, 0.55);
+  color: #f0f6fc;
+}
+
+.twin-cta small {
+  color: #b4ccf0;
+}
+
+/* Bottom Bar (Active layers + Sentinel-2 timeline player) */
+.bottom-bar {
+  margin: 0 14px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(110, 160, 225, 0.24);
+  background: rgba(8, 15, 29, 0.86);
+  backdrop-filter: blur(14px);
+  padding: 10px 18px 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.layer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(15, 28, 52, 0.75);
+  border: 1px solid rgba(110, 160, 225, 0.24);
+  color: #bfd2ec;
+  font-size: 12px;
+}
+
+.layer-chip.is-active {
+  background: rgba(26, 54, 98, 0.78);
+  border-color: rgba(125, 180, 245, 0.52);
+  color: #f0f6fc;
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.18);
+}
+
+.layer-chip-icon {
+  display: inline-grid;
+  place-items: center;
+  color: #93c5fd;
+}
+
+.layer-chip-close {
+  color: #8ca3c2;
+  font-size: 13px;
+  margin-left: 2px;
+}
+
+.timeline .play-button {
+  width: 36px;
+  height: 34px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(18, 33, 60, 0.85);
+  border: 1px solid rgba(125, 180, 245, 0.35);
+  color: #ffffff;
+}
+
+.timeline .icon-button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(15, 28, 52, 0.78);
+  border: 1px solid rgba(110, 160, 225, 0.25);
+  color: #c8d7eb;
+}
+
+.timeline-track input {
+  accent-color: #ffffff;
+}
+
+.timeline-dots i {
+  background: rgba(125, 160, 210, 0.45);
+}
+
+.timeline-dots i.is-past {
+  background: #60a5fa;
+}
+
+.timeline-date {
+  text-align: right;
+  min-width: 130px;
+}
+
+.timeline-date strong {
+  font-size: 13px;
+  color: #f0f6fc;
+}
+
+.timeline-date small {
+  color: #8ea6c7;
+}
+
+/* Responsive adjustments for the orbital theme on tablet & mobile */
+@media (max-width: 900px) {
+  .app {
+    padding-top: 0;
+  }
+
+  .top-bar-orbital-row {
+    position: static;
+    height: auto;
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-radius: 12px;
+    margin-bottom: 6px;
+  }
+
+  .top-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px 10px 4px;
+    gap: 6px;
+  }
+
+  .brand-collab-label {
+    display: none;
+  }
+
+  .sidebar-eyebrow {
+    display: none;
+  }
+
+  .geographic-screen {
+    padding: 6px 10px;
+    gap: 10px;
+  }
+
+  .geographic-screen .panel {
+    width: 100%;
+  }
+
+  .bottom-bar {
+    margin: 0 10px 8px;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .brand-agrox-name {
+    font-size: 16px;
+  }
+
+  .nasa-meatball {
+    width: 32px;
+    height: 26px;
+  }
+
+  .hud-coords {
+    top: 10px;
+    left: 48px;
+    padding: 5px 8px;
+  }
+
+  .hud-coords strong {
+    font-size: 10.5px;
+  }
+
+  .hud-imagery-credit {
+    display: none;
+  }
+
+  .draw-split-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-head.has-satellite {
+    padding-right: 64px;
+  }
+
+  .panel-satellite-art {
+    width: 68px;
+    height: 50px;
   }
 }

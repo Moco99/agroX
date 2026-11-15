@@ -65,6 +65,7 @@ const CLOSE_PX = 12;
 export interface MapStatus {
   zoom: number;
   lat: number;
+  lon: number;
   ready: boolean;
   offline: boolean;
 }
@@ -166,7 +167,8 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
     map.addControl(new ScaleControl({ unit: "metric" }), "bottom-left");
 
     const report = () => {
-      statusRef.current({ zoom: map.getZoom(), lat: map.getCenter().lat, ready: true, offline: offlineNow });
+      const c = map.getCenter();
+      statusRef.current({ zoom: map.getZoom(), lat: c.lat, lon: normalizeLon(c.lng), ready: true, offline: offlineNow });
     };
     const setOfflineBoth = (v: boolean) => {
       if (offlineNow === v) return;
