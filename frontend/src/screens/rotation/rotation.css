@@ -43,3 +43,6 @@
 .rotation-window .rotation-grid label:last-child { grid-column: auto; }
 .rotation-preview { margin-top: 6px; }
 .rotation-help summary { cursor: pointer; font-weight: 600; } .rotation-help ul { margin: 10px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.5; }
+
+.rotation-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.rotation-presets .ghost-button { font-size: 12px; padding: 6px 10px; }

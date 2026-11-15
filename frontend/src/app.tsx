@@ -24,6 +24,7 @@ import { useTwinStore } from "./store/twin-store";
 
 const RotationScreen = lazy(() => import("./screens/rotation/rotation-screen"));
 const ClimateScreen = lazy(() => import("./screens/climate/climate-screen"));
+const VegetationScreen = lazy(() => import("./screens/vegetation/vegetation-screen"));
 const ReportScreen = lazy(() => import("./screens/reports/report-screen"));
 const GeographicScreen = lazy(() => import("./screens/geographic/geographic-screen"));
 const DigitalTwinScreen = lazy(() =>
@@ -80,6 +81,8 @@ export function App() {
             <Suspense fallback={loadingBox}>
               {moduleActive === "climate" ? (
                 <ClimateScreen />
+              ) : moduleActive === "vegetation" ? (
+                <VegetationScreen />
               ) : moduleActive === "reports" ? (
                 <ReportScreen />
               ) : rotationActive ? (

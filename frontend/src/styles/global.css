@@ -949,3 +949,11 @@ input[type="range"] {
 .climate-kpi { display: grid; gap: 3px; align-content: start; }
 .climate-kpi strong { font-size: 20px; }
 .climate-warnings { color: var(--text-2); font-size: 12px; padding-left: 18px; }
+
+/* Vegetación module */
+.veg-zone { text-align: left; background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 10px; color: inherit; cursor: pointer; font: inherit; }
+.veg-zone.is-selected { border-color: var(--accent); }
+.veg-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: middle; }
+.veg-scale { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 11px; color: var(--text-muted); }
+.veg-scale i { flex: 0 0 160px; height: 8px; border-radius: 4px; }
+.veg-events { margin: 8px 0; padding-left: 18px; line-height: 1.6; }
