@@ -13,5 +13,18 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        // three and the R3F stack change rarely: splitting them keeps the lazy twin-screen chunk
+        // small and lets the browser cache the heavy libraries across deploys. Vite 8 bundles with
+        // Rolldown, whose chunking API is advancedChunks (the manualChunks function is only partly honoured).
+        advancedChunks: {
+          groups: [
+            { name: "three", test: /node_modules[\\/]three[\\/]/ },
+            { name: "r3f", test: /node_modules[\\/](@react-three|postprocessing|n8ao)[\\/]/ },
+          ],
+        },
+      },
+    },
   },
 });
