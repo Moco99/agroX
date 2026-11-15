@@ -144,9 +144,9 @@ Estado al 14-nov-2026 con la zona de prueba: ✅ = descargado y revisado · 🔑
 | `nlcd` | USGS NLCD | Cobertura del suelo 2019 y 2021, recortada | WCS (servicio de mapas) | ✅ |
 | `gaez` | FAO GAEZ v4 | Aptitud de 7 cultivos (maíz, soya, trigo, alfalfa, avena, centeno, sorgo), global | ArcGIS ImageServer | ✅ |
 | `agdatacommons` | USDA Ag Data Commons | Tablas de estudios con "rotation", "cover crop", "soil health", "corn", "soybean" en el título | API de Figshare | ✅ |
-| `sentinel2` | ESA Sentinel-2 | Bandas rojo, infrarrojo y máscara de nubes, may-sep 2024, recortadas | Planetary Computer (STAC) | ✅ |
+| `sentinel2` | ESA Sentinel-2 | Rojo, infrarrojo y máscara de nubes: todas las escenas con <10% de nubes de cada temporada may-sep 2021-2024 (~110), recortadas | Planetary Computer (STAC) | ✅ |
 | `landsat` | Landsat 8/9 | Rojo, infrarrojo y temperatura, may-sep 2024, recortadas | Planetary Computer | ✅ |
-| `modis_ndvi` | MODIS | NDVI cada 16 días, 250 m | Planetary Computer | ✅ |
+| `modis_ndvi` | MODIS | NDVI cada 16 días, 250 m, Terra y Aqua, 2023-2024 completos | Planetary Computer | ✅ |
 | `naip` | NAIP | Foto aérea ~1 m | Planetary Computer | ✅ |
 | `srtm` | SRTM (NASADEM) | Elevación | Planetary Computer | ✅ |
 | `smap` | SMAP | Humedad del suelo diaria 9 km, recortada al área (~1.4 MB/día en vez de 658 MB) | Harmony (NASA) | 🔑 ✅ |
