@@ -10,7 +10,10 @@ from contextlib import ExitStack, contextmanager
 from functools import lru_cache
 from typing import TypeVar
 
-from rasterio.io import DatasetReader
+try:
+    from rasterio.io import DatasetReader
+except ImportError:
+    DatasetReader = object  # type: ignore
 
 from app.config import Settings, get_settings
 from app.storage.block_cache import BlockCache

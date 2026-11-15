@@ -13,7 +13,10 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Protocol
 
-from rasterio.io import DatasetReader
+try:
+    from rasterio.io import DatasetReader
+except ImportError:
+    DatasetReader = object  # type: ignore
 
 # ─────────────────────────────────────────
 # Section: Errors and value objects

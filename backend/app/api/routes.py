@@ -133,3 +133,51 @@ def observed_vs_simulated(p: ProvidersDep, farm_id: str = "story_pilot_farm", ye
         farm_id=farm_id, start=date(year, 4, 1), end=date(year, 10, 31), include_states=True, include_comparison=True
     )
     return twin_service.simulate(p, req)
+
+
+# ─────────────────────────────────────────
+# Section: EcoCrop-RF Rotation Engine
+# ─────────────────────────────────────────
+
+
+from pydantic import BaseModel
+
+
+class RotationRecommendRequest(BaseModel):
+    t_mean: float = 22.0
+    rain_mm: float = 650.0
+    soil_ph: float = 6.5
+    soil_awc: float = 140.0
+    t_extreme_days: int = 4
+    cycles: int = 3
+    top_k: int = 3
+
+
+@router.get("/ecocrop/search")
+def search_ecocrop(q: str = "maiz", limit: int = 10) -> list[dict[str, object]]:
+    from app.engine.ecocrop_model import EcoCropEngine
+    engine = EcoCropEngine()
+    return engine.find_crops(q, limit=limit)
+
+
+@router.post("/rotations/recommend")
+def recommend_rotations(body: RotationRecommendRequest | None = None) -> dict[str, object]:
+    from app.engine.ecocrop_model import RotationEngine
+    req = body or RotationRecommendRequest()
+    recommender = RotationEngine()
+    results = recommender.recommend_top_rotations(
+        t_mean=req.t_mean,
+        rain_mm=req.rain_mm,
+        soil_ph=req.soil_ph,
+        soil_awc=req.soil_awc,
+        t_extreme_days=req.t_extreme_days,
+        cycles=req.cycles,
+        top_k=req.top_k,
+    )
+    return {
+        "status": "ok",
+        "methodology": "EcoCrop-RF Hybrid (FAO Trapezoidal Suitability + Random Forest Stress Classifier)",
+        "inputs": req.model_dump(),
+        "recommendations": results,
+    }
+
