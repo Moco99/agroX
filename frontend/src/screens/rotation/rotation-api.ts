@@ -11,6 +11,7 @@ export interface RotationRequest {
   cycle_windows?: RotationWindow[];
   twin_only?: boolean;
   previous_crop?: string;
+  start_crop?: string;
   exclude_same_family: boolean;
   scenario: { temp_delta_c: number; precip_factor: number };
   soil_ph?: number;

@@ -39,6 +39,9 @@ export function DigitalTwinScreen() {
   const heightmap = useTwinStore((s) => s.heightmap);
   const plan = useTwinStore((s) => s.plan);
   const declaration = useParcelStore((s) => s.declaration);
+  const catalog = useParcelStore((s) => s.catalog);
+  const setDeclaration = useParcelStore((s) => s.setDeclaration);
+  const applyDeclaration = useTwinStore((s) => s.applyDeclaration);
   const rotation = useTwinStore((s) => s.rotationPreview);
   const simulating = useTwinStore((s) => s.simulating);
   const previewRotation = useTwinStore((s) => s.previewRotation);
@@ -170,9 +173,26 @@ export function DigitalTwinScreen() {
                 const declaredDate = declaration.planting[crop] !== undefined;
                 return (
                   <li key={z.zone_id}>
-                    <span>
-                      {z.name} · {declaration.crops[z.zone_id] ? (es.crops[crop] ?? crop) : es.unconfirmedCrop}
-                    </span>
+                    <label>
+                      {z.name} ·{" "}
+                      <select
+                        aria-label={`${es.openParcel.declZone}: ${z.name}`}
+                        disabled={simulating}
+                        value={crop}
+                        onChange={(e) => {
+                          // Same contract as the farm map: the declaration feeds crop_overrides on the next run
+                          setDeclaration({ ...declaration, crops: { ...declaration.crops, [z.zone_id]: e.target.value } });
+                          void applyDeclaration();
+                        }}
+                      >
+                        {!declaration.crops[z.zone_id] && !catalog?.crops.some((c) => c.crop_id === crop) && (
+                          <option value={crop}>{es.unconfirmedCrop}</option>
+                        )}
+                        {(catalog?.crops ?? []).map((c) => (
+                          <option key={c.crop_id} value={c.crop_id}>{c.name_es}</option>
+                        ))}
+                      </select>
+                    </label>
                     <span>
                       {planting ? fmtDate(planting) : "—"} <DataStateBadge state={declaredDate ? "DECLARED" : "ESTIMATED"} compact />
                     </span>

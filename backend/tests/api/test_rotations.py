@@ -180,3 +180,22 @@ def test_unknown_field_is_rejected_with_its_location() -> None:
     response = TestClient(create_app()).post("/api/rotations/recommend", json=body)
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"] == ["body", "weights", "agua"]
+
+
+def test_start_crop_fixes_first_cycle_and_is_validated() -> None:
+    client = TestClient(create_app())
+    ok = client.post("/api/rotations/recommend", json={**BASE, "start_crop": "soybean"})
+    assert ok.status_code == 200
+    recs = ok.json()["recommendations"]
+    assert recs and all(r["sequence"][0] == "soybean" for r in recs)
+    bad = client.post("/api/rotations/recommend", json={**BASE, "start_crop": "not_a_crop"})
+    assert bad.status_code == 422
+
+
+def test_short_window_rain_is_scaled_to_crop_cycle_and_warned() -> None:
+    # 40-day window: raw rain compared with per-cycle EcoCrop ranges would score 0
+    body = {**BASE, "start": "2024-04-01", "end": "2024-05-10", "start_crop": "corn", "top_k": 1}
+    rec = TestClient(create_app()).post("/api/rotations/recommend", json=body).json()["recommendations"][0]
+    cycle = rec["cycles"][0]
+    assert cycle["rain_cycle_mm"] > 89  # more than the raw window total
+    assert any("llevada a" in w for w in cycle["warnings"])

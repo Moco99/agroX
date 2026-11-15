@@ -24,14 +24,12 @@ export interface SelectedPoint {
 interface MapStore {
   // Last settled camera; survives the map unmounting (twin stage) so coming back restores the view
   camera: CameraView;
-  selected: SelectedPoint | null;
   // The user's own position (from the browser), shown as a marker while they draw
   located: SelectedPoint | null;
   flight: FlightRequest | null;
   // True once the user touched the globe; the idle rotation never restarts after that
   interacted: boolean;
   setCamera: (camera: CameraView) => void;
-  select: (point: SelectedPoint | null) => void;
   setLocated: (point: SelectedPoint | null) => void;
   // Asks the map to fly; the stage store tracks the flight phase so panels and overlays can react
   flyTo: (target: FlightTarget) => void;
@@ -61,12 +59,10 @@ export function resolveFlight(target: FlightTarget): CameraView {
 
 export const useMapStore = create<MapStore>((set) => ({
   camera: initialCamera(),
-  selected: null,
   located: null,
   flight: null,
   interacted: false,
   setCamera: (camera) => set({ camera }),
-  select: (selected) => set({ selected }),
   setLocated: (located) => set({ located }),
   flyTo: (target) => {
     flightSeq += 1;

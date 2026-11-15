@@ -12,7 +12,6 @@ import { TransitionOverlay } from "./app-shell/transition-overlay";
 import { ErrorBoundary } from "./components/error-boundary";
 import { es } from "./i18n/es";
 import { LoadProgress } from "./screens/geographic/parcel-panels";
-import { PointScreen } from "./screens/point/point-screen";
 import { useParcelStore } from "./store/parcel-store";
 import { usePointStore } from "./store/point-store";
 import { useModuleView } from "./store/module-store";
@@ -39,7 +38,6 @@ export function App() {
   const rotationActive = useRotationView((s) => s.active);
   const moduleActive = useModuleView((s) => s.active);
   const fullPage = rotationActive || moduleActive !== null;
-  const pointActive = usePointStore((s) => s.active);
   const init = useTwinStore((s) => s.init);
   const loading = useTwinStore((s) => s.loading);
   const error = useTwinStore((s) => s.error);
@@ -104,12 +102,6 @@ export function App() {
               )}
             </Suspense>
           </ErrorBoundary>
-          {/* The point overlay sits above the stage so the map underneath keeps its camera and tile cache */}
-          {pointActive && !fullPage && (
-            <div className="point-overlay">
-              <PointScreen />
-            </div>
-          )}
           <TransitionOverlay />
         </div>
         {!fullPage && <footer className="bottom-bar">

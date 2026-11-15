@@ -29,6 +29,8 @@ class RotationRecommendRequest(StrictRequest):
     twin_only: bool = False
     top_k: int = Field(default=3, ge=1, le=10, strict=True)
     previous_crop: str | None = Field(default=None, max_length=30)
+    # First cycle is fixed to this crop (validated against the engine catalog); None = automatic
+    start_crop: str | None = Field(default=None, max_length=30)
     exclude_same_family: bool = False
     weights: Weights = Field(default_factory=lambda: Weights(water=1, soil=1, climate=1))
     scenario: RotationScenario = Field(default_factory=RotationScenario)

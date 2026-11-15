@@ -81,7 +81,8 @@ def recommend(p: Providers, request: RotationRecommendRequest) -> dict[str, Any]
     warnings.extend(
         [
             "Índice comparativo exploratorio, no probabilidad, rendimiento ni recomendación agronómica validada.",
-            "La precipitación del periodo se compara con umbrales EcoCrop cuya escala temporal requiere verificación.",
+            "La lluvia de cada ventana se lleva a la duración del ciclo del cultivo (tasa diaria media de la ventana) "
+            "antes de compararla con los rangos EcoCrop, que son por ciclo; es una extrapolación, no un dato medido.",
             "Los indicadores aproximan lluvia, pH y temperatura; no miden balance hídrico ni salud del suelo.",
             "Cada ciclo usa su propio periodo declarado." if windows
             else "El mismo clima de referencia se usa en todos los ciclos.",
@@ -114,6 +115,9 @@ def recommend(p: Providers, request: RotationRecommendRequest) -> dict[str, Any]
             exclude_same_family=request.exclude_same_family,
             allowed_crops=set(twin_crops) if request.twin_only else None,
             cycle_climates=[(item["t_mean"], item["rain_mm"]) for item in cycle_inputs] if windows else None,
+            # EcoCrop rainfall is per crop cycle: the engine converts each window's rain to that length
+            window_days=[item["days"] for item in cycle_inputs],
+            start_crop=request.start_crop,
         )
     except ValueError as exc:
         raise InvalidRequestError(str(exc)) from exc

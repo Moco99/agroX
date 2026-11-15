@@ -1,33 +1,19 @@
 import { useState } from "react";
 import { PointSearch } from "../point/point-search";
-import { sameQueriedPoint } from "../../lib/coordinates";
 import { DataStateBadge } from "../../components/data-state-badge";
 import { es, fmt } from "../../i18n/es";
-import { defaultPointRange, EXPLORE_PLACES, insideBounds, PILOT_BOUNDS } from "../../lib/globe-view";
+import { EXPLORE_PLACES } from "../../lib/globe-view";
 import { areaHa, canConfirm, canFinish } from "../../lib/draw";
 import { isPilotFarm } from "../../lib/parcel";
 import { useDrawStore } from "../../store/draw-store";
 import { useMapStore } from "../../store/map-store";
 import { openDrawn, openPilot, selectPilot } from "../../store/open-parcel";
 import { useParcelStore } from "../../store/parcel-store";
-import { usePointStore } from "../../store/point-store";
 import { useStageStore } from "../../store/stage-store";
 import { useTwinStore } from "../../store/twin-store";
 import type { RegionMetric } from "../../types/api";
 import { DeclarationPanel } from "./declaration-panel";
 import { LoadProgress, ParcelClimate, ParcelNdvi, ParcelSoil, ParcelWarnings } from "./parcel-panels";
-
-// Coverage verdict of the point query for the selected point; null until a matching query answered
-function coverageVerdict(
-  result: ReturnType<typeof usePointStore.getState>["result"],
-  selected: { lat: number; lon: number },
-): boolean | null {
-  if (!result) return null;
-  if (!sameQueriedPoint(result.point, selected)) return null;
-  const data = result.sections.coverage.data;
-  const flag = data?.es_cultivo;
-  return typeof flag === "boolean" ? flag : null;
-}
 
 // ─────────────────────────────────────────
 // Section: Draw your own parcel (any simple polygon; several polygons = several zones)
@@ -181,17 +167,8 @@ function openPilotTwin(): void {
 
 export function GlobePanel() {
   const [coordinatesOpen, setCoordinatesOpen] = useState(false);
-  const selected = useMapStore((s) => s.selected);
-  const pointLoading = usePointStore((s) => s.loading);
-  const pointResult = usePointStore((s) => s.result);
   const phase = useParcelStore((s) => s.phase);
   const farmId = useParcelStore((s) => s.farmId);
-  const inPilot = selected ? insideBounds(selected, PILOT_BOUNDS) : false;
-  const analyze = () => {
-    if (!selected) return;
-    void usePointStore.getState().query({ ...selected, ...defaultPointRange() });
-  };
-  const crop = selected ? coverageVerdict(pointResult, selected) : null;
   return (
     <aside className="panel" aria-label={es.geo.title}>
       <div className="panel-head">
@@ -203,39 +180,6 @@ export function GlobePanel() {
         <button type="button" className="ghost-button wide-button" aria-expanded={coordinatesOpen}
           onClick={() => setCoordinatesOpen((open) => !open)}>{es.point.enterCoordinates}</button>
         {coordinatesOpen && <PointSearch onSubmit={() => setCoordinatesOpen(false)} />}
-      </section>
-      <section className="card" data-testid="selected-point">
-        <h3>{es.geo.selected}</h3>
-        {selected ? (
-          <>
-            <p className="selected-coordinates">
-              {selected.lat.toFixed(5)}, {selected.lon.toFixed(5)}
-            </p>
-            <p className={inPilot ? "coverage-note is-in" : "coverage-note"}>
-              {inPilot ? es.geo.insidePilot : es.geo.outsidePilot}
-            </p>
-            {inPilot ? (
-              <button type="button" className="play-button wide-button" onClick={openPilot}>
-                {es.openParcel.openPilot}
-              </button>
-            ) : (
-              <>
-                {crop === false && (
-                  <p className="coverage-note is-warn" role="alert">
-                    {es.openParcel.notCrop}
-                  </p>
-                )}
-                {crop === true && <small className="muted">{es.openParcel.coverageOk}</small>}
-              </>
-            )}
-            <button type="button" className="ghost-button wide-button" onClick={analyze} disabled={pointLoading}>
-              {es.geo.analyze}
-            </button>
-            <small className="muted">{es.geo.analyzeHint}</small>
-          </>
-        ) : (
-          <p className="muted">{es.geo.choose}</p>
-        )}
       </section>
       <DrawParcelCard />
       {phase !== "idle" && phase !== "ready" && !isPilotFarm(farmId) && <LoadProgress />}
