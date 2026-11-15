@@ -1,3 +1,4 @@
+import { Term } from "../../components/explain/term";
 import { es, fmtDate } from "../../i18n/es";
 import { DEFAULT_CONTROLS, useTwinStore } from "../../store/twin-store";
 import type { IrrigationLevel } from "../../types/api";
@@ -22,8 +23,10 @@ export function SimulationPanel() {
   return (
     <section className="card">
       <div className="card-head">
-        <h3>{es.twin.conditions}</h3>
-        {simulating && <span className="muted">{es.twin.simulating}</span>}
+        <h3>
+          <Term id="scenario">{es.twin.conditions}</Term>
+        </h3>
+        {simulating && <span className="muted" role="status">{es.twin.simulating}</span>}
       </div>
       <label className="field">
         <span>{es.twin.scenario}</span>
@@ -35,6 +38,7 @@ export function SimulationPanel() {
             </option>
           ))}
         </select>
+        <small className="muted">{es.twinCopy.presetHint}</small>
       </label>
       <label className="field">
         <span>
@@ -48,6 +52,7 @@ export function SimulationPanel() {
           value={controls.precipPct}
           onChange={(e) => setControls({ precipPct: Number(e.target.value) })}
         />
+        <small className="muted">{es.twinCopy.precipHint}</small>
       </label>
       <label className="field">
         <span>
@@ -61,6 +66,7 @@ export function SimulationPanel() {
           value={controls.tempDelta}
           onChange={(e) => setControls({ tempDelta: Number(e.target.value) })}
         />
+        <small className="muted">{es.twinCopy.tempHint}</small>
       </label>
       <div className="field">
         <span>{es.twin.irrigation}</span>
@@ -74,13 +80,18 @@ export function SimulationPanel() {
               className={controls.irrigation === l ? "is-active" : ""}
               onClick={() => setControls({ irrigation: l })}
               title={
-                config ? `${config.irrigation_levels[l].depth_mm} mm cuando el agotamiento supera ${config.irrigation_levels[l].trigger_fraction_of_raw}×RAW` : ""
+                config
+                  ? es.twinCopy.irrigationTitle(String(config.irrigation_levels[l].depth_mm), String(config.irrigation_levels[l].trigger_fraction_of_raw))
+                  : ""
               }
             >
               {es.irrigation[l]}
             </button>
           ))}
         </div>
+        <small className="muted">
+          {es.twinCopy.irrigationHint} <Term id="raw" />
+        </small>
       </div>
       <div className="field">
         <span>{es.twin.forkFrom}</span>
@@ -100,6 +111,7 @@ export function SimulationPanel() {
             {es.twin.forkCurrent} ({fmtDate(currentDate)})
           </button>
         </div>
+        <small className="muted">{es.twinCopy.forkHint}</small>
       </div>
       <label className="check">
         <input
@@ -109,6 +121,7 @@ export function SimulationPanel() {
         />
         {es.twin.monteCarlo}
       </label>
+      <small className="muted">{es.twinCopy.monteCarloHint}</small>
       <button
         type="button"
         className="ghost-button"

@@ -1,6 +1,7 @@
 import { useRotationView } from "./store/rotation-store";
 import { lazy, Suspense, useEffect } from "react";
 import { DataBanner } from "./app-shell/data-banner";
+import { GuidePanel } from "./app-shell/guide-panel";
 import { HelpPopover } from "./app-shell/help-popover";
 import { LayerBar } from "./app-shell/layer-bar";
 import { MapLayerBar } from "./app-shell/map-layer-bar";
@@ -124,6 +125,7 @@ export function App() {
         </footer>}
       </div>
       <HelpPopover />
+      <GuidePanel />
     </div>
   );
 }
