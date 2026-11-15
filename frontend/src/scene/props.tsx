@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { seededRandom } from "../lib/geo";
 
 // ─────────────────────────────────────────
-// Section: Decorative props (house, silo, pond, road, trees) — illustrative only
+// Section: Decorative props (pond, road, trees) — illustrative only
 // ─────────────────────────────────────────
 
 interface Extent {
@@ -14,7 +14,7 @@ interface Extent {
   maxZ: number;
 }
 
-export function Ground({ extent, surface = "#3E5A35" }: { extent: Extent; surface?: string }) {
+export function Ground({ extent, surface = "#3E5A35", topPlane = true }: { extent: Extent; surface?: string; topPlane?: boolean }) {
   const w = extent.maxX - extent.minX;
   const d = extent.maxZ - extent.minZ;
   const cx = (extent.maxX + extent.minX) / 2;
@@ -26,39 +26,12 @@ export function Ground({ extent, surface = "#3E5A35" }: { extent: Extent; surfac
         <boxGeometry args={[w + 6, 0.7, d + 6]} />
         <meshLambertMaterial color="#5B4632" />
       </mesh>
-      <mesh position={[cx, 0.0, cz]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[w + 6, d + 6]} />
-        <meshLambertMaterial color={surface} />
-      </mesh>
-    </group>
-  );
-}
-
-export function Farmstead({ extent }: { extent: Extent }) {
-  const x = extent.maxX + 1.6;
-  const z = extent.minZ + 1.5;
-  return (
-    <group position={[x, 0, z]}>
-      <mesh position={[0, 0.25, 0]}>
-        <boxGeometry args={[0.9, 0.5, 0.7]} />
-        <meshLambertMaterial color="#C9C2B4" />
-      </mesh>
-      <mesh position={[0, 0.62, 0]} rotation={[0, Math.PI / 4, 0]}>
-        <coneGeometry args={[0.72, 0.35, 4]} />
-        <meshLambertMaterial color="#8C3B2E" />
-      </mesh>
-      <mesh position={[1.1, 0.55, 0.2]}>
-        <cylinderGeometry args={[0.22, 0.22, 1.1, 12]} />
-        <meshLambertMaterial color="#AEB6BF" />
-      </mesh>
-      <mesh position={[1.1, 1.18, 0.2]}>
-        <sphereGeometry args={[0.22, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshLambertMaterial color="#8E99A4" />
-      </mesh>
-      <mesh position={[1.6, 0.3, -0.4]}>
-        <boxGeometry args={[0.6, 0.6, 1.0]} />
-        <meshLambertMaterial color="#7A2E25" />
-      </mesh>
+      {topPlane && (
+        <mesh position={[cx, 0.0, cz]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[w + 6, d + 6]} />
+          <meshLambertMaterial color={surface} />
+        </mesh>
+      )}
     </group>
   );
 }

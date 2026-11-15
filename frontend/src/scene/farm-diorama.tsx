@@ -9,7 +9,8 @@ import { localRing, type Projector } from "../lib/geo";
 import type { Layer } from "../store/twin-store";
 import { color } from "../styles/tokens";
 import type { Farm } from "../types/api";
-import { Farmstead, Ground, Pond, Road, Sprinkler, Trees } from "./props";
+import { Ground, Pond, Road, Sprinkler, Trees } from "./props";
+import { BuildingsLayer } from "./buildings-layer";
 import { SCENE_SCALE, ZoneField } from "./zone-field";
 import { useTwinStore } from "../store/twin-store";
 import { useParcelStore } from "../store/parcel-store";
@@ -46,6 +47,13 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
     minZ: -e.maxY * SCENE_SCALE,
     maxZ: -e.minY * SCENE_SCALE,
   };
+  // Ground slab spans the farm extent plus 300 m on every side; imagery, terrain and buildings share that box
+  const groundBounds = useMemo(() => {
+    const [west, south] = projector.fromLocal(e.minX - 300, e.minY - 300);
+    const [east, north] = projector.fromLocal(e.maxX + 300, e.maxY + 300);
+    return { west, south, east, north };
+  }, [projector, e]);
+  const heightmap = useTwinStore((s) => s.heightmap);
   const anyIrrigation = views.some((v) => v.zone.irrigation_level !== "NONE");
   // A fixed portal target keeps drei <Html> from re-creating its React roots when the canvas parent settles
   const labelsRef = useRef<HTMLDivElement>(null!);
@@ -63,10 +71,11 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
     >
       <hemisphereLight args={["#DDE8FF", "#2A2016", 0.9]} />
       <directionalLight castShadow position={[10, 18, 6]} intensity={2.4} shadow-mapSize={[2048,2048]} />
-      <ObservedTerrain projector={projector} fallbackColor={pilot ? "#526741" : surface}/>
+      <ObservedTerrain projector={projector} fallbackBounds={groundBounds} fallbackColor={pilot ? "#526741" : surface}/>
+      <BuildingsLayer projector={projector} bounds={heightmap?.bounds ?? groundBounds} />
       <ContactShadows position={[0,-.15,0]} opacity={.4} scale={60} blur={2} far={20}/>
-      <Ground extent={extent} surface={pilot ? undefined : surface} />
-      {pilot && <><Road extent={extent} /><Farmstead extent={extent} /><Pond extent={extent} /><Trees extent={extent} /></>}
+      <Ground extent={extent} surface={pilot ? undefined : surface} topPlane={Boolean(heightmap)} />
+      {pilot && <><Road extent={extent} /><Pond extent={extent} /><Trees extent={extent} /></>}
       {views.map((v) => {
         const ring = rings[v.zone.zone_id];
         if (!ring) return null;
@@ -74,6 +83,9 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
         const [cx, cy] = centroid ? projector.toLocal(centroid.lon, centroid.lat) : [0, 0];
         const sx = cx * SCENE_SCALE;
         const sz = -cy * SCENE_SCALE;
+        // Point farms have four equal squares: push each label outward from the farm centre so they do not stack
+        const lx = pilot ? sx : sx + Math.sign(sx - (extent.minX + extent.maxX) / 2) * 0.9;
+        const lz = pilot ? sz : sz + Math.sign(sz - (extent.minZ + extent.maxZ) / 2) * 0.5;
         return (
           <group key={v.zone.zone_id}>
             <ZoneField
@@ -90,7 +102,7 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
             {v.zone.irrigation_level !== "NONE" && (
               <Sprinkler position={[sx, 0, sz]} active={(v.state?.irrigation_mm ?? 0) > 0 || layer === "irrigation"} />
             )}
-            <Html position={[sx, 1.1, sz]} center zIndexRange={[20, 0]} portal={labelsRef}>
+            <Html position={[lx, 1.1, lz]} center zIndexRange={[20, 0]} portal={labelsRef}>
               <button
                 type="button"
                 className={`zone-label${selectedZoneId === v.zone.zone_id ? " is-selected" : ""}`}
