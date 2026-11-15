@@ -71,9 +71,17 @@ def _valor(s, coleccion, item, assets, lat, lon):
     return r.json()["values"]
 
 
-def ndvi(b4, b8, scl):
-    """NDVI de un pixel de Sentinel-2, o None si está nublado o sin dato."""
-    if scl in SCL_MALO or b4 + b8 <= 0:
+def ndvi(b4, b8, scl, baseline="05.00"):
+    """NDVI de un pixel de Sentinel-2, o None si está nublado o sin dato.
+
+    Desde la versión de procesamiento 04.00 (enero 2022) ESA suma 1000 a cada valor; sin quitarlo
+    el NDVI sale aplastado hacia cero. Las escenas de antes (p. ej. 03.00 en 2021) no lo llevan.
+    """
+    if scl in SCL_MALO or b4 <= 0 or b8 <= 0:
+        return None
+    if float(baseline) >= 4.0:
+        b4, b8 = b4 - 1000, b8 - 1000
+    if b4 + b8 <= 0:
         return None
     return round((b8 - b4) / (b8 + b4), 3)
 
@@ -156,7 +164,7 @@ def vegetacion(s, lat, lon, inicio, fin):
             b4, b8, scl = _valor(s, "sentinel-2-l2a", it["id"], ["B04", "B08", "SCL"], lat, lon)[:3]
         except requests.RequestException:
             return None
-        v = ndvi(b4, b8, scl)
+        v = ndvi(b4, b8, scl, it["properties"].get("s2:processing_baseline", "05.00"))
         return None if v is None else (it["properties"]["datetime"][:10], v)
 
     with ThreadPoolExecutor(16) as ex:

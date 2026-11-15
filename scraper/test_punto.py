@@ -3,10 +3,14 @@ from punto import _validar, ndvi, pendiente, promedio_por_fecha
 
 
 def test_ndvi():
-    assert ndvi(1000, 3000, 4) == 0.5          # vegetación (SCL 4)
-    assert ndvi(1000, 3000, 9) is None         # nube alta
-    assert ndvi(1000, 3000, 3) is None         # sombra de nube
-    assert ndvi(0, 0, 4) is None               # sin reflectancia
+    # Escena 2021 (versión 03.00): sin offset
+    assert ndvi(1000, 3000, 4, "03.00") == 0.5
+    # Misma reflectancia en escena 2024 (05.11): ESA sumó 1000 a cada banda
+    assert ndvi(2000, 4000, 4, "05.11") == 0.5
+    assert ndvi(1000, 3000, 9, "03.00") is None   # nube alta
+    assert ndvi(1000, 3000, 3, "03.00") is None   # sombra de nube
+    assert ndvi(0, 0, 4, "03.00") is None         # sin reflectancia
+    assert ndvi(900, 950, 4, "05.11") is None     # por debajo del offset: sin dato real
 
 
 def test_pendiente():

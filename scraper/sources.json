@@ -127,9 +127,9 @@
       "assets": [
         "250m_16_days_NDVI"
       ],
-      "max_items": 46,
+      "max_items": 92,
       "max_size": 200,
-      "notes": "MODIS NDVI 16 dias 250 m"
+      "notes": "MODIS NDVI 16 dias 250 m, Terra y Aqua: 92 = 2 años completos"
     },
     {
       "id": "naip",
