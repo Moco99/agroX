@@ -2,3 +2,17 @@ data/
 __pycache__/
 *.part
 .env
+
+# Virtual twin: local environments, builds and caches (derived/ IS versioned: ~170 KB)
+backend/.venv/
+.venv/
+node_modules/
+frontend/dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.pyc
+.DS_Store
+frontend/test-results/
+frontend/playwright-report/
+.agrox-dev/
