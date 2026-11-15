@@ -131,3 +131,21 @@ def test_soilgrids_deadline_bounds_first_request_and_late_answer_is_cached(tmp_p
     assert found is not None and found.status == "ready"
     final = provider.get_zone_soils("pt_-12.45_-55.95")["zone_ne"]
     assert final.provenance.source.startswith("SoilGrids 2.0")
+
+
+def test_point_farm_future_window_plants_inside_it() -> None:
+    # A northern Nov-Nov window must not start with the crop already mature (planting suggested for last May)
+    from types import SimpleNamespace
+
+    from app.services.twin_service import _plantings
+
+    req = SimpleNamespace(planting_dates=None)
+    zones = [SimpleNamespace(zone_id="zone_1")]
+    crops = {"zone_1": SimpleNamespace(crop_id="corn")}
+    start, end = date(2026, 11, 15), date(2027, 11, 15)
+    planting, state = _plantings(req, zones, crops, start, end, (20.73, -97.89))["zone_1"]  # type: ignore[arg-type]
+    assert start <= planting <= end and planting.year == 2027
+    assert state is DataState.ESTIMATED
+    # A window that does not reach next year's date keeps the same-year suggestion
+    same, _ = _plantings(req, zones, crops, date(2026, 6, 1), date(2026, 10, 31), (20.73, -97.89))["zone_1"]  # type: ignore[arg-type]
+    assert same.year == 2026
