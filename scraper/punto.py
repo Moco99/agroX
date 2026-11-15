@@ -19,6 +19,8 @@ import json
 import math
 import sys
 import time
+import tempfile
+import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from pathlib import Path
@@ -46,8 +48,22 @@ CLIMA = "T2M,T2M_MAX,T2M_MIN,PRECTOTCORR,RH2M,ALLSKY_SFC_SW_DWN,GWETTOP,GWETROOT
 SCL_MALO = {0, 1, 3, 8, 9, 10, 11}  # Sentinel-2: sin dato, saturado, sombra, nubes, cirros, nieve
 
 
+class DeadlineSession(requests.Session):
+    """Bound each request and refuse new calls after the query deadline."""
+    def __init__(self):
+        super().__init__()
+        self.deadline = time.monotonic() + 90
+
+    def request(self, method, url, **kwargs):
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise requests.Timeout("Point query deadline exceeded")
+        kwargs["timeout"] = min(float(kwargs.get("timeout", 20)), 20, remaining)
+        return super().request(method, url, **kwargs)
+
+
 def _sesion():
-    s = requests.Session()
+    s = DeadlineSession()
     s.headers["User-Agent"] = "agroX-hackathon/0.3"
     s.mount("https://", requests.adapters.HTTPAdapter(pool_maxsize=32))
     return s
@@ -156,20 +172,27 @@ def clima(s, lat, lon, inicio, fin):
 
 
 def vegetacion(s, lat, lon, inicio, fin):
-    escenas = _items(s, "sentinel-2-l2a", lat, lon, f"{inicio}T00:00:00Z/{fin}T23:59:59Z", limite=500,
+    escenas = _items(s, "sentinel-2-l2a", lat, lon, f"{inicio}T00:00:00Z/{fin}T23:59:59Z", limite=128,
                      query={"eo:cloud_cover": {"lt": 60}})
+
+    failed = object()
 
     def una(it):
         try:
             b4, b8, scl = _valor(s, "sentinel-2-l2a", it["id"], ["B04", "B08", "SCL"], lat, lon)[:3]
         except requests.RequestException:
-            return None
+            return failed
         v = ndvi(b4, b8, scl, it["properties"].get("s2:processing_baseline", "05.00"))
         return None if v is None else (it["properties"]["datetime"][:10], v)
 
     with ThreadPoolExecutor(16) as ex:
-        pares = [p for p in ex.map(una, escenas) if p]
-    return {"fuente": "Sentinel-2 L2A, 10 m", "escenas_revisadas": len(escenas), "serie": promedio_por_fecha(pares)}
+        results = list(ex.map(una, escenas[:128]))
+    failures = sum(p is failed for p in results)
+    if results and failures == len(results):
+        raise requests.RequestException("All Sentinel-2 pixel reads failed")
+    pares = [p for p in results if p is not failed and p is not None]
+    return {"fallos_lectura": failures, "fuente": "Sentinel-2 L2A, 10 m", "escenas_revisadas": len(escenas), "serie": promedio_por_fecha(pares),
+            "limite_escenas": 128, "serie_puede_ser_incompleta": len(escenas) >= 128 or failures > 0}
 
 
 def aptitud(s, lat, lon):
@@ -197,6 +220,8 @@ def aptitud(s, lat, lon):
 def _validar(lat, lon, inicio, fin):
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         raise ValueError(f"coordenadas fuera de rango: {lat}, {lon}")
+    if (date.fromisoformat(fin) - date.fromisoformat(inicio)).days > 730:
+        raise ValueError("periodo mayor a 730 dias")
     if date.fromisoformat(inicio) > date.fromisoformat(fin):
         raise ValueError("inicio después de fin")
 
@@ -208,8 +233,16 @@ def consultar(lat, lon, inicio=None, fin=None, usar_cache=True):
     _validar(lat, lon, inicio, fin)
 
     archivo = CACHE / f"{lat}_{lon}_{inicio}_{fin}.json"
-    if usar_cache and archivo.exists():
-        return json.loads(archivo.read_text(encoding="utf-8"))
+    if usar_cache:
+        try:
+            if not archivo.is_file() or time.time() - archivo.stat().st_mtime >= 86400:
+                raise ValueError("cache absent or expired")
+            cached = json.loads(archivo.read_text(encoding="utf-8"))
+            if isinstance(cached, dict) and all(isinstance(cached.get(k), dict) and "error" not in cached[k]
+                   for k in ("cobertura", "terreno", "suelo", "clima", "vegetacion", "aptitud")):
+                return cached
+        except (ValueError, OSError, TypeError):
+            pass
 
     s = _sesion()
     tareas = {"cobertura": (cobertura, ()), "terreno": (terreno, ()), "suelo": (suelo, ()),
@@ -231,8 +264,16 @@ def consultar(lat, lon, inicio=None, fin=None, usar_cache=True):
     out.update({n: r for n, r, _ in resultados})
 
     if not any("error" in r for _, r, _ in resultados):  # solo se guarda si todo salió bien
-        archivo.parent.mkdir(parents=True, exist_ok=True)
-        archivo.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+        try:
+            archivo.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=archivo.parent,
+                                             delete=False) as temp:
+                json.dump(out, temp, ensure_ascii=False)
+                temp_path = temp.name
+            os.replace(temp_path, archivo)
+        except OSError:
+            pass
+    s.close()
     return out
 
 

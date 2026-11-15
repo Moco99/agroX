@@ -14,6 +14,18 @@
       "source_id": "literature",
       "verified": false
     },
+    "imagery_basemap": {
+      "built_at": "2026-11-15T01:52:42Z",
+      "data_state": "MEASURED",
+      "files": [
+        "imagery/basemap_story_pilot_farm.jpg",
+        "imagery/meta.json"
+      ],
+      "method": "NAIP quads windowed to farm + margin, composited by alpha, Lanczos resample to 2048 px",
+      "resolution": "~1.0 m native",
+      "source": "USDA NAIP via Microsoft Planetary Computer (quad covering the farm; raw mirror quads do not)",
+      "source_id": "naip"
+    },
     "obs_ndvi_modis": {
       "built_at": "2026-11-15T02:04:19Z",
       "data_state": "MEASURED",
@@ -35,6 +47,7 @@
       "built_at": "2026-11-15T02:04:37Z",
       "coverage_note": "Merged multiyear zonal observations; dated shared-grid PNGs available for a subset of dates.",
       "data_state": "MEASURED",
+      "dates": 102,
       "files": [
         "obs/ndvi_s2_story_pilot_farm.csv",
         "obs/ndvi_s2_overlay_story_pilot_farm.png",
@@ -44,13 +57,12 @@
       "method": "NDVI=(B08-B04)/(B08+B04) after BOA offset -1000 (products generated from 20220125, baseline >= 04.00; none before) and scale 1/10000; SCL keep [4, 5, 6]; zone mean over pixel centres; overlay from scene with best valid fraction; shared-grid percentiles for available dated imagery",
       "overlay_scene": "S2A_MSIL2A_20240930T171121_R112_T15TVG_20240930T224751",
       "period": {
-        "start": "2021-05-01",
-        "end": "2024-09-30"
+        "end": "2024-09-30",
+        "start": "2021-05-01"
       },
       "resolution": "10 m (SCL 20 m)",
       "scenes": 131,
-      "source_id": "sentinel2",
-      "dates": 102
+      "source_id": "sentinel2"
     },
     "obs_smap": {
       "built_at": "2026-11-15T02:06:53Z",
@@ -133,6 +145,34 @@
         }
       ]
     },
+    "region_gaez": {
+      "built_at": "2026-11-15T05:08:20Z",
+      "data_state": "ESTIMATED",
+      "files": [
+        "region/gaez_suitability_story_pilot.json"
+      ],
+      "method": "value of the 5 arc-minute cell containing the pilot point, clipped to 10000",
+      "resolution": "5 arc-minute (~9 km)",
+      "source": "FAO/IIASA GAEZ v4, theme 4 Suitability and Attainable Yield (suHr rasters)",
+      "source_id": "gaez"
+    },
+    "region_ndvi_modis": {
+      "bbox": [
+        -93.55,
+        41.95,
+        -93.43,
+        42.04
+      ],
+      "built_at": "2026-11-15T05:08:13Z",
+      "data_state": "MEASURED",
+      "files": [
+        "region/ndvi_modis_region_story_pilot.csv"
+      ],
+      "method": "scale 0.0001, fill -3000 dropped; mean/p10/p90 over every pixel of the pilot bbox; Terra and Aqua composites sharing a start date are pooled",
+      "resolution": "250 m",
+      "source": "MODIS MOD13Q1 + MYD13Q1 v061 NDVI 250 m 16-day, mean over the whole pilot bbox",
+      "source_id": "modis_ndvi"
+    },
     "soil_ssurgo": {
       "built_at": "2026-11-15T02:04:18Z",
       "data_state": "MEASURED",
@@ -147,6 +187,17 @@
       ],
       "resolution": "map unit polygons (1:12,000-1:24,000)",
       "source_id": "ssurgo"
+    },
+    "terrain_heightmap": {
+      "built_at": "2026-11-15T01:52:42Z",
+      "data_state": "MEASURED",
+      "files": [
+        "terrain/heightmap_story_pilot_farm.json"
+      ],
+      "method": "bilinear resample of the DEM onto the common farm+margin grid",
+      "resolution": "26.9 m",
+      "source": "NASADEM HGT 1 arc-second (SRTM reprocessed)",
+      "source_id": "srtm"
     },
     "terrain_slope": {
       "built_at": "2026-11-15T02:04:14Z",
@@ -183,29 +234,6 @@
         "tmax_lt_tmin": 0
       },
       "source_id": "power"
-    },
-    "imagery_basemap": {
-      "built_at": "2026-11-15T01:52:42Z",
-      "data_state": "MEASURED",
-      "files": [
-        "imagery/basemap_story_pilot_farm.jpg",
-        "imagery/meta.json"
-      ],
-      "method": "NAIP quads windowed to farm + margin, composited by alpha, Lanczos resample to 2048 px",
-      "resolution": "~1.0 m native",
-      "source": "USDA NAIP via Microsoft Planetary Computer (quad covering the farm; raw mirror quads do not)",
-      "source_id": "naip"
-    },
-    "terrain_heightmap": {
-      "built_at": "2026-11-15T01:52:42Z",
-      "data_state": "MEASURED",
-      "files": [
-        "terrain/heightmap_story_pilot_farm.json"
-      ],
-      "method": "bilinear resample of the DEM onto the common farm+margin grid",
-      "resolution": "26.9 m",
-      "source": "NASADEM HGT 1 arc-second (SRTM reprocessed)",
-      "source_id": "srtm"
     }
   },
   "version": 1

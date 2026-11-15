@@ -45,6 +45,7 @@ dev:
 
 test:
 	cd backend && .venv/bin/python -m pytest -q -p no:warnings
+	cd frontend && "$(PNPM)" exec vitest run
 
 lint:
 	cd backend && .venv/bin/ruff check app tests ../pipeline && .venv/bin/mypy app

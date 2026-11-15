@@ -19,3 +19,12 @@ frontend/playwright-report/
 
 # On-demand object cache (blocks fetched from S3), capped by AGROX_CACHE_MAX_MB
 backend/.cache/
+
+# Local Vite provider configuration
+frontend/.env.local
+frontend/.env.*.local
+
+.pnpm-store/
+
+# Playwright MCP local captures and logs
+.playwright-mcp/

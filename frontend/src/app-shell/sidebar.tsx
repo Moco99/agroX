@@ -1,9 +1,24 @@
 import { es } from "../i18n/es";
+import { useMapStore } from "../store/map-store";
+import { usePointStore } from "../store/point-store";
 import { useStageStore, type Stage } from "../store/stage-store";
 
 // ─────────────────────────────────────────
-// Section: Left navigation (menu items map to the three cinematic stages)
+// Section: Left navigation (menu items map to the three stages)
 // ─────────────────────────────────────────
+
+// Globe and farm share the same map, so moving between them is a camera flight; the twin is a separate scene
+export function navigateTo(target: Stage): void {
+  usePointStore.getState().close();
+  const { stage, goTo } = useStageStore.getState();
+  if (target === "twin") {
+    goTo("twin");
+    return;
+  }
+  if (stage === "twin") goTo(target);
+  // Queued even from the twin: the map replays the pending flight once it is mounted again
+  useMapStore.getState().flyTo(target === "map" ? "pilot" : "globe");
+}
 
 interface NavItem {
   label: string;
@@ -22,12 +37,16 @@ const ITEMS: NavItem[] = [
 
 export function Sidebar() {
   const stage = useStageStore((s) => s.stage);
-  const goTo = useStageStore((s) => s.goTo);
-  const cancelAutopilot = useStageStore((s) => s.cancelAutopilot);
   return (
     <aside className="sidebar">
       <div className="logo">
-        <svg className="logo-mark" viewBox="0 0 32 32" aria-hidden width="30" height="30">
+        <svg
+          className="logo-mark"
+          viewBox="0 0 32 32"
+          aria-hidden
+          width="30"
+          height="30"
+        >
           <path d="M4 24 L16 6 L28 24 Z" fill="#7EE36D" />
           <path d="M10 24 L16 14 L22 24 Z" fill="#107432" />
         </svg>
@@ -46,10 +65,7 @@ export function Sidebar() {
               className={`nav-item${item.stage === stage ? " is-active" : ""}`}
               disabled={disabled}
               onClick={() => {
-                if (!item.stage) return;
-                cancelAutopilot();
-                // Jumping backwards is instant; moving forward keeps the cinematic transition
-                goTo(item.stage, { instant: item.stage === "globe" || (item.stage === "map" && stage === "twin") });
+                if (item.stage) navigateTo(item.stage);
               }}
               title={disabled ? es.nav.soon : item.label}
             >
