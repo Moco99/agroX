@@ -305,7 +305,7 @@ export interface TwinSimulateRequest {
   // crop_id -> ISO planting date (the backend keys planting dates by crop, not by zone)
   planting_dates?: Record<string, string>;
   // zone_id -> catalog crop_id declared by the user (DECLARED); only sent when it differs from the farm's crop
-  zone_crops?: Record<string, string>;
+  crop_overrides?: Record<string, string>;
   monte_carlo?: { n: number; seed: number } | null;
   include_states?: boolean;
   include_comparison?: boolean;

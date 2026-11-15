@@ -13,7 +13,7 @@ make dev     # backend http://127.0.0.1:8000/api/health  ·  frontend http://127
 - Modo sintético: `AGROX_DATA_MODE=synthetic make dev` (la UI muestra el banner "Datos sintéticos").
 - Modo en vivo: `AGROX_DATA_MODE=live make dev`. El gemelo pide directo a las APIs de cada fuente:
   - **Clima:** NASA POWER, 1984 a hoy (~43 años). Activa la anomalía de lluvia y el **SPI** (índice de sequía). Tarda ~3 s la primera vez.
-  - **NDVI por zona:** Sentinel-2 vía Planetary Computer, 2021 a hoy (~300 fechas sin nubes). Tarda **~36 s la primera vez del día**; conviene abrir la parcela una vez antes de la demo.
+  - **NDVI por zona:** Sentinel-2 vía Planetary Computer, 2021 a hoy (~150–300 fechas sin nubes según el lugar; 158 en el piloto). Tarda **~36 s la primera vez del día**; conviene abrir la parcela una vez antes de la demo.
   - **Suelo:** SSURGO donde existe, con validación cruzada contra SoilGrids (ISRIC). Donde no hay SSURGO, se usa SoilGrids como `ESTIMATED`.
   - **Cualquier lugar del mundo:** usa `farm_id = pt_<lat>_<lon>` (p. ej. `pt_18.83_-96.78`) en `/api/farms/{id}`, `/api/twin/simulate` y `/api/observations/ndvi`, y `lat`/`lon` en `/api/climate`. Se arma una parcela de 36 ha (4 zonas) con clima de POWER en ese punto, NDVI de Sentinel-2, terreno del DEM de Copernicus y suelo de SoilGrids. El cultivo se **declara** (por defecto maíz) y las fechas de siembra por defecto son del Medio Oeste de EE.UU.: hay que cambiarlas para otras regiones. Primera carga ~30–90 s; después, caché.
   - Las respuestas se guardan en caché en `data/cache/` durante un día. Si una API falla, se usa `derived/` y se avisa. La parcela, MODIS y SMAP siguen saliendo de `derived/`.

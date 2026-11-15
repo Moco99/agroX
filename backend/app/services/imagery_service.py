@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import io
 from datetime import date
 
@@ -15,6 +16,7 @@ from app.providers.live.imagery import DEM_PIXEL_M, S2_PIXEL_M, grid_shape
 from app.providers.live.parcel import point_farm
 from app.providers.ports import DataNotFoundError
 from app.providers.real import provenance_from_manifest, read_json
+from app.providers.real.observations import NDVI_LEGEND
 from app.schemas.common import DataState, Provenance
 from app.schemas.imagery import (
     BasemapInfo,
@@ -25,6 +27,7 @@ from app.schemas.imagery import (
     NdviDates,
     NdviSceneInfo,
 )
+from app.schemas.observations import NdviOverlay
 from app.services.farm_load_service import ensure_supported
 from app.storage.factory import get_store
 from app.storage.ports import ObjectNotFoundError, StoreUnavailableError
@@ -190,6 +193,38 @@ def _point_dates(p: Providers, farm_id: str) -> NdviDates:
             f"{len(points)} dates with clear pixels since 2021 (scenes with cloud < 30 %); "
             "valid_fraction = clear share of the farm zones"
         ],
+    )
+
+
+def point_overlay(p: Providers, farm_id: str) -> NdviOverlay | None:
+    """NDVI overlay of the latest clear Sentinel-2 date of a point farm; None for pilot ids."""
+    if not _point(p, farm_id):
+        return None
+    assert p.point_imagery is not None
+    scenes = _point_dates(p, farm_id).dates
+    if not scenes:
+        raise DataNotFoundError("no Sentinel-2 date with clear pixels over this farm")
+    # Prefer the newest cloud-free date; otherwise the newest one with any clear pixels (flagged below)
+    clear = [d for d in scenes if d.cloud_free]
+    chosen = (clear or scenes)[-1]
+    png = p.point_imagery.ndvi_png(farm_id, chosen.date)
+    west, south, east, north = p.point_imagery.bounds(farm_id)
+    width, height = grid_shape((west, south, east, north), S2_PIXEL_M)
+    warnings = ["grey pixels = masked by SCL (cloud/shadow/other) or outside the scene"]
+    if not clear:
+        warnings.append("no cloud-free date: showing the newest date with partially clear pixels")
+    return NdviOverlay(
+        farm_id=farm_id,
+        date=chosen.date,
+        source="Sentinel-2 L2A (ESA, via Planetary Computer), NDVI from B04/B08 with SCL mask",
+        resolution_m=S2_PIXEL_M,
+        bounds={"west": west, "south": south, "east": east, "north": north},
+        width_px=width,
+        height_px=height,
+        png_base64=base64.b64encode(png).decode("ascii"),
+        data_state=DataState.MEASURED,
+        legend_stops=NDVI_LEGEND,
+        warnings=warnings,
     )
 
 
