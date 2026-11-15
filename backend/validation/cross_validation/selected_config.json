@@ -1,0 +1,29 @@
+{
+  "data_version": "synthetic_stress_v1",
+  "feature_names": [
+    "t_mean",
+    "t_extreme_ratio",
+    "rain_mm",
+    "rain_deficit_ratio",
+    "soil_ph",
+    "soil_awc",
+    "cycle_days",
+    "crop_water_need",
+    "is_same_family",
+    "is_legume_preceding"
+  ],
+  "samples": 12000,
+  "seed": 42,
+  "params": {
+    "class_weight": null,
+    "max_depth": 10,
+    "max_features": 1.0,
+    "max_samples": 1.0,
+    "min_samples_leaf": 8,
+    "n_estimators": 240
+  },
+  "selection": "grouped_cv_one_standard_error",
+  "search_seed": 20261118,
+  "folds": 5,
+  "candidate_count": 21
+}

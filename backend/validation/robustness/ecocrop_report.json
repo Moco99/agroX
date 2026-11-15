@@ -1,0 +1,80 @@
+{
+  "seed": 20261117,
+  "samples": 3000,
+  "training_samples": 12000,
+  "validation_type": "synthetic consistency with noiseless training heuristic; no field labels",
+  "accuracy": 0.947,
+  "balanced_accuracy": 0.9313979570095778,
+  "majority_baseline": 0.4723333333333333,
+  "confusion_matrix_labels": [
+    "BAJO",
+    "MODERADO",
+    "ALTO"
+  ],
+  "confusion_matrix": [
+    [
+      1178,
+      54,
+      0
+    ],
+    [
+      34,
+      1353,
+      30
+    ],
+    [
+      0,
+      41,
+      310
+    ]
+  ],
+  "classification_report": {
+    "BAJO": {
+      "precision": 0.971947194719472,
+      "recall": 0.9561688311688312,
+      "f1-score": 0.9639934533551555,
+      "support": 1232.0
+    },
+    "MODERADO": {
+      "precision": 0.9343922651933702,
+      "recall": 0.954834156669019,
+      "f1-score": 0.9445026178010472,
+      "support": 1417.0
+    },
+    "ALTO": {
+      "precision": 0.9117647058823529,
+      "recall": 0.8831908831908832,
+      "f1-score": 0.8972503617945007,
+      "support": 351.0
+    },
+    "accuracy": 0.947,
+    "macro avg": {
+      "precision": 0.939368055265065,
+      "recall": 0.9313979570095778,
+      "f1-score": 0.9352488109835678,
+      "support": 3000.0
+    },
+    "weighted avg": {
+      "precision": 0.9471673984793669,
+      "recall": 0.947,
+      "f1-score": 0.946978340315835,
+      "support": 3000.0
+    }
+  },
+  "membership_known_answers_pass": true,
+  "prototype_gate": {
+    "accuracy_min": 0.85,
+    "balanced_accuracy_min": 0.8,
+    "high_recall_min": 0.8,
+    "passed": true
+  },
+  "source_sha256": "2a4c771603fef54f510623f2ce902abb8559ec97340ae401ccc46e000f7af657",
+  "limitations": [
+    "Labels reproduce a heuristic, not measured damage or yield.",
+    "Rainfall thresholds require temporal-unit verification before rotation use.",
+    "Validation cases were used to diagnose the previous version; this is a regression benchmark, not a fresh holdout.",
+    "Probabilities are uncalibrated synthetic class frequencies."
+  ],
+  "final_source_sha256": "bd9184dc03db0b565ed8462dacbd6b01e5440bd6d1751745c1451c14c1eddf28",
+  "post_validation_change": "Only corrected status label encoding and docstring punctuation; risk inference unchanged."
+}
