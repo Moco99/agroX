@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addVertex, areaHa, canConfirm, drawFeatures, EMPTY_DRAW, finishPolygon, isSimplePolygon, undo } from "./draw";
+import { addVertex, areaHa, canConfirm, canFinish, overlapsExisting, drawFeatures, EMPTY_DRAW, finishPolygon, isSimplePolygon, undo } from "./draw";
 
 const sq = [
   { lat: 0, lon: 0 },
@@ -46,5 +46,22 @@ describe("draw logic", () => {
   it("computes an approximate area", () => {
     expect(areaHa(sq)).toBeGreaterThan(99);
     expect(areaHa(sq)).toBeLessThan(101);
+  });
+
+  it("blocks finishing a polygon that overlaps a finished one but allows adjacent ones", () => {
+    const first = finishPolygon(drawAll(sq));
+    const shifted = sq.map((p) => ({ lat: p.lat + 0.005, lon: p.lon + 0.005 }));
+    const clash = shifted.reduce((s, p) => addVertex(s, p), first);
+    expect(overlapsExisting(clash)).toBe(true);
+    expect(canFinish(clash)).toBe(false);
+    expect(finishPolygon(clash).polygons).toHaveLength(1);
+    const inner = [
+      { lat: 0.002, lon: 0.002 },
+      { lat: 0.002, lon: 0.004 },
+      { lat: 0.004, lon: 0.004 },
+    ].reduce((s, p) => addVertex(s, p), first);
+    expect(canFinish(inner)).toBe(false);
+    const next = sq.map((p) => ({ lat: p.lat, lon: p.lon + 0.009 })).reduce((s, p) => addVertex(s, p), first);
+    expect(canFinish(next)).toBe(true);
   });
 });

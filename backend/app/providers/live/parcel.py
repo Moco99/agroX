@@ -71,6 +71,36 @@ def is_simple(ring: Ring) -> bool:
     return True
 
 
+def _strictly_inside(pt: Pt, ring: Ring) -> bool:
+    """Ray casting, but a point lying on the boundary does not count (adjacent parcels share edges)."""
+    x, y = pt
+    for (xi, yi), (xj, yj) in zip(ring, ring[1:], strict=False):
+        on_line = abs((xj - xi) * (y - yi) - (yj - yi) * (x - xi)) < 1e-12
+        in_box = min(xi, xj) - 1e-12 <= x <= max(xi, xj) + 1e-12 and min(yi, yj) - 1e-12 <= y <= max(yi, yj) + 1e-12
+        if on_line and in_box:
+            return False
+    hit = False
+    for (xi, yi), (xj, yj) in zip(ring, ring[1:], strict=False):
+        if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+            hit = not hit
+    return hit
+
+
+def rings_overlap(a: Ring, b: Ring) -> bool:
+    """True when two closed rings share area: an edge crossing, or one ring containing the other's vertex.
+
+    Rings that only touch along an edge or at a vertex are not overlapping (parcels may be adjacent).
+    """
+    # Identical rings have no proper crossing and every vertex on the boundary: catch them explicitly
+    if set(a) == set(b):
+        return True
+    for i in range(len(a) - 1):
+        for j in range(len(b) - 1):
+            if _segments_cross(a[i], a[i + 1], b[j], b[j + 1]):
+                return True
+    return any(_strictly_inside(p, b) for p in a[:-1]) or any(_strictly_inside(p, a) for p in b[:-1])
+
+
 def ring_area_ha(ring: Ring) -> float:
     """Approximate geodesic area: shoelace on a local equirectangular projection (error << 1 % at farm scale)."""
     lat0 = math.radians(sum(p[1] for p in ring[:-1]) / (len(ring) - 1))
@@ -107,6 +137,9 @@ def validate_polygons(polygons: list[list[Pt]]) -> list[Ring]:
             raise InvalidFarmIdError(f"polygon {k} crosses itself")
         if ring_area_ha(ring) < MIN_ZONE_HA:
             raise InvalidFarmIdError(f"polygon {k} is smaller than {MIN_ZONE_HA} ha")
+        for prev_k, prev in enumerate(rings, 1):
+            if rings_overlap(prev, ring):
+                raise InvalidFarmIdError(f"polygons {prev_k} and {k} overlap; each zone must be a separate area")
         rings.append(ring)
     total = sum(ring_area_ha(r) for r in rings)
     if total > MAX_FARM_HA:

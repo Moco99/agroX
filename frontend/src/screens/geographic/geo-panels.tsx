@@ -3,7 +3,7 @@ import { PointSearch } from "../point/point-search";
 import { DataStateBadge } from "../../components/data-state-badge";
 import { es, fmt } from "../../i18n/es";
 import { EXPLORE_PLACES } from "../../lib/globe-view";
-import { areaHa, canConfirm, canFinish } from "../../lib/draw";
+import { areaHa, canConfirm, canFinish, overlapsExisting } from "../../lib/draw";
 import { isPilotFarm } from "../../lib/parcel";
 import { useDrawStore } from "../../store/draw-store";
 import { useMapStore } from "../../store/map-store";
@@ -94,6 +94,7 @@ function DrawParcelCard() {
             </button>
             <button type="button" className="ghost-button" onClick={draw.clear}>{es.drawParcel.clear}</button>
           </div>
+          {overlapsExisting(draw) && <p className="coverage-note is-warn" role="alert">{es.drawParcel.overlap}</p>}
           <small className="muted">
             {es.drawParcel.summary(draw.polygons.length, total, draw.current.length)} <DataStateBadge state="DECLARED" />
           </small>

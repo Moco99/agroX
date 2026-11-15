@@ -107,6 +107,20 @@ def test_global_farm_builds_one_zone_per_polygon(tmp_path: Path) -> None:
     assert farm.zones[0].soil.awc_mm_per_m == 150.0
 
 
+def test_rejects_overlapping_polygons_but_allows_adjacent_ones() -> None:
+    shifted = [(la + 0.005, lo + 0.005) for la, lo in SQUARE]
+    inner = [(0.002, 0.002), (0.002, 0.004), (0.004, 0.004), (0.004, 0.002)]
+    for other in (shifted, inner, SQUARE):
+        with pytest.raises(InvalidFarmIdError, match="overlap"):
+            validate_polygons([SQUARE, other])
+    # Contained the other way round (second polygon swallows the first)
+    with pytest.raises(InvalidFarmIdError, match="overlap"):
+        validate_polygons([inner, SQUARE])
+    assert len(validate_polygons([SQUARE, TRIANGLE])) == 2
+    adjacent = [(0.0, 0.009), (0.0, 0.018), (0.009, 0.018), (0.009, 0.009)]
+    assert len(validate_polygons([SQUARE, adjacent])) == 2
+
+
 def test_imagery_bounds_cover_the_drawing(tmp_path: Path) -> None:
     fid = register_polygon_farm([SQUARE])
     w, s, e, n = PointImageryProvider(tmp_path).bounds(fid)
@@ -124,3 +138,6 @@ def test_route_registers_and_rejects() -> None:
     assert ok.status_code == 201 and ok.json()["farm_id"].startswith("poly_0.0045_0.0045_")
     bowtie = [poly[0], poly[2], poly[1], poly[3]]
     assert client.post("/api/farms/polygon", json={"polygons": [bowtie]}).status_code == 422
+    shifted = [{"lat": a + 0.005, "lon": b + 0.005} for a, b in SQUARE]
+    clash = client.post("/api/farms/polygon", json={"polygons": [poly, shifted]})
+    assert clash.status_code == 422 and "overlap" in str(clash.json())

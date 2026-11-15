@@ -530,6 +530,7 @@ export const es = {
     sending: "Registrando…",
     summary: (n: number, ha: number, open: number) =>
       `${n} polígono${n === 1 ? "" : "s"} · ≈${ha.toFixed(1)} ha (aprox.)${open > 0 ? ` · ${open} vértice${open === 1 ? "" : "s"} en curso` : ""}`,
+    overlap: "Este polígono se traslapa con otro ya dibujado. Ajusta los vértices para que cada zona sea un área separada.",
     failed: (msg: string) => `No se pudo registrar la parcela: ${msg}`,
     outdatedBackend: "el backend no tiene esta función; reinícialo con la versión actual",
     locate: "Usar mi ubicación",
