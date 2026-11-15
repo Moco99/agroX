@@ -532,10 +532,16 @@ export const es = {
     summary: (n: number, ha: number, open: number) =>
       `${n} polígono${n === 1 ? "" : "s"} · ≈${ha.toFixed(1)} ha (aprox.)${open > 0 ? ` · ${open} vértice${open === 1 ? "" : "s"} en curso` : ""}`,
     failed: (msg: string) => `No se pudo registrar la parcela: ${msg}`,
+    outdatedBackend: "el backend no tiene esta función; reinícialo con la versión actual",
+    locate: "Usar mi ubicación",
+    locating: "Buscando tu ubicación…",
+    located: "Ubicación encontrada. Dibuja el contorno de tu parcela sobre el mapa.",
+    geoDenied: "Permiso de ubicación denegado. Actívalo en el navegador o busca tus coordenadas.",
+    geoUnavailable: "No se pudo determinar tu ubicación. Revisa el GPS o la conexión e inténtalo de nuevo.",
+    geoTimeout: "Se agotó el tiempo buscando tu ubicación. Inténtalo de nuevo.",
+    geoUnsupported: "Tu navegador no ofrece geolocalización.",
   },
   openParcel: {
-    open: "Abrir parcela aquí",
-    openHint: "Crea una parcela de 36 ha con 4 zonas de 9 ha centrada en este punto. La primera carga tarda entre 30 y 90 s.",
     openPilot: "Abrir la granja piloto",
     parcelId: "Parcela",
     approx: "Límite aproximado de 36 ha alrededor del punto; no es un predio ni un límite catastral.",

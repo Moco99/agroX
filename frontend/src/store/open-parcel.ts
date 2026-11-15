@@ -1,9 +1,10 @@
 import { checkParcelLat, parcelIdFromPoint, PILOT_FARM_ID } from "../lib/parcel";
 import { es } from "../i18n/es";
-import { api } from "../services/api";
+import { ApiError, api } from "../services/api";
 import type { LatLon } from "../types/parcel";
 import { useMapStore } from "./map-store";
 import { useParcelStore } from "./parcel-store";
+import { useStageStore } from "./stage-store";
 import { useTwinStore } from "./twin-store";
 
 // ─────────────────────────────────────────
@@ -36,20 +37,17 @@ function activate(farmId: string, fly = true): void {
   if (fly) useMapStore.getState().flyTo(farmId === PILOT_FARM_ID ? "pilot" : "parcel");
 }
 
-export function openParcelAt(point: LatLon): OpenResult {
-  const check = canOpenAt(point);
-  if (check.ok) activate(check.farmId);
-  return check;
-}
-
-// Registers the drawn polygons and opens them as the active parcel; resolves to an error message or null
+// Registers the drawn polygons, makes them the active parcel and goes straight to its 3D twin; resolves to an error message or null
 export async function openDrawn(polygons: LatLon[][]): Promise<string | null> {
   if (useParcelStore.getState().capability === "unsupported") return es.openParcel.unsupported;
   try {
     const { farm_id } = await api.registerPolygonFarm(polygons);
-    activate(farm_id);
+    activate(farm_id, false);
+    useStageStore.getState().goTo("twin");
     return null;
   } catch (e) {
+    // 405 means the running backend predates POST /api/farms/polygon
+    if (e instanceof ApiError && e.status === 405) return es.drawParcel.outdatedBackend;
     return e instanceof Error ? e.message : String(e);
   }
 }
