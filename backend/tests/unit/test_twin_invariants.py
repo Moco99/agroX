@@ -107,3 +107,26 @@ def test_determinism_and_monte_carlo(inputs: twin.SeasonInputs) -> None:
     b = run_monte_carlo(inputs, 12, seed=7)
     assert a == b
     assert a.mean_ks_p10 <= a.mean_ks_p50 <= a.mean_ks_p90
+
+
+def test_season_outcome_from_stages_only(inputs: twin.SeasonInputs) -> None:
+    states = twin.run_season(inputs)
+    summary = twin.summarise(states, inputs.crop, inputs.planting_date)
+    outcome = twin.season_outcome(states, inputs.crop, inputs.planting_date, summary)
+    harvested = any(s.stage is PhenoStage.HARVESTED for s in states)
+    assert outcome.reached_maturity is harvested
+    assert outcome.status == ("COMPLETED" if harvested else "NOT_MATURE")
+    assert outcome.planted_in_window is True
+    assert outcome.stress_days == summary.stress_days
+    assert outcome.data_state in (DataState.SIMULATED, DataState.SYNTHETIC)
+    assert "yield" in outcome.note
+
+    # Cut the window before maturity: the crop is planted but heat runs out
+    short = [s for s in states if s.stage is not PhenoStage.HARVESTED][:120]
+    cut = twin.season_outcome(short, inputs.crop, inputs.planting_date, summary)
+    assert cut.status == "NOT_MATURE" and cut.maturity_date is None
+    assert cut.gdd_accumulated < cut.gdd_required
+
+    bare = [s for s in states if s.stage is PhenoStage.PRE_PLANTING]
+    none = twin.season_outcome(bare, inputs.crop, inputs.planting_date, summary)
+    assert none.status == "NOT_PLANTED" and none.stress_days == 0 and not none.planted_in_window

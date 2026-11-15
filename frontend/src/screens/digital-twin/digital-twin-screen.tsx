@@ -19,6 +19,7 @@ import { useTwinStore } from "../../store/twin-store";
 import { cropLabel, fallbackNote, ndviMissingText, stageStatusOf } from "../../lib/farm-labels";
 import { ExplanationBox } from "./explanation-box";
 import { KpiTiles } from "./kpi-tiles";
+import { SeasonOutcomeCard } from "./season-outcome";
 import { SimulationPanel } from "./simulation-panel";
 import { TwinCharts } from "./twin-charts";
 
@@ -240,6 +241,7 @@ export function DigitalTwinScreen() {
           </section>
         )}
         <SimulationPeriod />
+        <SeasonOutcomeCard run={scenario ?? baseline} />
         <SimulationPanel />
         <section className="card">
           <div className="card-head">

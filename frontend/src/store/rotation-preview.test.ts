@@ -77,6 +77,9 @@ describe("historical weather as a future scenario", () => {
     expect(vi.mocked(api.simulate).mock.calls[0]?.[0]).toMatchObject({ ...future, reference_year: 2024 });
     expect(useTwinStore.getState().span).toEqual(future);
     expect(useTwinStore.getState().referenceYear).toBe(2024);
+    // A new period rewinds to its first day and plays (jsdom has no reduced-motion preference)
+    expect(useTwinStore.getState().dayIndex).toBe(0);
+    expect(useTwinStore.getState().playing).toBe(true);
     expect(useParcelStore.getState().declaration).toBe(declaration);
     useTwinStore.setState({ controls: { ...DEFAULT_CONTROLS, precipPct: -20 } });
     await useTwinStore.getState().runScenario();

@@ -247,6 +247,21 @@ export interface MonteCarloSummary {
   data_state: DataState;
 }
 
+// Model-derived cycle completion (GDD stages, Ks, frost days); never a yield prediction
+export interface SeasonOutcome {
+  status: "COMPLETED" | "NOT_MATURE" | "NOT_PLANTED";
+  planted_in_window: boolean;
+  reached_maturity: boolean;
+  maturity_date: string | null;
+  gdd_accumulated: number;
+  gdd_required: number;
+  stress_days: number;
+  stress_day_ks: number;
+  frost_days: number;
+  data_state: DataState;
+  note: string;
+}
+
 export interface ZoneResult {
   zone_id: string;
   name: string;
@@ -266,6 +281,7 @@ export interface ZoneResult {
   comparison: ComparisonMetrics[];
   expected_canopy: { date: string; value: number }[];
   monte_carlo: MonteCarloSummary | null;
+  outcome?: SeasonOutcome | null;
   data_state: DataState;
   warnings: string[];
 }
@@ -294,6 +310,8 @@ export interface TwinSimulateResponse {
   farm_summary: FarmSummary;
   warnings: string[];
   provenance: Record<string, Provenance>;
+  // When the run was computed (ISO datetime); start/end are the simulated window
+  computed_at?: string;
 }
 
 export interface TwinSimulateRequest {

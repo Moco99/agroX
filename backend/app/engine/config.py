@@ -65,6 +65,9 @@ STRESS_CLASS_THRESHOLDS: list[tuple[float, StressClass]] = [
 # A day counts as "stress day" when Ks drops below this value
 STRESS_DAY_KS = 0.8
 FROST_T_MIN_C = 0.0
+# Product parameter (not science): longest run of missing days of a reference year that is filled by
+# interpolating its neighbours; longer gaps reject the reference year (docs/00-overview/decisions.md)
+REFERENCE_MAX_FILL_DAYS = 3
 
 
 def stress_class_for(mean_ks: float) -> StressClass:

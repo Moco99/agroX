@@ -47,6 +47,7 @@ describe("ReportView", () => {
     const twin = {
       start: "2024-05-01", end: "2024-09-30", twin_level: "DIGITAL_SHADOW", methodology: "twin_v1",
       farm_summary: { mean_ks_area_weighted: 0.9, stress_class: "LOW", total_precip_mm: 400, total_irrigation_mm: 0 },
+      zones: [],
     } as unknown as Parameters<typeof ReportView>[0]["twin"];
     const html = renderToStaticMarkup(<ReportView farm={farm} climate={climate} twin={twin} rotation={null} />);
     expect(html).toContain("Cómo leer este informe");
@@ -56,6 +57,28 @@ describe("ReportView", () => {
     expect(html).toContain("estrés leve");
     expect(html).toContain("Gemelo v1");
     expect(html).toContain("vegetación densa");
+  });
+
+  it("separates the simulated period, the run time, the reference year and the NDVI date", () => {
+    const twin = {
+      start: "2026-11-15", end: "2027-11-15", twin_level: "DIGITAL_MODEL", methodology: "twin_v1",
+      computed_at: "2026-11-15T18:30:00Z",
+      farm_summary: { mean_ks_area_weighted: 0.9, stress_class: "LOW", total_precip_mm: 400, total_irrigation_mm: 0 },
+      zones: [{ zone_id: "z1", name: "Zona 1", outcome: {
+        status: "NOT_MATURE", planted_in_window: true, reached_maturity: false, maturity_date: null, gdd_accumulated: 900,
+        gdd_required: 1500, stress_days: 0, stress_day_ks: 0.8, frost_days: 0, data_state: "SIMULATED", note: "",
+      } }],
+    } as unknown as Parameters<typeof ReportView>[0]["twin"];
+    const html = renderToStaticMarkup(<ReportView farm={farm} climate={climate} twin={twin} rotation={null} referenceYear={2024} />);
+    expect(html).toContain("Simulación del gemelo");
+    expect(html).not.toContain("Última simulación");
+    expect(html).toContain("Periodo simulado");
+    expect(html).toContain("referencia: 2024");
+    expect(html).toContain("Calculada el");
+    expect(html).toContain("Resultado de la temporada");
+    expect(html).toContain("No alcanzó la madurez");
+    expect(html).toContain("no es una predicción de rendimiento");
+    expect(html).toContain("independiente del periodo simulado");
   });
 
   it("degrades to empty-state messages without data", () => {

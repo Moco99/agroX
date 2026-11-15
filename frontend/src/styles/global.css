@@ -768,6 +768,13 @@ input[type="range"] {
   white-space: nowrap;
 }
 
+/* Marks near the right edge grow leftwards so their label stays on the track */
+.milestone.is-end {
+  transform: translateX(-100%);
+  border-left: 0;
+  border-right: 2px solid var(--accent-muted);
+}
+
 .timeline-date {
   display: flex;
   flex-direction: column;
