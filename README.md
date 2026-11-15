@@ -11,6 +11,7 @@ make dev     # backend http://127.0.0.1:8000/api/health  ·  frontend http://127
 
 - Datos: `backend/app/data/derived/` (versionado, ~170 KB) se genera desde `data/raw/` con `make derived`.
 - Modo sintético: `AGROX_DATA_MODE=synthetic make dev` (la UI muestra el banner "Datos sintéticos").
+- Modo en vivo: `AGROX_DATA_MODE=live make dev`. El clima se pide directo a la API de NASA POWER (1984 a hoy, ~43 años; 3 s la primera vez, luego caché en `data/cache/`). Activa la anomalía de lluvia (necesita ≥ 10 años). Si POWER no responde, usa `derived/` y lo avisa. Parcela, suelo y NDVI siguen saliendo de `derived/`.
 - Calidad: `make test` (pytest), `make lint` (ruff, mypy, tsc), `make build` (frontend).
 - Simulación exploratoria: no predice rendimiento; parámetros de cultivo provisionales (`verified=false`). Decisiones en `docs/00-overview/decisions.md` (ADR-012..020).
 
