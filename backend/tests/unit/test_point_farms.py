@@ -95,3 +95,39 @@ def test_point_farm_survives_soilgrids_outage(tmp_path: Path) -> None:
     p = soils["zone_ne"]
     assert p.awc_mm_per_m == 150.0 and p.provenance.data_state is DataState.ESTIMATED
     assert any("SoilGrids unavailable" in w for w in p.warnings)
+
+
+def test_soilgrids_deadline_bounds_first_request_and_late_answer_is_cached(tmp_path: Path) -> None:
+    import threading
+    import time
+
+    release = threading.Event()
+
+    def slow(*_: object) -> dict[str, object]:
+        release.wait(5)
+        return _soilgrids()
+
+    provider = LiveSoilProvider(
+        DERIVED, tmp_path, fetcher=slow, wait_s=0.1, attempt_deadline_s=0.2, retry_delays_s=(0.0,), min_interval_s=0
+    )
+    t0 = time.monotonic()
+    soils = provider.get_zone_soils("pt_-12.45_-55.95")
+    # The first request waits wait_s, never the slow fetch
+    assert time.monotonic() - t0 < 1.0
+    p = soils["zone_ne"]
+    assert p.awc_mm_per_m == 150.0 and p.provenance.data_state is DataState.ESTIMATED
+    assert any("SoilGrids request in progress" in w for w in p.warnings)
+    # The attempt hits its deadline and is recorded as failed, quickly, instead of hanging
+    found = provider.wait("pt_-12.45_-55.95", 2.0)
+    assert found is not None and found.status == "failed" and "within" in str(found.error)
+    # The slow request finally answers: its value replaces the negative entry
+    release.set()
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        found = provider.status("pt_-12.45_-55.95")
+        if found is not None and found.status == "ready":
+            break
+        time.sleep(0.05)
+    assert found is not None and found.status == "ready"
+    final = provider.get_zone_soils("pt_-12.45_-55.95")["zone_ne"]
+    assert final.provenance.source.startswith("SoilGrids 2.0")

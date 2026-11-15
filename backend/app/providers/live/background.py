@@ -151,6 +151,10 @@ class BackgroundCache:
     # Section: Public API
     # ─────────────────────────────────────────
 
+    def store(self, key: str, value: JsonValue) -> None:
+        """Write a positive entry from outside the retry loop (a fetch that finished after its deadline)."""
+        self._write(key, {"status": "ok", "value": value, "saved_at": self._clock(), "attempts": 1})
+
     def peek(self, key: str) -> Lookup | None:
         """Status without starting any fetch: None when the key was never requested (or expired)."""
         fresh = self._fresh(key)

@@ -38,4 +38,6 @@ class FarmLoadStatus(BaseModel):
     stages: list[LoadStage]
     # Suggested polling interval; None once nothing is running
     poll_after_s: float | None = None
+    # Stages that ended in "failed" (state can still be "ready": optional ones, or required ones awaiting retry)
+    failed_stages: list[StageName] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
