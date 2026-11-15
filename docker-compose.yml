@@ -1,0 +1,59 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: agrox-backend
+    expose:
+      - "8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - AGROX_DATA_MODE=${AGROX_DATA_MODE:-live}
+      - AGROX_DATA_SOURCE=${AGROX_DATA_SOURCE:-auto}
+      - AGROX_CACHE_MAX_MB=${AGROX_CACHE_MAX_MB:-512}
+      - AGROX_CORS_ORIGINS=${AGROX_CORS_ORIGINS:-https://agrox.tecnodesarrollo.site,http://127.0.0.1:4000}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AGROX_S3_BUCKET=${AGROX_S3_BUCKET:-}
+      - AWS_PROFILE=${AWS_PROFILE:-}
+      - EARTHDATA_TOKEN=${EARTHDATA_TOKEN:-}
+      - NASS_API_KEY=${NASS_API_KEY:-}
+      - AMS_API_KEY=${AMS_API_KEY:-}
+      - OPENET_API_KEY=${OPENET_API_KEY:-}
+      - CDS_API_KEY=${CDS_API_KEY:-}
+      - LANDFIRE_EMAIL=${LANDFIRE_EMAIL:-}
+    volumes:
+      - agrox-live-cache:/workspace/backend/.cache
+      - agrox-data-cache:/workspace/data/cache
+    networks:
+      - agrox_net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: agrox-frontend
+    ports:
+      - "127.0.0.1:4000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - agrox_net
+    restart: unless-stopped
+
+networks:
+  agrox_net:
+    driver: bridge
+
+volumes:
+  agrox-live-cache:
+  agrox-data-cache:
