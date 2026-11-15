@@ -16,7 +16,7 @@ function label(layer: Layer, v: number): string {
   return `${v}`;
 }
 
-export function LayerLegend({ layer, note }: { layer: Layer; note?: string }) {
+export function LayerLegend({ layer, note, ndviStatus }: { layer: Layer; note?: string; ndviStatus?: string }) {
   const ramp = layerRamp(layer);
   const first = ramp[0]?.value ?? 0;
   const last = ramp[ramp.length - 1]?.value ?? 1;
@@ -25,6 +25,7 @@ export function LayerLegend({ layer, note }: { layer: Layer; note?: string }) {
     <div className="legend">
       <div className="legend-title">
         {es.layers[layer]} ({UNITS[layer]})
+        {layer === "ndvi" && ndviStatus && <small className="muted"> · {ndviStatus}</small>}
       </div>
       <div className="legend-bar" style={{ background: `linear-gradient(90deg, ${gradient})` }} />
       <div className="legend-ticks">

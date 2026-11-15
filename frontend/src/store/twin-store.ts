@@ -112,6 +112,8 @@ interface TwinStore {
   climate: ClimateResponse | null;
   climatePrev: ClimateResponse | null;
   imageryMeta: ImageryMeta | null;
+  // Set by the 3D terrain: whether the imagery drape loaded or the tint fallback is in use
+  terrainImagery: "loading" | "ready" | "failed" | null;
   ndviDates: string[];
   ndviDate: string | null;
   ndviPlaying: boolean;
@@ -275,6 +277,7 @@ const PARCEL_RESET = {
   climate: null,
   climatePrev: null,
   imageryMeta: null,
+  terrainImagery: null,
   ndviDates: [] as string[],
   ndviDate: null,
   ndviPlaying: false,
@@ -404,6 +407,7 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
   climate: null,
   climatePrev: null,
   imageryMeta: null,
+  terrainImagery: null,
   ndviDates: [],
   ndviDate: null,
   ndviPlaying: false,

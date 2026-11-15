@@ -5,6 +5,7 @@ import { es, fmt } from "../../i18n/es";
 import { anomalyExplanation, metricOf, spiExplanation, windowError } from "../../lib/climate-view";
 import { isPilotFarm, parseParcelId } from "../../lib/parcel";
 import { api } from "../../services/api";
+import { useModuleView } from "../../store/module-store";
 import { useParcelStore } from "../../store/parcel-store";
 import { useTwinStore } from "../../store/twin-store";
 import { color } from "../../styles/tokens";
@@ -130,7 +131,11 @@ export default function ClimateScreen() {
     const where = isPilotFarm(farmId) || !point ? { farmId } : { lat: point.lat, lon: point.lon };
     api
       .climate(where, applied.start, applied.end, ctrl.signal)
-      .then((r) => !ctrl.signal.aborted && setData(r))
+      .then((r) => {
+        if (ctrl.signal.aborted) return;
+        setData(r);
+        useModuleView.getState().setClimate({ farmId, data: r });
+      })
       .catch((e: unknown) => {
         if (ctrl.signal.aborted) return;
         setData(null);

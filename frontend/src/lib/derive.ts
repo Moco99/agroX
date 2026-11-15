@@ -135,9 +135,9 @@ export function layerColor(view: ZoneView, layer: Layer): string {
   return rampColor(layerRamp(layer), v);
 }
 
-export function layerLabel(view: ZoneView, layer: Layer): string {
+export function layerLabel(view: ZoneView, layer: Layer, missing = "—"): string {
   const v = layerValue(view, layer);
-  if (v === null) return "—";
+  if (v === null) return layer === "ndvi" ? missing : "—";
   switch (layer) {
     case "ndvi":
       return v.toFixed(2);

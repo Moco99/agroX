@@ -1,6 +1,8 @@
 import { DataStateBadge } from "../../components/data-state-badge";
 import { es, fmt, fmtDate } from "../../i18n/es";
 import { metricOf } from "../../lib/climate-view";
+import { cropLabel } from "../../lib/farm-labels";
+import { isPilotFarm } from "../../lib/parcel";
 import { useModuleView } from "../../store/module-store";
 import { useParcelStore } from "../../store/parcel-store";
 import { useTwinStore } from "../../store/twin-store";
@@ -18,6 +20,10 @@ export interface ReportProps {
   farm: FarmAnalyzeResponse | null;
   climate: ClimateResponse | null;
   twin: TwinSimulateResponse | null;
+  // Which window the climate section shows; drives its caption
+  climateFrom?: "clima" | "twin";
+  // Zones whose crop the user declared (the pilot counts as declared)
+  declaredCrops?: Record<string, string>;
   rotation: { baseline: RotationResponse; scenario: RotationResponse | null } | null;
   now?: Date;
 }
@@ -39,8 +45,9 @@ function RotationList({ label, result }: { label: string; result: RotationRespon
   );
 }
 
-export function ReportView({ farm, climate, twin, rotation, now = new Date() }: ReportProps) {
+export function ReportView({ farm, climate, twin, rotation, climateFrom = "twin", declaredCrops = {}, now = new Date() }: ReportProps) {
   const f = farm?.farm;
+  const pilot = f ? isPilotFarm(f.farm_id) : false;
   return (
     <article className="report">
       <header>
@@ -70,6 +77,7 @@ export function ReportView({ farm, climate, twin, rotation, now = new Date() }: 
                 <tr>
                   <th>{es.report.zones}</th>
                   <th>{es.report.area}</th>
+                  <th>{es.report.crop}</th>
                   <th>{es.report.soil}</th>
                   <th>{es.report.terrain}</th>
                 </tr>
@@ -81,6 +89,16 @@ export function ReportView({ farm, climate, twin, rotation, now = new Date() }: 
                       {z.name} <DataStateBadge state={z.data_state} compact />
                     </td>
                     <td>{fmt(z.area_ha, 1)} ha</td>
+                    <td>
+                      {(() => {
+                        const c = cropLabel(z.crop_id, pilot || Boolean(declaredCrops[z.zone_id]));
+                        return (
+                          <>
+                            {c.text} <DataStateBadge state={c.state} compact />
+                          </>
+                        );
+                      })()}
+                    </td>
                     <td>
                       {z.soil.texture ?? "—"} · {fmt(z.soil.awc_mm_per_m, 0)} mm/m <DataStateBadge state={z.soil.provenance.data_state} compact />
                       <small className="muted"> {z.soil.provenance.source}</small>
@@ -103,6 +121,7 @@ export function ReportView({ farm, climate, twin, rotation, now = new Date() }: 
         ) : (
           <>
             <small className="muted">
+              {climateFrom === "clima" ? es.report.climateWindowClima : es.report.climateWindowTwin}:{" "}
               {fmtDate(climate.series.days[0]?.date)} – {fmtDate(climate.series.days.at(-1)?.date)} · {es.report.source}: {climate.series.provenance.source}
             </small>
             <ul>
@@ -192,7 +211,9 @@ export function ReportView({ farm, climate, twin, rotation, now = new Date() }: 
 export default function ReportScreen() {
   const farmId = useParcelStore((s) => s.farmId);
   const farm = useTwinStore((s) => s.farm);
-  const climate = useTwinStore((s) => s.climate);
+  const twinClimate = useTwinStore((s) => s.climate);
+  const moduleClimate = useModuleView((s) => s.climate);
+  const declaredCrops = useParcelStore((s) => s.declaration.crops);
   const baseline = useTwinStore((s) => s.baseline);
   const rotation = useModuleView((s) => s.rotation);
   // Everything shown must belong to the selected farm; stale results from another parcel are dropped
@@ -206,7 +227,9 @@ export default function ReportScreen() {
       </div>
       <ReportView
         farm={sameFarm ? farm : null}
-        climate={sameFarm ? climate : null}
+        climate={sameFarm ? (moduleClimate?.farmId === farmId ? moduleClimate.data : twinClimate) : null}
+        climateFrom={moduleClimate?.farmId === farmId ? "clima" : "twin"}
+        declaredCrops={declaredCrops}
         twin={baseline?.farm_id === farmId ? baseline : null}
         rotation={rotation?.farmId === farmId ? rotation : null}
       />

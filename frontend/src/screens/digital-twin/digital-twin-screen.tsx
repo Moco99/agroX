@@ -12,6 +12,7 @@ import { useParcelStore } from "../../store/parcel-store";
 import { hasWebGL } from "../../lib/webgl";
 import { FarmDiorama } from "../../scene/farm-diorama";
 import { useTwinStore } from "../../store/twin-store";
+import { cropLabel, fallbackNote, ndviMissingText, stageStatusOf } from "../../lib/farm-labels";
 import { ExplanationBox } from "./explanation-box";
 import { KpiTiles } from "./kpi-tiles";
 import { SimulationPanel } from "./simulation-panel";
@@ -35,7 +36,8 @@ export function DigitalTwinScreen() {
   const modis = useTwinStore((s) => s.modis);
   const sentinel2 = useTwinStore((s) => s.sentinel2);
   const smap = useTwinStore((s) => s.smap);
-  const imageryMeta = useTwinStore((s) => s.imageryMeta);
+  const terrainImagery = useTwinStore((s) => s.terrainImagery);
+  const contextLoaded = useTwinStore((s) => s.contextLoaded);
   const heightmap = useTwinStore((s) => s.heightmap);
   const plan = useTwinStore((s) => s.plan);
   const declaration = useParcelStore((s) => s.declaration);
@@ -74,7 +76,7 @@ export function DigitalTwinScreen() {
   const date = selected?.state?.date;
   const pFraction = selected?.state && selected.state.taw_mm > 0 ? selected.state.raw_mm / selected.state.taw_mm : null;
   const zoneStyles = Object.fromEntries(
-    views.map((v) => [v.zone.zone_id, { fill: layerColor(v, layer), label: layerLabel(v, layer) }]),
+    views.map((v) => [v.zone.zone_id, { fill: layerColor(v, layer), label: layerLabel(v, layer, ndviMissing) }]),
   );
   const map2d = (
     <FarmMap2D
@@ -86,6 +88,9 @@ export function DigitalTwinScreen() {
     />
   );
   const show3d = canvasTab === "twin" && webgl;
+  const fallbackMsg = fallbackNote(terrainImagery, Boolean(heightmap), contextLoaded);
+  const pilotFarm = isPilotFarm(farm.farm.farm_id);
+  const ndviMissing = pilotFarm ? undefined : ndviMissingText(stageStatusOf(farm, "ndvi"));
   const mc = scenZone?.monte_carlo ?? baseZone?.monte_carlo ?? null;
 
   return (
@@ -117,13 +122,13 @@ export function DigitalTwinScreen() {
           )}
         </div>
         {!webgl && canvasTab === "twin" && <div className="canvas-notice">{es.twin.noWebgl}</div>}
-        {show3d && !isPilotFarm(farm.farm.farm_id) && (!imageryMeta || !heightmap) && (
+        {show3d && !isPilotFarm(farm.farm.farm_id) && fallbackMsg && (
           <div className="canvas-notice is-info" role="status" data-testid="twin-fallback-note">
-            {!imageryMeta ? es.openParcel.twinNoImagery : es.openParcel.twinNoRelief}
+            {fallbackMsg}
           </div>
         )}
         <div className="canvas-legend">
-          <LayerLegend layer={layer} note={es.app.illustrative} />
+          <LayerLegend layer={layer} note={es.app.illustrative} ndviStatus={views.some((v) => v.ndvi) ? undefined : ndviMissing} />
         </div>
       </div>
 
@@ -186,13 +191,14 @@ export function DigitalTwinScreen() {
                         }}
                       >
                         {!declaration.crops[z.zone_id] && !catalog?.crops.some((c) => c.crop_id === crop) && (
-                          <option value={crop}>{es.unconfirmedCrop}</option>
+                          <option value={crop}>{cropLabel(crop, false).text}</option>
                         )}
                         {(catalog?.crops ?? []).map((c) => (
                           <option key={c.crop_id} value={c.crop_id}>{c.name_es}</option>
                         ))}
                       </select>
                     </label>
+                    <DataStateBadge state={cropLabel(crop, Boolean(declaration.crops[z.zone_id])).state} compact />
                     <span>
                       {planting ? fmtDate(planting) : "—"} <DataStateBadge state={declaredDate ? "DECLARED" : "ESTIMATED"} compact />
                     </span>

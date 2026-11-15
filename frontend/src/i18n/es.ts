@@ -10,7 +10,9 @@ import type {
 // ─────────────────────────────────────────
 
 export const es = {
-  unconfirmedCrop: "Cultivo no declarado",
+  assumedCrop: (name: string) => `${name} (supuesto, sin declarar)`,
+  ndviDownloading: "descargando…",
+  ndviNoScenes: "sin escenas",
   assumedCropNote: "La simulación usa maíz como supuesto hasta que declares el cultivo real; no se ha observado maíz en esta ubicación.",
   geo: {
     title: "Exploración satelital global",
@@ -201,6 +203,9 @@ export const es = {
     terrain: "Terreno",
     climate: "Resumen climático",
     climateNone: "Sin datos climáticos cargados para esta parcela.",
+    climateWindowClima: "Ventana del módulo Clima",
+    climateWindowTwin: "Ventana del gemelo",
+    crop: "Cultivo",
     ndvi: "Último NDVI por zona",
     ndviNone: "Sin NDVI observado para esta parcela.",
     twin: "Última simulación del gemelo",
@@ -349,6 +354,7 @@ export const es = {
   banner: {
     synthetic: "Datos sintéticos — no representan la parcela real",
     real: "Datos reales: NASA POWER, USDA CDL, SSURGO, NASADEM, MODIS, Sentinel-2, SMAP",
+    realFrom: (sources: string[]) => `Datos reales: ${sources.join(", ")}`,
     provisional: "Parámetros de cultivo provisionales (sin verificar)",
     warnings: (n: number) => `${n} avisos de datos`,
     hide: "Ocultar",
@@ -600,6 +606,7 @@ export const es = {
     declPilot: "La granja piloto usa el cultivo medido (CDL); no se declara.",
     declUnverified: "Parámetros del cultivo por verificar (verified=false).",
     twinNoImagery: "Sin imagen base ni relieve para esta parcela: se usa un suelo procedural y terreno plano.",
+    twinNoImageryOnly: "Sin imagen base para esta parcela: se usa un suelo procedural.",
     twinNoRelief: "Sin relieve para esta parcela: terreno plano.",
     seasonLabel: "Ventana de simulación",
     seasonTitle: "Ventana alrededor de la siembra declarada o sugerida",
