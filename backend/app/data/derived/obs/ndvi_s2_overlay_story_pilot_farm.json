@@ -1,14 +1,14 @@
 {
   "farm_id": "story_pilot_farm",
-  "scene_id": "S2B_MSIL2A_20240902T165849_R069_T15TVG_20240902T212603",
-  "date": "2024-09-02",
+  "scene_id": "S2A_MSIL2A_20240930T171121_R112_T15TVG_20240930T224751",
+  "date": "2024-09-30",
   "bounds": {
-    "west": -93.50221333333333,
-    "south": 42.019526066350714,
-    "east": -93.47917333333334,
-    "north": 42.03850710900474
+    "west": -93.50214,
+    "south": 42.019447,
+    "east": -93.479167,
+    "north": 42.038454
   },
-  "width_px": 216,
+  "width_px": 215,
   "height_px": 178,
   "resolution_m": 10,
   "source": "Sentinel-2 L2A (ESA, via Planetary Computer), NDVI from B04/B08 with SCL mask",

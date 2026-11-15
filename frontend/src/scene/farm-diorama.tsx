@@ -1,4 +1,5 @@
-import { Html, OrbitControls } from "@react-three/drei";
+import { ObservedTerrain } from "./observed-terrain";
+import { ContactShadows, Html, OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { DataStateBadge } from "../components/data-state-badge";
@@ -45,6 +46,7 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
     <div className="diorama">
       <div ref={labelsRef} className="diorama-labels" />
     <Canvas
+      shadows
       orthographic
       dpr={[1, 2]}
       frameloop={anyIrrigation ? "always" : "demand"}
@@ -52,7 +54,9 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
       style={{ background: color.bg.app }}
     >
       <hemisphereLight args={["#DDE8FF", "#2A2016", 0.9]} />
-      <directionalLight position={[10, 18, 6]} intensity={1.6} />
+      <directionalLight castShadow position={[10, 18, 6]} intensity={2.4} shadow-mapSize={[2048,2048]} />
+      <ObservedTerrain projector={projector}/>
+      <ContactShadows position={[0,-.15,0]} opacity={.4} scale={60} blur={2} far={20}/>
       <Ground extent={extent} />
       <Road extent={extent} />
       <Farmstead extent={extent} />
@@ -68,6 +72,7 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
         return (
           <group key={v.zone.zone_id}>
             <ZoneField
+              projector={projector}
               zoneId={v.zone.zone_id}
               cropId={v.zone.crop_id}
               ring={ring}

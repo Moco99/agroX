@@ -71,3 +71,11 @@ aws s3 sync "s3://$AGROX_S3_BUCKET/derived/$AGROX_DERIVED_VERSION" backend/app/d
 ```
 
 Costos: no se documentan aquí (no verificados); consultar la página oficial de precios.
+
+## Lectura en ejecución
+
+El backend admite `AGROX_DATA_SOURCE=auto|local|s3`. En `s3`, la falta de configuración o acceso es un error explícito; no se sustituye por archivos locales. En `auto`, las imágenes derivadas permiten la demo offline y el almacén puede recurrir al espejo local.
+
+`GET /api/imagery/ndvi?farm_id=story_pilot_farm&date=2024-07-15&size=1024` calcula el NDVI desde las bandas remotas cuando se exige S3. La salida dinámica está limitada a 256 píxeles por lado; GDAL reproyecta las ventanas a los límites compartidos WGS84. El almacén solicita bloques de 256 KiB y conserva una caché acotada por ETag (`AGROX_CACHE_MAX_MB`, predeterminado 512). Los GeoTIFF sin organización COG pueden requerir más transferencias por ventana.
+
+`GET /api/data/catalog` informa del acceso S3, inventario, tamaño y transferencias observadas sin revelar el nombre del bucket. La ortofoto y el relieve se sirven desde los derivados pequeños versionados; no se descargan de nuevo en cada visita.

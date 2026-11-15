@@ -9,6 +9,9 @@ dependencies = [
     "pydantic>=2.8",
     "numpy>=2.0",
     "pandas>=2.2",
+    "boto3>=1.44.3",
+    "rasterio>=1.5.2",
+    "pillow>=13.0.0",
 ]
 
 # Pipeline deps are heavier (raster/netCDF readers) and only needed to rebuild derived/
@@ -19,6 +22,7 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "pandas-stubs>=2.2",
+    "boto3-stubs[s3]>=1.44.3",
 ]
 pipeline = [
     "rasterio>=1.4",
@@ -56,6 +60,11 @@ python_version = "3.12"
 strict = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
+
+# rasterio ships no type information: treat it as Any instead of silencing errors elsewhere
+[[tool.mypy.overrides]]
+module = ["rasterio", "rasterio.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,26 @@
+{
+  "farm_id": "story_pilot_farm",
+  "bounds_wgs84": [
+    -93.50214,
+    42.019447,
+    -93.479167,
+    42.038454
+  ],
+  "crs": "EPSG:4326",
+  "basemap": {
+    "file": "imagery/basemap_story_pilot_farm.jpg",
+    "width": 1839,
+    "height": 2048,
+    "native_width": 392,
+    "native_height": 324,
+    "source": "USDA NAIP via Microsoft Planetary Computer (quad covering the farm; raw mirror quads do not)",
+    "acquired": "2023-08-30",
+    "resolution_m": 1.0,
+    "coverage_fraction": 1.0,
+    "tiles": [
+      "planetary-computer:ia_m_4209361_sw_15_030_20230830_20240104"
+    ],
+    "note": "Native pixel ~1.0 m; output 1839x2048 px (windowed from the 0.3 m COG)."
+  },
+  "data_state": "MEASURED"
+}

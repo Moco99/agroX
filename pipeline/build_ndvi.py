@@ -2,18 +2,22 @@
 
 Outputs (derived/obs/):
   ndvi_modis_<farm>.csv      date, zone_id, ndvi, n_pixels, product, qa_flag
-  ndvi_s2_<farm>.csv         date, zone_id, ndvi, valid_fraction, n_pixels
-  ndvi_s2_overlay_<farm>.png coloured NDVI (canonical ramp) around the farm
-  ndvi_s2_overlay_<farm>.json bounds, resolution, date, scene
+  ndvi_s2_<farm>.csv         date, zone_id, ndvi, ndvi_p10, ndvi_p90, valid_fraction, n_pixels (full season)
+  ndvi_s2_<farm>.meta.json   per-date scene id, farm valid fraction, cloud_free flag, PNG path, common bounds
+  ndvi_s2_overlay_<farm>.png/.json  legacy single overlay (cleanest scene) for /api/observations/ndvi-overlay
+  ../imagery/ndvi/<date>.png coloured NDVI (canonical ramp) per useful date on the common farm+margin grid
+
+Sentinel-2 inputs come from the ObjectStore (S3 windowed reads when AGROX_S3_BUCKET is set, else data/raw).
 
 MODIS scale factor 0.0001 and fill -3000 follow the product spec. Sentinel-2 L2A
-DN carry the BOA offset (-1000) only from processing baseline 04.00 on (deployed 2022-01-25);
-the series spans 2021-2024, so the offset is applied per scene from its product generation date.
+DN use the BOA offset (-1000) introduced with processing baseline 04.00 (2022-01);
+all scenes here are 2024 so the offset is applied and recorded in the metadata.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -22,31 +26,36 @@ from typing import Any
 import numpy as np
 import rasterio
 from PIL import Image
+from rasterio.features import geometry_mask
 from shapely.geometry import Point, Polygon
 
+from app.engine.ndvi import (
+    CLOUD_FREE_FRACTION,
+    MIN_VALID_FRACTION,
+    S2_BASELINE_04_FROM,
+    S2_BOA_OFFSET,
+    S2_SCALE,
+    SCL_KEEP,
+    colorize_ndvi,
+    zone_stats,
+)
+from app.engine.ndvi import s2_offset as s2_offset
+from app.providers.imagery.rasters import Grid, list_s2_scenes, read_scene_ndvi, s2_grid
+from app.storage.factory import get_store
 from pipeline.common import (
     DERIVED_DIR,
     FARM_ID,
     RAW_DIR,
-    ndvi_to_rgb,
+    farm_area_bounds,
     register_artifact,
     relative_to_derived,
     write_json,
 )
 
 MODIS_DIR = RAW_DIR / "modis_ndvi"
-S2_DIR = RAW_DIR / "sentinel2"
 PARCEL_PATH = DERIVED_DIR / "parcel" / f"{FARM_ID}.geojson"
 MODIS_SCALE = 0.0001
 MODIS_FILL = -3000
-S2_BOA_OFFSET = -1000.0
-# Baseline 04.00 went live on this date; every product generated from then on (including reprocessed
-# older acquisitions) carries the offset, earlier products (e.g. baseline 03.00 in 2021) do not.
-S2_BASELINE_04_FROM = "20220125"
-S2_SCALE = 10000.0
-# SCL classes kept as clear-sky land: 4 vegetation, 5 not vegetated, 6 water (water NDVI < 0 shows as no-data colour)
-SCL_KEEP = {4, 5, 6}
-OVERLAY_MARGIN_DEG = 0.004
 
 
 def load_zones() -> list[tuple[str, Polygon]]:
@@ -165,146 +174,167 @@ def build_modis(zones: list[tuple[str, Polygon]]) -> tuple[Path, dict[str, Any]]
 
 
 # ─────────────────────────────────────────
-# Section: Sentinel-2
+# Section: Sentinel-2 (season series from the ObjectStore: S3 on demand or data/raw)
 # ─────────────────────────────────────────
 
-
-def s2_scenes() -> dict[str, dict[str, Path]]:
-    scenes: dict[str, dict[str, Path]] = {}
-    for path in S2_DIR.glob("*.tif"):
-        m = re.match(r"(S2[AB]_MSIL2A_(\d{8})T\d{6}_R\d{3}_T\w{5}_\d{8}T\d{6})_(B04|B08|SCL)\.tif", path.name)
-        if not m:
-            continue
-        scenes.setdefault(m.group(1), {})[m.group(3)] = path
-    return {k: v for k, v in scenes.items() if {"B04", "B08", "SCL"} <= set(v)}
+S2_META_PATH = DERIVED_DIR / "obs" / f"ndvi_s2_{FARM_ID}.meta.json"
+NDVI_PNG_DIR = DERIVED_DIR / "imagery" / "ndvi"
+# Scenes with at least this farm valid fraction get a pre-rendered PNG; the rest are rendered on demand
+PNG_MIN_FARM_VALID = 0.5
+# 2023-2024 scraper range; scenes outside the pilot season are kept in the CSV for completeness
+SEASON_START = "2024-04-01"
 
 
-def s2_offset(scene_id: str) -> float:
-    # The last token of a Planetary Computer L2A id is the product generation time (YYYYMMDDTHHMMSS)
-    generated = scene_id.rsplit("_", 1)[1][:8]
-    return S2_BOA_OFFSET if generated >= S2_BASELINE_04_FROM else 0.0
+def _farm_polygon() -> Polygon:
+    parcel = json.loads(PARCEL_PATH.read_text())
+    farm = next(f for f in parcel["features"] if f["properties"]["feature_kind"] == "farm")
+    return Polygon(farm["geometry"]["coordinates"][0])
 
 
-def s2_ndvi(scene: dict[str, Path], offset: float) -> tuple[np.ndarray, np.ndarray, Any, Any]:
-    with (
-        rasterio.open(scene["B04"]) as red_src,
-        rasterio.open(scene["B08"]) as nir_src,
-        rasterio.open(scene["SCL"]) as scl_src,
-    ):
-        red = red_src.read(1).astype(float)
-        nir = nir_src.read(1).astype(float)
-        scl = scl_src.read(1)
-        transform = red_src.transform
-        crs = red_src.crs
-        # SCL is 20 m; resample by nearest neighbour onto the 10 m band grid
-        ry = red.shape[0] / scl.shape[0]
-        rx = red.shape[1] / scl.shape[1]
-        rows = np.minimum((np.arange(red.shape[0]) / ry).astype(int), scl.shape[0] - 1)
-        cols = np.minimum((np.arange(red.shape[1]) / rx).astype(int), scl.shape[1] - 1)
-        scl_up = scl[rows][:, cols]
-    red_r = (red + offset) / S2_SCALE
-    nir_r = (nir + offset) / S2_SCALE
-    denom = nir_r + red_r
-    with np.errstate(divide="ignore", invalid="ignore"):
-        ndvi = np.where(denom != 0, (nir_r - red_r) / denom, np.nan)
-    valid = np.isin(scl_up, list(SCL_KEEP)) & (red > 0) & (nir > 0)
-    ndvi = np.where(valid, np.clip(ndvi, -1, 1), np.nan)
-    return ndvi, valid, transform, crs
+def _polygon_mask(poly: Polygon, grid: Grid) -> np.ndarray:
+    # all_touched=False keeps pixel-centre semantics, like the MODIS zonal mean above
+    return geometry_mask(
+        [poly.__geo_interface__], out_shape=(grid.height, grid.width), transform=grid.transform, invert=True
+    )
 
 
 def build_s2(zones: list[tuple[str, Polygon]]) -> tuple[list[Path], dict[str, Any]]:
-    scenes = s2_scenes()
+    store = get_store()
+    scenes = list_s2_scenes(store)
+    if not scenes:
+        raise RuntimeError("no Sentinel-2 scenes found in the active store")
+    source_mode = store.mode
+    previous = json.loads(S2_META_PATH.read_text()) if S2_META_PATH.exists() else {}
+    prev_dates = len(previous.get("dates", []))
+    n_dates = len({s.date for s in scenes})
+    # A local data/raw with only the last scenes must not overwrite a full-season series built from S3
+    if n_dates < prev_dates and os.environ.get("AGROX_FORCE_S2") != "1":
+        print(f"[ndvi] S2 skipped: store has {n_dates} dates < existing {prev_dates} (AGROX_FORCE_S2=1 to override)")
+        return [], {}
+
+    bounds = farm_area_bounds()
+    grid = s2_grid(store, scenes[0], bounds)
+    masks = {zid: _polygon_mask(poly, grid) for zid, poly in zones}
+    farm_mask = _polygon_mask(_farm_polygon(), grid)
+
+    # One scene per date: duplicates (same acquisition, reprocessed) keep the one with more valid farm pixels
+    best: dict[str, dict[str, Any]] = {}
+    for scene in scenes:
+        ndvi, valid = read_scene_ndvi(store, scene, grid)
+        farm_valid = float(valid[farm_mask].mean())
+        entry = {
+            "scene": scene,
+            "ndvi": ndvi,
+            "valid": valid,
+            "farm_valid": farm_valid,
+            "area_valid": float(valid.mean()),
+        }
+        current = best.get(scene.date)
+        if current is None or farm_valid >= current["farm_valid"]:
+            best[scene.date] = entry
+        print(f"[ndvi] {scene.date} {scene.scene_id[-15:]} farm_valid={farm_valid:.2f}")
+
     rows: list[dict[str, Any]] = []
-    best_scene: tuple[float, str, np.ndarray, Any] | None = None
-    masks: dict[str, np.ndarray] | None = None
-    for scene_id in sorted(scenes):
-        ndvi, valid, transform, crs = s2_ndvi(scenes[scene_id], s2_offset(scene_id))
-        date = re.search(r"_(\d{8})T", scene_id).group(1)  # type: ignore[union-attr]
-        date_iso = f"{date[:4]}-{date[4:6]}-{date[6:]}"
-        if masks is None:
-            with rasterio.open(scenes[scene_id]["B04"]) as src:
-                masks = zone_masks(src, zones)
-        farm_valid = 0.0
+    dates_meta: list[dict[str, Any]] = []
+    NDVI_PNG_DIR.mkdir(parents=True, exist_ok=True)
+    for old in NDVI_PNG_DIR.glob("*.png"):
+        old.unlink()
+    for date in sorted(best):
+        e = best[date]
+        zone_vals: list[float] = []
         for zid, _ in zones:
-            m = masks[zid]
-            vf = float(valid[m].mean()) if m.any() else 0.0
-            farm_valid += vf / len(zones)
-            vals = ndvi[m & valid]
+            st = zone_stats(e["ndvi"], e["valid"], masks[zid])
+            publish = st.mean is not None and st.valid_fraction >= MIN_VALID_FRACTION
+            if publish and st.mean is not None:
+                zone_vals.append(st.mean)
             rows.append(
                 {
-                    "date": date_iso,
+                    "date": date,
                     "zone_id": zid,
-                    "ndvi": round(float(np.nanmean(vals)), 4) if vals.size else None,
-                    "valid_fraction": round(vf, 3),
-                    "n_pixels": int(vals.size),
+                    "ndvi": st.mean if publish else None,
+                    "ndvi_p10": st.p10 if publish else None,
+                    "ndvi_p90": st.p90 if publish else None,
+                    "valid_fraction": st.valid_fraction,
+                    "n_pixels": st.n_pixels,
                 }
             )
-        # scenes iterate oldest first; >= lets the most recent fully clear scene win ties (overlay shows current state)
-        if best_scene is None or farm_valid >= best_scene[0]:
-            best_scene = (farm_valid, scene_id, ndvi, transform)
-    rows.sort(key=lambda r: (r["date"], r["zone_id"]))
+        png_rel = None
+        if e["farm_valid"] >= PNG_MIN_FARM_VALID:
+            png_path = NDVI_PNG_DIR / f"{date}.png"
+            Image.fromarray(colorize_ndvi(e["ndvi"]), "RGBA").save(png_path, optimize=True)
+            png_rel = relative_to_derived(png_path)
+        dates_meta.append(
+            {
+                "date": date,
+                "scene_id": e["scene"].scene_id,
+                "farm_valid_fraction": round(e["farm_valid"], 3),
+                "area_valid_fraction": round(e["area_valid"], 3),
+                "cloud_free": e["farm_valid"] >= CLOUD_FREE_FRACTION,
+                "farm_ndvi_mean": round(float(np.mean(zone_vals)), 4) if zone_vals else None,
+                "png": png_rel,
+            }
+        )
+
     out_csv = DERIVED_DIR / "obs" / f"ndvi_s2_{FARM_ID}.csv"
     with out_csv.open("w") as fh:
-        fh.write("date,zone_id,ndvi,valid_fraction,n_pixels\n")
+        fh.write("date,zone_id,ndvi,ndvi_p10,ndvi_p90,valid_fraction,n_pixels\n")
         for r in rows:
-            nd = "" if r["ndvi"] is None else r["ndvi"]
-            fh.write(f"{r['date']},{r['zone_id']},{nd},{r['valid_fraction']},{r['n_pixels']}\n")
+            cells = ["" if r[k] is None else r[k] for k in ("ndvi", "ndvi_p10", "ndvi_p90")]
+            fh.write(
+                f"{r['date']},{r['zone_id']},{cells[0]},{cells[1]},{cells[2]},{r['valid_fraction']},{r['n_pixels']}\n"
+            )
 
-    assert best_scene is not None
-    _, scene_id, ndvi, transform = best_scene
-    lon0, lat0, lon1, lat1 = farm_bounds()
-    lon0 -= OVERLAY_MARGIN_DEG
-    lon1 += OVERLAY_MARGIN_DEG
-    lat0 -= OVERLAY_MARGIN_DEG
-    lat1 += OVERLAY_MARGIN_DEG
-    r0, c0 = rasterio.transform.rowcol(transform, lon0, lat1)
-    r1, c1 = rasterio.transform.rowcol(transform, lon1, lat0)
-    r0, c0 = max(int(r0), 0), max(int(c0), 0)
-    r1, c1 = min(int(r1), ndvi.shape[0]), min(int(c1), ndvi.shape[1])
-    crop = ndvi[r0:r1, c0:c1]
-    rgba = np.zeros((*crop.shape, 4), dtype=np.uint8)
-    for i in range(crop.shape[0]):
-        for j in range(crop.shape[1]):
-            v = crop[i, j]
-            rgb = ndvi_to_rgb(v)
-            rgba[i, j, :3] = rgb
-            rgba[i, j, 3] = 200 if v == v else 110
+    # Legacy single overlay (/api/observations/ndvi-overlay): the cloud-free-est scene of the season
+    pilot_dates = [d for d in dates_meta if d["date"] >= SEASON_START]
+    top = max(pilot_dates or dates_meta, key=lambda d: (d["farm_valid_fraction"], d["date"]))
+    top_e = best[top["date"]]
+    west, south, east, north = grid.bounds
     png_path = DERIVED_DIR / "obs" / f"ndvi_s2_overlay_{FARM_ID}.png"
-    Image.fromarray(rgba, "RGBA").save(png_path, optimize=True)
-    west, north = rasterio.transform.xy(transform, r0, c0, offset="ul")
-    east, south = rasterio.transform.xy(transform, r1, c1, offset="ul")
-    date = re.search(r"_(\d{8})T", scene_id).group(1)  # type: ignore[union-attr]
+    Image.fromarray(colorize_ndvi(top_e["ndvi"]), "RGBA").save(png_path, optimize=True)
     overlay_meta = {
         "farm_id": FARM_ID,
-        "scene_id": scene_id,
-        "date": f"{date[:4]}-{date[4:6]}-{date[6:]}",
-        "bounds": {"west": float(west), "south": float(south), "east": float(east), "north": float(north)},
-        "width_px": int(crop.shape[1]),
-        "height_px": int(crop.shape[0]),
+        "scene_id": top["scene_id"],
+        "date": top["date"],
+        "bounds": {"west": west, "south": south, "east": east, "north": north},
+        "width_px": grid.width,
+        "height_px": grid.height,
         "resolution_m": 10,
         "source": "Sentinel-2 L2A (ESA, via Planetary Computer), NDVI from B04/B08 with SCL mask",
         "data_state": "MEASURED",
-        "valid_fraction_farm": round(best_scene[0], 3),
+        "valid_fraction_farm": top["farm_valid_fraction"],
         "ramp": "design-tokens NDVI ramp; alpha 200 valid / 110 masked (grey)",
     }
     json_path = DERIVED_DIR / "obs" / f"ndvi_s2_overlay_{FARM_ID}.json"
     write_json(json_path, overlay_meta)
-    dates = sorted({r["date"] for r in rows})
+
+    first, last = dates_meta[0]["date"], dates_meta[-1]["date"]
     meta = {
-        "files": [relative_to_derived(p) for p in (out_csv, png_path, json_path)],
+        "files": [relative_to_derived(p) for p in (out_csv, png_path, json_path, S2_META_PATH)],
         "data_state": "MEASURED",
         "source_id": "sentinel2",
+        "source": "Sentinel-2 L2A (ESA, via Planetary Computer), tile T15TVG, B04/B08/SCL clipped to the area",
         "resolution": "10 m (SCL 20 m)",
-        "period": {"start": dates[0], "end": dates[-1]},
-        "method": f"NDVI=(B08-B04)/(B08+B04) after BOA offset {S2_BOA_OFFSET:+.0f} (products generated from "
-        f"{S2_BASELINE_04_FROM}, baseline >= 04.00; none before) and scale 1/{S2_SCALE:.0f}; "
-        f"SCL keep {sorted(SCL_KEEP)}; zone mean over pixel centres; overlay from scene with best valid fraction",
-        "overlay_scene": scene_id,
+        "period": {"start": first, "end": last},
+        "method": f"NDVI=(B08-B04)/(B08+B04) after per-product BOA offset {S2_BOA_OFFSET:+.0f} "
+        f"from {S2_BASELINE_04_FROM}, zero before; scale 1/{S2_SCALE:.0f}; "
+        f"SCL keep {list(SCL_KEEP)}; per zone mean/p10/p90 over pixel centres; zone NDVI published only when "
+        f"valid fraction >= {MIN_VALID_FRACTION}; one scene per date (most valid farm pixels)",
+        "overlay_scene": top["scene_id"],
         "scenes": len(scenes),
-        "coverage_note": f"{len(dates)} dates {dates[0]}..{dates[-1]}: May-Sep growing seasons as fetched by the "
-        "scraper (cloud cover < 10%), so winter gaps are expected.",
+        "dates": len(dates_meta),
+        "input_mode": source_mode,
     }
-    print(f"[ndvi] S2 scenes={len(scenes)} overlay={scene_id} valid={best_scene[0]:.2f} size={crop.shape}")
+    area_meta = {
+        "farm_id": FARM_ID,
+        "bounds_wgs84": list(grid.bounds),
+        "grid": {"width": grid.width, "height": grid.height},
+        "data_state": "MEASURED",
+        "min_valid_fraction": MIN_VALID_FRACTION,
+        "cloud_free_fraction": CLOUD_FREE_FRACTION,
+        "dates": dates_meta,
+    }
+    write_json(S2_META_PATH, area_meta)
+    print(f"[ndvi] S2 scenes={len(scenes)} dates={len(dates_meta)} pngs={sum(1 for d in dates_meta if d['png'])}")
     return [out_csv, png_path, json_path], meta
 
 
@@ -313,7 +343,8 @@ def build() -> None:
     _, modis_meta = build_modis(zones)
     register_artifact("obs_ndvi_modis", modis_meta)
     _, s2_meta = build_s2(zones)
-    register_artifact("obs_ndvi_sentinel2", s2_meta)
+    if s2_meta:
+        register_artifact("obs_ndvi_sentinel2", s2_meta)
 
 
 if __name__ == "__main__":

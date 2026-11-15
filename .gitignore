@@ -16,3 +16,6 @@ frontend/dist/
 frontend/test-results/
 frontend/playwright-report/
 .agrox-dev/
+
+# On-demand object cache (blocks fetched from S3), capped by AGROX_CACHE_MAX_MB
+backend/.cache/

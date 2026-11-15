@@ -60,6 +60,9 @@ class RealObservationProvider:
                     zone_id=row.get("zone_id") or None,
                     n_pixels=int(row["n_pixels"]) if row.get("n_pixels") else None,
                     qa_flag=row.get("qa_flag") or None,
+                    p10=float(row["ndvi_p10"]) if row.get("ndvi_p10") else None,
+                    p90=float(row["ndvi_p90"]) if row.get("ndvi_p90") else None,
+                    valid_fraction=float(row["valid_fraction"]) if row.get("valid_fraction") else None,
                 )
             )
         entry = manifest_entry(self._dir, artifact)

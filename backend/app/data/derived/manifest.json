@@ -33,22 +33,24 @@
     },
     "obs_ndvi_sentinel2": {
       "built_at": "2026-11-15T02:04:37Z",
-      "coverage_note": "102 dates 2021-05-01..2024-09-30: May-Sep growing seasons as fetched by the scraper (cloud cover < 10%), so winter gaps are expected.",
+      "coverage_note": "Merged multiyear zonal observations; dated shared-grid PNGs available for a subset of dates.",
       "data_state": "MEASURED",
       "files": [
         "obs/ndvi_s2_story_pilot_farm.csv",
         "obs/ndvi_s2_overlay_story_pilot_farm.png",
-        "obs/ndvi_s2_overlay_story_pilot_farm.json"
+        "obs/ndvi_s2_overlay_story_pilot_farm.json",
+        "obs/ndvi_s2_story_pilot_farm.meta.json"
       ],
-      "method": "NDVI=(B08-B04)/(B08+B04) after BOA offset -1000 (products generated from 20220125, baseline >= 04.00; none before) and scale 1/10000; SCL keep [4, 5, 6]; zone mean over pixel centres; overlay from scene with best valid fraction",
-      "overlay_scene": "S2B_MSIL2A_20240902T165849_R069_T15TVG_20240902T212603",
+      "method": "NDVI=(B08-B04)/(B08+B04) after BOA offset -1000 (products generated from 20220125, baseline >= 04.00; none before) and scale 1/10000; SCL keep [4, 5, 6]; zone mean over pixel centres; overlay from scene with best valid fraction; shared-grid percentiles for available dated imagery",
+      "overlay_scene": "S2A_MSIL2A_20240930T171121_R112_T15TVG_20240930T224751",
       "period": {
-        "end": "2024-09-30",
-        "start": "2021-05-01"
+        "start": "2021-05-01",
+        "end": "2024-09-30"
       },
       "resolution": "10 m (SCL 20 m)",
       "scenes": 131,
-      "source_id": "sentinel2"
+      "source_id": "sentinel2",
+      "dates": 102
     },
     "obs_smap": {
       "built_at": "2026-11-15T02:06:53Z",
@@ -181,6 +183,29 @@
         "tmax_lt_tmin": 0
       },
       "source_id": "power"
+    },
+    "imagery_basemap": {
+      "built_at": "2026-11-15T01:52:42Z",
+      "data_state": "MEASURED",
+      "files": [
+        "imagery/basemap_story_pilot_farm.jpg",
+        "imagery/meta.json"
+      ],
+      "method": "NAIP quads windowed to farm + margin, composited by alpha, Lanczos resample to 2048 px",
+      "resolution": "~1.0 m native",
+      "source": "USDA NAIP via Microsoft Planetary Computer (quad covering the farm; raw mirror quads do not)",
+      "source_id": "naip"
+    },
+    "terrain_heightmap": {
+      "built_at": "2026-11-15T01:52:42Z",
+      "data_state": "MEASURED",
+      "files": [
+        "terrain/heightmap_story_pilot_farm.json"
+      ],
+      "method": "bilinear resample of the DEM onto the common farm+margin grid",
+      "resolution": "26.9 m",
+      "source": "NASADEM HGT 1 arc-second (SRTM reprocessed)",
+      "source_id": "srtm"
     }
   },
   "version": 1

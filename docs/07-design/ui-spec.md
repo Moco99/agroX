@@ -92,3 +92,7 @@ Cada KPI muestra insignia `data_state` (MEASURED/ESTIMATED/SIMULATED/SYNTHETIC) 
 | i | Nivel de riego | Input nuevo del balance hídrico (`I_i`); mm aplicados por nivel = TBD (O-15). |
 | j | 4 zonas con cultivos distintos | Gemelo **por zona**: cada zona = instancia con su cultivo y suelo; granja = lista de zonas; MVP 1–4 zonas. |
 | k | Vigor NDVI que cambia con el escenario | El gemelo no simula NDVI: bajo escenario la capa por defecto del 3D es estrés hídrico (`ks`, SIMULATED); NDVI queda como último observado con su fecha. |
+
+## Exploración cinematográfica
+
+Las tres referencias se recorren como globo → mapa de parcela → gemelo. Se mantiene la carcasa oscura con acentos verdes y panel de indicadores a la derecha; en pantallas pequeñas el panel fluye debajo del visor. La ubicación es el piloto disponible en Iowa: los nombres, superficies, métricas y fechas de los mockups no se usan como datos. La ortofoto y el overlay NDVI comparten bounds, y las fechas seleccionadas se solicitan a la API.
