@@ -1,11 +1,16 @@
 import { create } from "zustand";
 import { api } from "../services/api";
+import { buildRegionFallback } from "../lib/region";
 import type {
+  ClimateResponse,
   FarmAnalyzeResponse,
   Health,
+  Heightmap,
+  ImageryMeta,
   IrrigationLevel,
   NdviOverlay,
   ObservationSeries,
+  RegionSummary,
   TwinConfig,
   TwinSimulateRequest,
   TwinSimulateResponse,
@@ -17,7 +22,9 @@ import type {
 
 export type Screen = "twin" | "parcel";
 export type Layer = "ndvi" | "stress" | "moisture" | "temperature" | "irrigation";
-export type CanvasTab = "twin" | "map2d";
+export type CanvasTab = "twin" | "map2d" | "satellite";
+// Toggleable layers of the globe/map stages (mockups 12–13); each one drives a real visual, see layer-bar
+export type MapLayer = "ndvi" | "precipitation" | "temperature" | "boundaries";
 
 export interface ScenarioControls {
   // Percent change of daily rain (-80 = 80 % less); sent as precip_factor = 1 + pct/100
@@ -44,6 +51,13 @@ export function seasonRange(year: number): { start: string; end: string } {
   return { start: `${year}-04-01`, end: `${year}-10-31` };
 }
 
+// Growing-season window used for the regional KPIs (May–Sep, the corn/soy season of the pilot)
+export function regionPeriod(year: number): { start: string; end: string } {
+  return { start: `${year}-05-01`, end: `${year}-09-30` };
+}
+
+export const REGION_NAME = "Story County, Iowa (EE. UU.)";
+
 export function isNeutral(c: ScenarioControls): boolean {
   return c.precipPct === 0 && c.tempDelta === 0 && c.irrigation === "NONE" && !c.monteCarlo;
 }
@@ -66,10 +80,27 @@ interface TwinStore {
   sentinel2: ObservationSeries | null;
   smap: ObservationSeries | null;
   overlay: NdviOverlay | null;
+  // Context for the cinematic stages; every field may stay null when its endpoint is not served yet
+  climate: ClimateResponse | null;
+  climatePrev: ClimateResponse | null;
+  imageryMeta: ImageryMeta | null;
+  ndviDates: string[];
+  ndviDate: string | null;
+  ndviPlaying: boolean;
+  heightmap: Heightmap | null;
+  region: RegionSummary | null;
+  contextLoaded: boolean;
+  hoverZoneId: string | null;
+  mapLayers: Record<MapLayer, boolean>;
   loading: boolean;
   simulating: boolean;
   error: string | null;
   setScreen: (s: Screen) => void;
+  setNdviDate: (d: string | null) => void;
+  setNdviPlaying: (p: boolean) => void;
+  setHoverZone: (id: string | null) => void;
+  toggleMapLayer: (l: MapLayer) => void;
+  loadContext: () => Promise<void>;
   setCanvasTab: (t: CanvasTab) => void;
   setLayer: (l: Layer) => void;
   setDayIndex: (i: number) => void;
@@ -130,11 +161,26 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
   sentinel2: null,
   smap: null,
   overlay: null,
+  climate: null,
+  climatePrev: null,
+  imageryMeta: null,
+  ndviDates: [],
+  ndviDate: null,
+  ndviPlaying: false,
+  heightmap: null,
+  region: null,
+  contextLoaded: false,
+  hoverZoneId: null,
+  mapLayers: { ndvi: true, precipitation: false, temperature: false, boundaries: true },
   loading: true,
   simulating: false,
   error: null,
 
   setScreen: (screen) => set({ screen }),
+  setNdviDate: (ndviDate) => set({ ndviDate }),
+  setNdviPlaying: (ndviPlaying) => set({ ndviPlaying }),
+  setHoverZone: (hoverZoneId) => set({ hoverZoneId }),
+  toggleMapLayer: (l) => set((s) => ({ mapLayers: { ...s.mapLayers, [l]: !s.mapLayers[l] } })),
   setCanvasTab: (canvasTab) => set({ canvasTab }),
   setLayer: (layer) => set({ layer }),
   setDayIndex: (dayIndex) => set({ dayIndex }),
@@ -176,9 +222,46 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
       ]);
       set({ modis, sentinel2, smap, overlay });
       await get().loadSeason(get().year);
+      // Imagery, terrain and regional context are loaded after the twin so they never delay the first frame
+      void get().loadContext();
     } catch (e) {
       set({ error: errorMessage(e), loading: false });
     }
+  },
+
+  loadContext: async () => {
+    const { year, modis } = get();
+    const cur = regionPeriod(year);
+    const prev = regionPeriod(year - 1);
+    const [meta, dates, heightmap, regionApi, climate, climatePrev] = await Promise.all([
+      api.imageryMeta(FARM_ID).catch(() => null),
+      api.ndviDates(FARM_ID).catch(() => null),
+      api.heightmap(FARM_ID).catch(() => null),
+      api.regionSummary(cur.start, cur.end).catch(() => null),
+      api.climate(FARM_ID, cur.start, cur.end).catch(() => null),
+      api.climate(FARM_ID, prev.start, prev.end).catch(() => null),
+    ]);
+    // The real endpoint wins; otherwise the panel is assembled from POWER + MODIS (both already served)
+    const region =
+      regionApi ??
+      (climate
+        ? buildRegionFallback({
+            regionName: REGION_NAME,
+            current: climate,
+            previous: climatePrev,
+            previousLabel: `vs. temporada ${year - 1}`,
+            modis,
+            periodStart: cur.start,
+            periodEnd: cur.end,
+            previousStart: prev.start,
+            previousEnd: prev.end,
+          })
+        : null);
+    const ndviDates = dates?.dates.length ? dates.dates : (meta?.ndvi_dates ?? []);
+    const sorted = [...ndviDates].sort();
+    // Default to the last available scene (usually the closest to harvest, the richest NDVI pattern)
+    const ndviDate = get().ndviDate ?? sorted[sorted.length - 1] ?? get().overlay?.date ?? null;
+    set({ imageryMeta: meta, ndviDates: sorted, ndviDate, heightmap, region, climate, climatePrev, contextLoaded: true });
   },
 
   loadSeason: async (year) => {
@@ -204,6 +287,7 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
         selectedZoneId: get().selectedZoneId ?? baseline.zones[0]?.zone_id ?? null,
       });
       if (!isNeutral(get().controls)) await get().runScenario();
+      if (get().contextLoaded) void get().loadContext();
     } catch (e) {
       set({ error: errorMessage(e), loading: false });
     }

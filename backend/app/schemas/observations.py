@@ -22,6 +22,10 @@ class ObservationPoint(BaseModel):
     zone_id: str | None = None
     n_pixels: int | None = None
     qa_flag: str | None = None
+    # Sentinel-2 zonal spread and cloud-mask coverage (None for sources that do not provide them)
+    p10: float | None = None
+    p90: float | None = None
+    valid_fraction: float | None = None
 
 
 class ObservationSeries(BaseModel):

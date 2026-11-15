@@ -9,11 +9,28 @@ make setup   # venv Python (uv) + dependencias del frontend (pnpm) + derived/ si
 make dev     # backend http://127.0.0.1:8000/api/health  ·  frontend http://127.0.0.1:5173  (Ctrl+C detiene ambos)
 ```
 
-- Datos: `backend/app/data/derived/` (versionado, ~170 KB) se genera desde `data/raw/` con `make derived`.
+- Datos: `backend/app/data/derived/` (derivados pequeños versionados) se genera desde `data/raw/` con `make derived`.
 - Modo sintético: `AGROX_DATA_MODE=synthetic make dev` (la UI muestra el banner "Datos sintéticos").
 - Calidad: `make test` (pytest), `make lint` (ruff, mypy, tsc), `make build` (frontend).
 - Simulación exploratoria: no predice rendimiento; parámetros de cultivo provisionales (`verified=false`). Decisiones en `docs/00-overview/decisions.md` (ADR-012..020).
 
+
+### Recorrido visual y datos remotos
+
+La entrada muestra el globo y acerca la cámara al piloto de Story County, Iowa; después presenta el mapa con NDVI y la parcela 3D. Los enlaces `?stage=globe`, `?stage=map` y `?stage=twin` abren cada etapa directamente. Se puede omitir la introducción; se respeta la preferencia de movimiento reducido.
+
+Para leer datos remotos, configura estas variables en `.env` (no versionado):
+
+```dotenv
+AGROX_S3_BUCKET=<your-bucket>
+AWS_PROFILE=<your-read-only-profile>
+AWS_REGION=us-east-1
+AGROX_DATA_SOURCE=auto
+```
+
+`make dev` carga esas variables. El backend usa la cadena de credenciales de AWS y lecturas parciales con caché local; el navegador consume la API y nunca recibe credenciales. No hace falta descargar el bucket. `auto` permite recurrir al espejo local; `s3` exige acceso remoto. Los derivados empaquetados permiten consultar el piloto sin reconstruir los datos crudos.
+
+El relieve y las imágenes conservan su procedencia. Los cultivos y elementos decorativos del 3D son ilustrativos; las simulaciones no predicen rendimiento.
 
 ## Recolector de datos
 

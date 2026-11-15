@@ -310,3 +310,127 @@ export interface ClimateMetric {
   data_state: DataState;
   source: string | null;
 }
+
+// ─────────────────────────────────────────
+// Section: Imagery, terrain and region contracts (data agent, see docs/01-architecture/data-contracts.md)
+// ─────────────────────────────────────────
+
+// The backend may still be building these endpoints: the frontend normalises tolerant shapes in guards.ts
+// and falls back to procedural assets when a call fails, so the UI never blocks on them.
+
+export interface GeoBounds {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}
+
+export interface BasemapInfo {
+  available: boolean;
+  source: string | null;
+  resolution_m: number | null;
+  date: string | null;
+  data_state: DataState;
+}
+
+export interface ImageryMeta {
+  farm_id: string;
+  bounds: GeoBounds;
+  crs: string;
+  basemap: BasemapInfo | null;
+  ndvi_dates: string[];
+  ndvi_source: string | null;
+  warnings: string[];
+}
+
+export interface NdviDates {
+  farm_id: string;
+  source: string | null;
+  dates: string[];
+  warnings: string[];
+}
+
+export interface Heightmap {
+  farm_id: string;
+  bounds: GeoBounds;
+  width: number;
+  height: number;
+  // Row-major, first row = north edge; metres above sea level
+  elevations_m: number[];
+  min_m: number;
+  max_m: number;
+  resolution_m: number | null;
+  source: string | null;
+  data_state: DataState;
+  warnings: string[];
+}
+
+export interface RegionMetric {
+  value: number | null;
+  unit: string;
+  // Absolute change vs the reference period (same unit); null when no reference exists
+  delta: number | null;
+  delta_pct: number | null;
+  reference: string;
+  data_state: DataState;
+  source: string | null;
+}
+
+export interface AptitudeEntry {
+  crop_id: string;
+  // GAEZ v4 suitability index 0–100 (SI) — a comparative index, never a probability
+  index: number | null;
+  suitability_class: string | null;
+  data_state: DataState;
+}
+
+export interface RegionSummary {
+  region_name: string;
+  period_start: string;
+  period_end: string;
+  previous_start: string | null;
+  previous_end: string | null;
+  ndvi: RegionMetric;
+  precipitation: RegionMetric;
+  temperature: RegionMetric;
+  radiation: RegionMetric;
+  ndvi_series: { date: string; value: number }[];
+  aptitude: AptitudeEntry[] | null;
+  aptitude_source: string | null;
+  warnings: string[];
+  // Where the numbers came from: "api" (region/summary) or "climate+modis" (frontend fallback)
+  origin: "api" | "fallback";
+}
+
+export interface WeatherDay {
+  date: string;
+  t_mean: number;
+  t_max: number;
+  t_min: number;
+  precip: number;
+  rh_mean: number;
+  solar_rad: number;
+  wind_2m: number;
+  qa_flags: string[];
+}
+
+export interface ClimateIndicatorMetric {
+  value: number | null;
+  unit: string;
+  data_state: DataState;
+  source: string | null;
+}
+
+export interface ClimateResponse {
+  methodology: string;
+  data_mode: DataMode;
+  series: {
+    location: Location;
+    elevation_m: number;
+    days: WeatherDay[];
+    provenance: Provenance;
+    warnings: string[];
+  };
+  indicators: Record<string, unknown>;
+  warnings: string[];
+}

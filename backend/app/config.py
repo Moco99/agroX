@@ -8,6 +8,9 @@ from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parent
 DEFAULT_DERIVED_DIR = APP_DIR / "data" / "derived"
+# data/raw lives at the repository root (outside git); LocalStore mirrors the bucket's raw/ prefix
+DEFAULT_RAW_DIR = APP_DIR.parents[1] / "data" / "raw"
+DEFAULT_CACHE_DIR = APP_DIR.parent / ".cache" / "objects"
 
 
 @dataclass(frozen=True)
@@ -17,6 +20,15 @@ class Settings:
     synthetic_seed: int
     cors_origins: tuple[str, ...]
     version: str = "0.1.0"
+    # auto = S3 when configured and reachable, else local | s3 | local
+    data_source: str = "auto"
+    raw_dir: Path = DEFAULT_RAW_DIR
+    cache_dir: Path = DEFAULT_CACHE_DIR
+    cache_max_mb: int = 512
+    # Bucket name and profile come only from the environment (the repo is public): never log or return them
+    s3_bucket: str | None = None
+    aws_profile: str | None = None
+    aws_region: str = "us-east-1"
 
 
 def get_settings() -> Settings:
@@ -31,4 +43,20 @@ def get_settings() -> Settings:
         for o in os.environ.get("AGROX_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
         if o.strip()
     )
-    return Settings(data_mode=mode, derived_dir=derived, synthetic_seed=seed, cors_origins=origins)
+    source = os.environ.get("AGROX_DATA_SOURCE", "auto").strip().lower()
+    if source not in {"auto", "s3", "local"}:
+        source = "auto"
+    # Empty strings (e.g. exported by a Makefile) count as "not set"
+    return Settings(
+        data_mode=mode,
+        derived_dir=derived,
+        synthetic_seed=seed,
+        cors_origins=origins,
+        data_source=source,
+        raw_dir=Path(os.environ.get("AGROX_RAW_DIR") or DEFAULT_RAW_DIR),
+        cache_dir=Path(os.environ.get("AGROX_CACHE_DIR") or DEFAULT_CACHE_DIR),
+        cache_max_mb=int(os.environ.get("AGROX_CACHE_MAX_MB") or 512),
+        s3_bucket=os.environ.get("AGROX_S3_BUCKET") or None,
+        aws_profile=os.environ.get("AWS_PROFILE") or None,
+        aws_region=os.environ.get("AWS_REGION") or "us-east-1",
+    )

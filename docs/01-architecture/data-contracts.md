@@ -143,3 +143,15 @@ Respuesta: `{"methodology": "twin_v1", "catalog_version", "data_mode", "twin_lev
 ## Versionado
 
 `methodology` (`multicriteria_v1`, `twin_v1`) y `catalog_version` en cada respuesta. Cambio incompatible ⇒ subir versión + actualizar este doc en el mismo PR.
+
+## Imágenes y contexto del piloto
+
+- `GET /api/imagery/meta?farm_id=...`: límites WGS84 compartidos, ortofoto, fechas NDVI y procedencia.
+- `GET /api/imagery/basemap?farm_id=...&size=2048`: JPEG limitado a 2048 px por lado.
+- `GET /api/imagery/ndvi/dates?farm_id=...`: fechas, fracción válida y disponibilidad de derivados.
+- `GET /api/imagery/ndvi?farm_id=...&date=YYYY-MM-DD&size=1024`: PNG RGBA; en modo S3 se calcula por ventanas desde bandas remotas.
+- `GET /api/terrain/heightmap?farm_id=...`: grilla de elevaciones norte→sur sobre los mismos límites.
+- `GET /api/region/summary?period_start=...&period_end=...`: métricas y diferencias frente al periodo anterior de igual longitud; advierte cobertura incompleta. El NDVI representa observaciones del piloto, no un promedio espacial regional. Aptitud ausente hasta disponer del derivado GAEZ.
+- `GET /api/data/catalog`: disponibilidad de almacenes, inventario y contadores de transferencia/caché.
+
+Parcela desconocida o imagen ausente devuelve 404; fecha o tamaño inválidos, 422; almacenamiento obligatorio inaccesible, 503. Nunca se entregan credenciales ni identificadores del bucket.

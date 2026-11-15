@@ -92,3 +92,7 @@ globe/                # stretch
 5–8 h (dossier). Si amenaza al motor: losa + zonas coloreadas + etiquetas + timeline; sin props ni riego animado.
 
 Builder/revisor: [agent-routing](../06-agents/agent-routing.md).
+
+## Recorrido de exploración
+
+La interfaz abre con un globo texturizado y vuelo hacia Story County; continúa al mapa con ortofoto y NDVI por fecha, y termina en el gemelo por zonas. Los metadatos de imágenes y el DEM delimitan el recorte geográfico compartido. La ortofoto se proyecta sobre el DEM; cultivos, infraestructura y crecimiento son ilustrativos. Los controles permiten avanzar, regresar y omitir el recorrido; movimiento reducido evita transiciones animadas.
