@@ -1,11 +1,15 @@
 import { isRecord } from "../../types/guards";
 
+export interface RotationWindow { start: string; end: string }
+
 export interface RotationRequest {
   farm_id: string;
   start: string;
   end: string;
   cycles: number;
   top_k: number;
+  cycle_windows?: RotationWindow[];
+  twin_only?: boolean;
   previous_crop?: string;
   exclude_same_family: boolean;
   scenario: { temp_delta_c: number; precip_factor: number };
@@ -22,11 +26,15 @@ export interface RotationCycle {
   ph_fit: number | null;
   family: string;
   data_state: string;
+  window?: RotationWindow;
+  twin_supported?: boolean;
   warnings: string[];
 }
 export interface RotationRecommendation {
   sequence: string[];
   overall_score: number;
+  score?: number;
+  family_repeats?: number;
   cycles: RotationCycle[];
   warnings: string[];
   score_type: string;
@@ -46,10 +54,14 @@ function isCycle(v: unknown): v is RotationCycle {
   return isRecord(v) && typeof v.cycle === "number" && typeof v.crop_id === "string" &&
     typeof v.name === "string" && typeof v.rainfall_fit === "number" && Number.isFinite(v.rainfall_fit) &&
     typeof v.temperature_fit === "number" && Number.isFinite(v.temperature_fit) && (v.ph_fit === null || typeof v.ph_fit === "number") && typeof v.family === "string" &&
-    typeof v.data_state === "string" && strings(v.warnings);
+    typeof v.data_state === "string" &&
+    (v.twin_supported === undefined || typeof v.twin_supported === "boolean") &&
+    (v.window === undefined || (isRecord(v.window) && typeof v.window.start === "string" && typeof v.window.end === "string")) &&
+    strings(v.warnings);
 }
 function isRecommendation(v: unknown): v is RotationRecommendation {
   return isRecord(v) && isRecord(v.weights) && typeof v.weights.water === "number" && typeof v.weights.soil === "number" && typeof v.weights.climate === "number" && isRecord(v.indicators) && [v.indicators.water, v.indicators.soil, v.indicators.climate].every((x) => x === null || (typeof x === "number" && Number.isFinite(x))) && strings(v.sequence) && typeof v.overall_score === "number" && Number.isFinite(v.overall_score) &&
+    (v.score === undefined || (typeof v.score === "number" && Number.isFinite(v.score))) &&
     Array.isArray(v.cycles) && v.cycles.every(isCycle) && strings(v.warnings) &&
     typeof v.score_type === "string" && typeof v.field_validated === "boolean";
 }
@@ -59,8 +71,12 @@ export async function recommendRotation(request: RotationRequest, signal: AbortS
   });
   const value: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    const detail = isRecord(value) && typeof value.detail === "string" ? value.detail : `HTTP ${response.status}`;
-    throw new Error(detail);
+    const detail = isRecord(value) ? value.detail : null;
+    const validation = Array.isArray(detail) ? detail.find((entry) => isRecord(entry) && typeof entry.msg === "string") : null;
+    const message = typeof detail === "string" ? detail
+      : isRecord(validation) && typeof validation.msg === "string" ? validation.msg.replace(/^Value error, /, "")
+      : `No se pudo calcular el ranking (HTTP ${response.status}).`;
+    throw new Error(message);
   }
   if (!isRecord(value) || !Array.isArray(value.recommendations) || !value.recommendations.every(isRecommendation)) {
     throw new Error("La respuesta de rotaciones tiene un formato inesperado.");

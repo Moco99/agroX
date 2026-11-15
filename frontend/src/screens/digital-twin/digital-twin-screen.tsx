@@ -39,7 +39,24 @@ export function DigitalTwinScreen() {
   const heightmap = useTwinStore((s) => s.heightmap);
   const plan = useTwinStore((s) => s.plan);
   const declaration = useParcelStore((s) => s.declaration);
+  const rotation = useTwinStore((s) => s.rotationPreview);
+  const simulating = useTwinStore((s) => s.simulating);
+  const previewRotation = useTwinStore((s) => s.previewRotation);
+  const clearRotationPreview = useTwinStore((s) => s.clearRotationPreview);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [webgl] = useState(hasWebGL);
+
+  async function changeCycle(index: number) {
+    if (!rotation) return;
+    const controls = useTwinStore.getState().controls;
+    setPreviewError(null);
+    try {
+      await previewRotation({ ...rotation, index, precipPct: controls.precipPct, tempDelta: controls.tempDelta });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setPreviewError(error instanceof Error ? error.message : "No se pudo simular el ciclo.");
+    }
+  }
 
   const projector = useMemo(() => (farm ? makeProjector(farm.farm) : null), [farm]);
   const views = useMemo(
@@ -114,7 +131,32 @@ export function DigitalTwinScreen() {
             {farm.farm.name} · {fmt(farm.farm.area_ha, 0)} ha · {farm.farm.zones.length} zonas
           </small>
         </div>
-        {!isPilotFarm(farm.farm.farm_id) && (
+        {rotation && (
+          <section className="card declared-summary">
+            <div className="card-head">
+              <h3>Ensayo de rotación</h3>
+              <DataStateBadge state={baseline.data_mode === "synthetic" ? "SYNTHETIC" : "SIMULATED"} compact />
+            </div>
+            <p className="muted">{rotation.cycles.map((cycle) => cycle.name).join(" → ")}</p>
+            <p className="muted">Cada ciclo se simula por separado en todas las zonas de la parcela.</p>
+            <label className="field">
+              <span>Ciclo en el gemelo</span>
+              <select disabled={simulating} value={rotation.index} onChange={(e) => void changeCycle(Number(e.target.value))}>
+                {rotation.cycles.map((cycle, index) => (
+                  <option key={index} value={index} disabled={!cycle.supported}>
+                    {index + 1} · {cycle.name}{cycle.supported ? "" : " · Sin parámetros"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="muted">{fmtDate(baseline.start)} a {fmtDate(baseline.end)}</p>
+            {previewError && <p className="error-box" role="alert">{previewError}</p>}
+            <button type="button" className="ghost-button" disabled={simulating} onClick={() => void clearRotationPreview()}>
+              Volver a los cultivos de la parcela
+            </button>
+          </section>
+        )}
+        {!rotation && !isPilotFarm(farm.farm.farm_id) && (
           <section className="card declared-summary" data-testid="declared-summary">
             <div className="card-head">
               <h3>{es.openParcel.declTitle}</h3>

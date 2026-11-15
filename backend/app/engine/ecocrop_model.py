@@ -408,7 +408,8 @@ class RotationEngine:
         soil_awc: float,
         t_extreme_days: int,
         previous_crop: str | None,
-        cache: dict[tuple[str, bool, bool], dict[str, Any]],
+        cache: dict[tuple[str, bool, bool, float, float], dict[str, Any]],
+        cycle_climates: list[tuple[float, float]] | None = None,
     ) -> dict[str, Any]:
         crop_map = {c["id"]: c for c in self.PRIMARY_CROPS}
         if not isinstance(sequence, (list, tuple)) or not 1 <= len(sequence) <= 4:
@@ -422,20 +423,23 @@ class RotationEngine:
         warnings = {
             "Prototype index; planting calendars and water availability are not validated",
             "EcoCrop rainfall thresholds are not verified cycle water requirements; risk is auxiliary",
-            "One climate scenario is reused for every cycle",
+            "Each cycle uses its declared climate window"
+            if cycle_climates is not None
+            else "One climate scenario is reused for every cycle",
         }
         for cycle_idx, crop_id in enumerate(sequence):
             crop_meta = crop_map[crop_id]
             same_family = prev_crop is not None and prev_crop["family"] == crop_meta["family"]
             legume_bonus = prev_crop is not None and prev_crop["is_legume"] and not crop_meta["is_legume"]
-            key = (crop_id, same_family, legume_bonus)
+            cycle_temp, cycle_rain = cycle_climates[cycle_idx] if cycle_climates is not None else (t_mean, rain_mm)
+            key = (crop_id, same_family, legume_bonus, cycle_temp, cycle_rain)
             if key not in cache:
-                eco = self.ecocrop.score_crop(crop_meta["scientific"], t_mean, rain_mm, soil_ph)
+                eco = self.ecocrop.score_crop(crop_meta["scientific"], cycle_temp, cycle_rain, soil_ph)
                 risk: dict[str, Any] = (
                     self.risk_model.predict_risk(
-                        t_mean=t_mean,
+                        t_mean=cycle_temp,
                         t_extreme_days=t_extreme_days,
-                        rain_mm=rain_mm,
+                        rain_mm=cycle_rain,
                         crop_water_need=eco["water_opt_mm"][0],
                         cycle_days=eco["cycle_days"][1],
                         soil_ph=soil_ph,
@@ -494,6 +498,8 @@ class RotationEngine:
         *,
         previous_crop: str | None = None,
         exclude_same_family: bool = False,
+        allowed_crops: set[str] | None = None,
+        cycle_climates: list[tuple[float, float]] | None = None,
     ) -> list[dict[str, Any]]:
         """Enumerate 2-4 cycle candidates with optional family exclusion and history.
 
@@ -505,6 +511,12 @@ class RotationEngine:
         if type(top_k) is not int or top_k < 1:
             raise ValueError("top_k must be a positive integer")
         candidate_ids = {"corn", "bean", "soybean", "wheat", "sorghum", "chickpea", "cover_vetch"}
+        if allowed_crops is not None:
+            candidate_ids &= allowed_crops
+        if not candidate_ids:
+            return []
+        if cycle_climates is not None and len(cycle_climates) != cycles:
+            raise ValueError("Provide one climate window per cycle")
         # Include a known previous crop for history even if it is outside the candidate pool.
         families = {c["id"]: c["family"] for c in self.PRIMARY_CROPS if c["id"] in candidate_ids}
         crop_map = {c["id"]: c for c in self.PRIMARY_CROPS}
@@ -513,9 +525,11 @@ class RotationEngine:
         if previous_crop is not None and previous_crop not in families:
             families[previous_crop] = crop_map[previous_crop]["family"]
         sequences = generate_candidates(families, cycles, previous_crop, exclude_same_family)
-        cache: dict[tuple[str, bool, bool], dict[str, Any]] = {}
+        cache: dict[tuple[str, bool, bool, float, float], dict[str, Any]] = {}
         results = [
-            self._evaluate_rotation(seq, t_mean, rain_mm, soil_ph, soil_awc, t_extreme_days, previous_crop, cache)
+            self._evaluate_rotation(
+                seq, t_mean, rain_mm, soil_ph, soil_awc, t_extreme_days, previous_crop, cache, cycle_climates
+            )
             for seq in sequences
             if all(crop_id in candidate_ids for crop_id in seq)
         ]
