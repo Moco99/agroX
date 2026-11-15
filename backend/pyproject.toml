@@ -64,7 +64,7 @@ plugins = ["pydantic.mypy"]
 
 # rasterio ships no type information: treat it as Any instead of silencing errors elsewhere
 [[tool.mypy.overrides]]
-module = ["rasterio", "rasterio.*"]
+module = ["rasterio", "rasterio.*", "sklearn", "sklearn.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

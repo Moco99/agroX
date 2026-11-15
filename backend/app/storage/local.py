@@ -10,8 +10,8 @@ try:
     import rasterio
     from rasterio.io import DatasetReader
 except ImportError:
-    rasterio = None  # type: ignore
-    DatasetReader = object  # type: ignore
+    rasterio = None
+    DatasetReader = object
 
 from app.storage.ports import ObjectInfo, ObjectNotFoundError
 

@@ -61,7 +61,7 @@ def test_awc_from_water_contents() -> None:
 
 @needs_derived
 def test_live_soil_keeps_ssurgo_and_adds_cross_check(tmp_path: Path) -> None:
-    soils = LiveSoilProvider(DERIVED, tmp_path, fetcher=lambda *_: _soilgrids(328, 150), today=TODAY)
+    soils = LiveSoilProvider(DERIVED, tmp_path, fetcher=lambda *_: _soilgrids(328, 150), min_interval_s=0)
     soils_by_zone = soils.get_zone_soils(FARM)
     assert set(soils_by_zone) == set(zone_rings(DERIVED, FARM))
     p = next(iter(soils_by_zone.values()))

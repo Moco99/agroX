@@ -18,9 +18,9 @@ try:
     from rasterio._vsiopener import FileContainer
     from rasterio.io import DatasetReader
 except ImportError:
-    rasterio = None  # type: ignore
-    FileContainer = object  # type: ignore
-    DatasetReader = object  # type: ignore
+    rasterio = None
+    FileContainer = object
+    DatasetReader = object
 
 try:
     from botocore.config import Config

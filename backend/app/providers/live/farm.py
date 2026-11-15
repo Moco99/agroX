@@ -36,7 +36,8 @@ def _get(url: str, body: dict[str, object] | None = None) -> object:
     req = urllib.request.Request(
         url, data=data, headers={"User-Agent": "agrox-backend", "Content-Type": "application/json"}
     )
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    # 20 DEM samples per farm run in parallel: a hung call must not hold the farm response for minutes
+    with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read())
 
 
@@ -67,6 +68,26 @@ def _polygon(ring: Ring) -> PolygonGeometry:
     return PolygonGeometry(coordinates=[[[x, y] for x, y in ring]])
 
 
+def _terrain_info(values: dict[str, float] | None, error: str | None) -> TerrainInfo:
+    if values is None:
+        return TerrainInfo(
+            elevation_mean_m=None,
+            slope_mean_pct=None,
+            slope_max_pct=None,
+            erosion_index=erosion_index_for(None),
+            data_state=DataState.ESTIMATED,
+            warnings=[f"Copernicus DEM unavailable ({error}); weather-cell elevation used by the twin"],
+        )
+    return TerrainInfo(
+        elevation_mean_m=values["elevation"],
+        slope_mean_pct=values["slope_pct"],
+        slope_max_pct=None,
+        erosion_index=erosion_index_for(values["slope_pct"]),
+        data_state=DataState.MEASURED,
+        warnings=["slope from 5 DEM samples at the zone centre (30 m), not a zone-wide statistic"],
+    )
+
+
 class GlobalFarmProvider(RealFarmProvider):
     def __init__(
         self,
@@ -91,7 +112,12 @@ class GlobalFarmProvider(RealFarmProvider):
             with ThreadPoolExecutor(len(rings)) as ex:
                 return dict(zip(rings, ex.map(lambda r: zone_terrain(r, self._elevation), rings.values()), strict=True))
 
-        terrain = cached(self._cache_dir, f"terrain_{farm_id}", build, self._today())
+        terrain_error: str | None = None
+        try:
+            terrain: dict[str, dict[str, float]] = cached(self._cache_dir, f"terrain_{farm_id}", build, self._today())
+        except Exception as exc:
+            # The DEM is one source among several: without it the farm still opens, with unknown terrain
+            terrain, terrain_error = {}, f"{type(exc).__name__}: {str(exc)[:120]}"
         soils = self._soil.get_zone_soils(farm_id)
         zones = [
             FarmZone(
@@ -102,14 +128,7 @@ class GlobalFarmProvider(RealFarmProvider):
                 geometry=_polygon(ring),
                 centroid=Location(lat=centroid(ring)[1], lon=centroid(ring)[0]),
                 soil=soils[zid],
-                terrain=TerrainInfo(
-                    elevation_mean_m=terrain[zid]["elevation"],
-                    slope_mean_pct=terrain[zid]["slope_pct"],
-                    slope_max_pct=None,
-                    erosion_index=erosion_index_for(terrain[zid]["slope_pct"]),
-                    data_state=DataState.MEASURED,
-                    warnings=["slope from 5 DEM samples at the zone centre (30 m), not a zone-wide statistic"],
-                ),
+                terrain=_terrain_info(terrain.get(zid), terrain_error),
                 data_state=DataState.DECLARED,
             )
             for zid, ring in rings.items()
@@ -137,7 +156,8 @@ class GlobalFarmProvider(RealFarmProvider):
             },
             warnings=[
                 "point farm: boundary is a 36 ha square around the selected point, not a surveyed property line",
-                f"crop not observed: '{DEFAULT_CROP}' assumed (DECLARED); set the real crop and planting dates",
-                "default planting dates follow the US Midwest calendar: override them for other regions/hemispheres",
+                f"crop not observed: '{DEFAULT_CROP}' assumed (DECLARED); declare the real crop per zone (zone_crops)",
+                "planting dates are a hemisphere calendar suggestion (ESTIMATED): declare them (planting_dates)",
+                *([f"terrain unavailable (Copernicus DEM: {terrain_error})"] if terrain_error else []),
             ],
         )

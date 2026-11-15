@@ -2,7 +2,8 @@
 
 `live`: weather (NASA POWER 1981 -> today), Sentinel-2 NDVI per zone (Planetary Computer) and soil
 (SSURGO + SoilGrids cross-check / fallback) come from the source APIs; parcel, catalog, MODIS and SMAP
-stay Real* because the pilot parcel is defined by the pipeline.
+stay Real* because the pilot parcel is defined by the pipeline. Only `live` serves point farms
+(`pt_<lat>_<lon>`), with imagery, terrain and land cover fetched on demand into the live cache.
 """
 
 from __future__ import annotations
@@ -11,8 +12,10 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
-from app.config import DEFAULT_CACHE_DIR, Settings, get_settings
+from app.config import DEFAULT_CACHE_DIR, DEFAULT_LIVE_CACHE_DIR, Settings, get_settings
 from app.providers.live.farm import GlobalFarmProvider
+from app.providers.live.imagery import PointImageryProvider
+from app.providers.live.land_cover import LandCoverProvider
 from app.providers.live.observations import LiveObservationProvider
 from app.providers.live.parcel import point_farm
 from app.providers.live.soil import LiveSoilProvider
@@ -49,18 +52,43 @@ class Providers:
     warnings: tuple[str, ...] = field(default_factory=tuple)
     derived_dir: Path | None = None
     cache_dir: Path | None = None
+    # Live-only adapters (None in real/synthetic): point-farm imagery, land cover and soil fetch status
+    point_imagery: PointImageryProvider | None = None
+    land_cover: LandCoverProvider | None = None
+    live_soil: LiveSoilProvider | None = None
+    live_observations: LiveObservationProvider | None = None
+
+    @property
+    def any_parcel_supported(self) -> bool:
+        """Point farms (pt_<lat>_<lon>) need the live adapters."""
+        return self.mode == "live"
+
+
+POINT_FARMS_NEED_LIVE = (
+    "point farms (pt_<lat>_<lon>) and weather outside the pilot need AGROX_DATA_MODE=live "
+    "(check `any_parcel_supported` in /api/health; `make dev-live`)"
+)
 
 
 @lru_cache(maxsize=8)
-def _build(mode: str, derived_dir: Path, seed: int, cache_dir: Path | None = None) -> Providers:
+def _build(
+    mode: str,
+    derived_dir: Path,
+    seed: int,
+    cache_dir: Path | None = None,
+    live_cache_dir: Path = DEFAULT_LIVE_CACHE_DIR,
+    live_cache_max_mb: int = 256,
+) -> Providers:
     if mode in ("real", "live") and RealWeatherProvider.is_available(derived_dir):
         cache = cache_dir or DEFAULT_CACHE_DIR
         soil_real: SoilProvider = RealSoilProvider(derived_dir)
         weather: WeatherProvider = RealWeatherProvider(derived_dir)
         observations: ObservationProvider = RealObservationProvider(derived_dir)
+        live_soil: LiveSoilProvider | None = None
+        live_obs: LiveObservationProvider | None = None
         if mode == "live":
-            soil_real = LiveSoilProvider(derived_dir, cache)
-            observations = LiveObservationProvider(derived_dir, cache)
+            soil_real = live_soil = LiveSoilProvider(derived_dir, live_cache_dir)
+            observations = live_obs = LiveObservationProvider(derived_dir, cache)
             # Same point as the derived series so both modes describe the same pilot cell
             loc = read_json(derived_dir / WEATHER_META).get("location")
             loc = loc if isinstance(loc, dict) else {}
@@ -81,6 +109,10 @@ def _build(mode: str, derived_dir: Path, seed: int, cache_dir: Path | None = Non
             observations=observations,
             derived_dir=derived_dir,
             cache_dir=cache,
+            point_imagery=PointImageryProvider(live_cache_dir, live_cache_max_mb) if mode == "live" else None,
+            land_cover=LandCoverProvider(live_cache_dir) if mode == "live" else None,
+            live_soil=live_soil,
+            live_observations=live_obs,
         )
     warnings: tuple[str, ...] = ()
     if mode in ("real", "live"):
@@ -99,7 +131,7 @@ def _build(mode: str, derived_dir: Path, seed: int, cache_dir: Path | None = Non
 
 def get_providers(settings: Settings | None = None) -> Providers:
     s = settings or get_settings()
-    return _build(s.data_mode, s.derived_dir, s.synthetic_seed, s.cache_dir)
+    return _build(s.data_mode, s.derived_dir, s.synthetic_seed, s.cache_dir, s.live_cache_dir, s.live_cache_max_mb)
 
 
 @lru_cache(maxsize=64)
@@ -110,7 +142,7 @@ def _point_weather(derived_dir: Path, cache_dir: Path, lat: float, lon: float) -
 def weather_at(p: Providers, lat: float, lon: float) -> WeatherProvider:
     """NASA POWER at any point (live mode only)."""
     if p.mode != "live" or p.derived_dir is None or p.cache_dir is None:
-        raise DataNotFoundError("weather outside the pilot needs AGROX_DATA_MODE=live")
+        raise DataNotFoundError(POINT_FARMS_NEED_LIVE)
     return _point_weather(p.derived_dir, p.cache_dir, round(lat, 4), round(lon, 4))
 
 

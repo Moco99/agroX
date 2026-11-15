@@ -19,7 +19,7 @@ from pathlib import Path
 
 import numpy as np
 
-from app.providers.live.parcel import Ring, cached, inside, zone_rings
+from app.providers.live.parcel import Ring, cached, inside, peek_cached, zone_rings
 from app.providers.real.observations import RealObservationProvider
 from app.schemas.common import DataState, Provenance
 from app.schemas.observations import ObservationPoint, ObservationSeries, ObservationVariable
@@ -125,7 +125,7 @@ class LiveObservationProvider(RealObservationProvider):
         self._cache_dir = cache_dir
         self._search, self._crop, self._today = search, crop, today
 
-    def _live_points(self, farm_id: str) -> list[dict[str, object]]:
+    def _grid(self, farm_id: str) -> tuple[dict[str, Ring], list[float], int, int]:
         rings = zone_rings(self._dir, farm_id)
         xs = [p[0] for ring in rings.values() for p in ring]
         ys = [p[1] for ring in rings.values() for p in ring]
@@ -133,6 +133,22 @@ class LiveObservationProvider(RealObservationProvider):
         # ~10 m pixels so the zone means use the native Sentinel-2 resolution
         width = max(8, round((bbox[2] - bbox[0]) * 111320 * math.cos(math.radians(bbox[1])) / 10))
         height = max(8, round((bbox[3] - bbox[1]) * 111320 / 10))
+        return rings, bbox, width, height
+
+    def cached_rows(self, farm_id: str) -> list[dict[str, object]] | None:
+        """Today's live rows if already built; never starts the (slow) build."""
+        return peek_cached(self._cache_dir, f"s2_ndvi_{farm_id}", self._today())
+
+    def series_ready(self, farm_id: str) -> bool:
+        return self.cached_rows(farm_id) is not None
+
+    def farm_pixel_total(self, farm_id: str) -> int:
+        """Pixels inside the zones on the analysis grid: denominator of the per-date valid fraction."""
+        rings, bbox, width, height = self._grid(farm_id)
+        return int(sum(int(m.sum()) for m in zone_masks((height, width), bbox, rings).values()))
+
+    def _live_points(self, farm_id: str) -> list[dict[str, object]]:
+        rings, bbox, width, height = self._grid(farm_id)
         today = self._today()
 
         def build() -> list[dict[str, object]]:

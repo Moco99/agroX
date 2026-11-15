@@ -100,6 +100,19 @@ SCENARIO_PRESETS: dict[str, ScenarioPreset] = {
 
 DEFAULT_PLANTING_MMDD: dict[str, str] = {"corn": "05-05", "soybean": "05-15", "cereal_rye": "10-01"}
 
+# Point farms (ADR-026): the same pilot calendar, shifted 6 months south of the equator. A product default
+# so the twin can run before the user declares dates, NOT an agronomic calendar of the place (ESTIMATED).
+SOUTH_SHIFT_MONTHS = 6
+# Season windows used when a request gives no period (north: Apr-Oct; south: Oct-Apr, crossing new year)
+NORTH_SEASON_MMDD = ("04-01", "10-31")
+SOUTH_SEASON_MMDD = ("10-01", "04-30")
+# Between the tropics planting follows the rainy season, which a hemisphere rule cannot capture
+TROPICS_LAT = 23.44
+# Days after a season ends before it counts as complete (POWER publishes with a few days of lag)
+SEASON_COMPLETE_LAG_DAYS = 5
+# Longest period one twin run accepts: one season, which may cross 1 January in the south
+MAX_SEASON_DAYS = 366
+
 # ─────────────────────────────────────────
 # Section: Erosion index from slope (product classification)
 # ─────────────────────────────────────────

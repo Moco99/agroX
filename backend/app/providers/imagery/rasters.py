@@ -10,15 +10,16 @@ import re
 from dataclasses import dataclass
 
 import numpy as np
+
 try:
     from rasterio.enums import Resampling
     from rasterio.transform import Affine, from_bounds
     from rasterio.vrt import WarpedVRT
 except ImportError:
-    Resampling = None  # type: ignore
-    Affine = None  # type: ignore
-    from_bounds = None  # type: ignore
-    WarpedVRT = None  # type: ignore
+    Resampling = None
+    Affine = None
+    from_bounds = None
+    WarpedVRT = None
 
 from app.engine.ndvi import BoolArray, FloatArray, compute_ndvi, s2_offset
 from app.storage.ports import ObjectNotFoundError, ObjectStore

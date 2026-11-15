@@ -15,28 +15,29 @@ Size = Annotated[int, Query(ge=64, le=2048)]
 
 
 @router.get("/imagery/meta", response_model=ImageryMeta)
-def meta(farm_id: str = "story_pilot_farm") -> ImageryMeta:
-    return imagery_service.meta(farm_id)
+def meta(p: ProvidersDep, farm_id: str = "story_pilot_farm") -> ImageryMeta:
+    return imagery_service.meta(farm_id, p)
 
 
 @router.get("/imagery/ndvi/dates", response_model=NdviDates)
-def dates(farm_id: str = "story_pilot_farm") -> NdviDates:
-    return imagery_service.dates(farm_id)
+def dates(p: ProvidersDep, farm_id: str = "story_pilot_farm") -> NdviDates:
+    return imagery_service.dates(farm_id, p)
 
 
 @router.get("/terrain/heightmap", response_model=Heightmap)
-def heightmap(farm_id: str = "story_pilot_farm") -> Heightmap:
-    return imagery_service.heightmap(farm_id)
+def heightmap(p: ProvidersDep, farm_id: str = "story_pilot_farm") -> Heightmap:
+    return imagery_service.heightmap(farm_id, p)
 
 
 @router.get("/imagery/basemap")
-def basemap(farm_id: str = "story_pilot_farm", size: Size = 2048) -> Response:
-    return Response(imagery_service.image(farm_id, size), media_type="image/jpeg")
+def basemap(p: ProvidersDep, farm_id: str = "story_pilot_farm", size: Size = 2048) -> Response:
+    data = imagery_service.image(farm_id, size, None, p)
+    return Response(data, media_type="image/jpeg", headers=imagery_service.basemap_headers(farm_id, p))
 
 
 @router.get("/imagery/ndvi")
-def ndvi(date: date, farm_id: str = "story_pilot_farm", size: Size = 1024) -> Response:
-    return Response(imagery_service.image(farm_id, size, date), media_type="image/png")
+def ndvi(p: ProvidersDep, date: date, farm_id: str = "story_pilot_farm", size: Size = 1024) -> Response:
+    return Response(imagery_service.image(farm_id, size, date, p), media_type="image/png")
 
 
 @router.get("/region/summary", response_model=RegionSummary)
