@@ -50,3 +50,14 @@
 
 .rotation-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .rotation-presets .ghost-button { font-size: 12px; padding: 6px 10px; }
+
+@media (max-width: 600px) {
+  .rotation-screen { padding: 14px 12px; }
+  .rotation-form .card, .rotation-results .card, .rotation-card { padding: 14px; }
+  .rotation-grid { grid-template-columns: 1fr; }
+  .rotation-card header { flex-wrap: wrap; gap: 10px; }
+  .rotation-score strong { font-size: 22px; }
+  .rotation-indicators { grid-template-columns: 1fr; gap: 10px; margin: 14px 0; }
+  .rotation-inputs { grid-template-columns: 1fr; }
+}
+
