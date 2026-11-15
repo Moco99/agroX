@@ -534,6 +534,9 @@ input[type="range"] {
 
 .badge {
   display: inline-block;
+  flex: 0 0 auto;
+  align-self: center;
+  white-space: nowrap;
   border: 1px solid;
   border-radius: 999px;
   font-weight: 600;

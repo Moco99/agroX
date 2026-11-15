@@ -10,6 +10,7 @@ import { displayName } from "../../lib/parcel-history";
 import { recommendRotation, type RotationRecommendation, type RotationRequest, type RotationResponse, type RotationWindow } from "./rotation-api";
 import { isRecord } from "../../types/guards";
 import { periodError, rotationPresets, splitPeriod, windowsError } from "../../lib/rotation-dates";
+import { getWeatherCoverage, type WeatherCoverage } from "../../lib/weather-coverage";
 import { DataStateBadge } from "../../components/data-state-badge";
 import { DataStateLegend } from "../../components/explain/data-state-legend";
 import { HowCalculated } from "../../components/explain/how-calculated";
@@ -109,6 +110,9 @@ export default function RotationScreen() {
   const selected = parcels.find((p) => p.farmId === farmId);
   const [start, setStart] = useState(span.start);
   const [end, setEnd] = useState(span.end);
+  const [referenceYear, setReferenceYear] = useState("");
+  const [coverage, setCoverage] = useState<WeatherCoverage | null>(null);
+  const [coverageError, setCoverageError] = useState(false);
   const [cycles, setCycles] = useState(3);
   const [twinOnly, setTwinOnly] = useState(true);
   const [useWindows, setUseWindows] = useState(false);
@@ -139,8 +143,17 @@ export default function RotationScreen() {
     setLoading(false); setError(null); setPreviewError(null);
     setStart(initialSpan.current.start); setEnd(initialSpan.current.end);
     setBaseline(null); setScenario(null); setSubmitted(null);
-    setPrevious(""); setStartCrop(""); setPh(""); setUseWindows(false);
+    setPrevious(""); setStartCrop(""); setPh(""); setUseWindows(false); setReferenceYear("");
     setWindows(Array.from({ length: 4 }, () => ({ start: "", end: "" })));
+  }, [farmId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setCoverage(null); setCoverageError(false);
+    void getWeatherCoverage(farmId, controller.signal)
+      .then(setCoverage)
+      .catch(() => { if (!controller.signal.aborted) setCoverageError(true); });
+    return () => controller.abort();
   }, [farmId]);
 
   function invalidate() {
@@ -167,6 +180,7 @@ export default function RotationScreen() {
     setLoading(true); setError(null); setBaseline(null); setScenario(null);
     const body: RotationRequest = {
       farm_id: farmId, start: from, end: to, cycles, top_k: 3, exclude_same_family: sameFamily, weights,
+      reference_year: referenceYear ? Number(referenceYear) : null,
       twin_only: twinOnly, ...(cycleWindows ? { cycle_windows: cycleWindows } : {}),
       scenario: { temp_delta_c: 0, precip_factor: 1 },
       ...(previous ? { previous_crop: previous } : {}), ...(startCrop ? { start_crop: startCrop } : {}), ...(ph.trim() ? { soil_ph: Number(ph) } : {}),
@@ -194,6 +208,8 @@ export default function RotationScreen() {
       })),
       precipPct: hypothetical ? rain : 0,
       tempDelta: hypothetical ? temperature : 0,
+      referenceYear: referenceYear ? Number(referenceYear) : null,
+      referenceStartYear: Number((useWindows ? windows[0]?.start : start)?.slice(0, 4)),
     };
     try {
       await previewRotation(preview);
@@ -225,6 +241,12 @@ export default function RotationScreen() {
         <p className="muted">{es.rotation.parcelSummary(farm?.farm.name ?? (selected ? displayName(selected) : farmId), (farm?.farm.area_ha ?? selected?.areaHa) != null ? Number(farm?.farm.area_ha ?? selected?.areaHa).toFixed(1) : null)}</p>
         {parcelError && <div className="error-box" role="alert">{parcelError}</div>}
         <p className="muted">{es.rotation.farmDataHint}</p>
+        {coverage ? <p className="muted">{es.weatherReference.coverage(coverage.start, coverage.end, coverage.available_days, coverage.missing.length)}</p> : <p className="muted">{coverageError ? es.weatherReference.unavailable : es.weatherReference.loading}</p>}
+        {coverage && coverage.missing.length > 0 && <details><summary>{es.weatherReference.missingIntervals}</summary><ul>{coverage.missing.map((gap) => <li key={`${gap.start}-${gap.end}`}>{gap.start} — {gap.end}</li>)}</ul></details>}
+        <label>{es.weatherReference.year}
+          <input type="number" min={1900} max={new Date().getFullYear()} step={1} value={referenceYear} onChange={(e) => setReferenceYear(e.target.value)} placeholder={es.weatherReference.placeholder} />
+        </label>
+        <p className="muted">{es.weatherReference.explanation}</p>
         <div className="rotation-grid">{!useWindows && <>
           <label>{es.rotation.from}<input type="date" required value={start} onChange={(e) => setStart(e.target.value)} /></label>
           <label>{es.rotation.to}<input type="date" required value={end} onChange={(e) => setEnd(e.target.value)} /></label>

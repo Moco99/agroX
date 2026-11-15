@@ -23,6 +23,7 @@ class RotationRecommendRequest(StrictRequest):
     farm_id: str = Field(min_length=1, max_length=100)
     start: date
     end: date
+    reference_year: int | None = Field(default=None, ge=1900, le=9997)
     soil_ph: float | None = Field(default=None, ge=0, le=14)
     cycles: int = Field(default=3, ge=2, le=4, strict=True)
     cycle_windows: list[RotationWindow] | None = Field(default=None, min_length=2, max_length=4)

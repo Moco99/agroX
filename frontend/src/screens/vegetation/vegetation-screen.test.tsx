@@ -6,6 +6,8 @@ import VegetationScreen from "./vegetation-screen";
 
 // SSR reads zustand's initial state, so the store is replaced by a plain selector over a fixed state
 const state: Record<string, unknown> = {};
+const parcelState = { sources: { ndvi: { state: "pending", message: null as string | null } } };
+vi.mock("../../store/parcel-store", () => ({ useParcelStore: (sel: (s: typeof parcelState) => unknown) => sel(parcelState) }));
 vi.mock("../../store/twin-store", () => ({ useTwinStore: (sel: (s: Record<string, unknown>) => unknown) => sel(state) }));
 
 const pt = (date: string, value: number) => ({ date, value, variable: "ndvi", zone_id: "z1", n_pixels: 4, qa_flag: null, valid_fraction: 0.9 });
@@ -47,4 +49,14 @@ describe("VegetationScreen", () => {
     Object.assign(state, { farm, sentinel2: null, modis: null, selectedZoneId: null });
     expect(renderToStaticMarkup(<VegetationScreen />)).toContain("Descargando NDVI");
   });
+  it("shows a retry and the cause instead of endless downloading after failure", () => {
+    const farm = { farm: { name: "P", zones: [] }, load_status: { stages: [{ stage: "ndvi", status: "failed", message: "Servicio no disponible" }] } } as unknown as FarmAnalyzeResponse;
+    Object.assign(state, { farm, sentinel2: null, modis: null, selectedZoneId: null, retryNdvi: () => undefined });
+    parcelState.sources.ndvi = { state: "error", message: "Servicio no disponible" };
+    const html = renderToStaticMarkup(<VegetationScreen />);
+    expect(html).toContain("Reintentar NDVI");
+    expect(html).toContain("Servicio no disponible");
+    expect(html).not.toContain("Descargando NDVI");
+  });
+
 });

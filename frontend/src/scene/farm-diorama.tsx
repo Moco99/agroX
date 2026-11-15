@@ -166,6 +166,7 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
   const [footprints, setFootprints] = useState<Extent[] | null | undefined>(undefined);
   const cover = useTwinStore((s) => s.farm?.land_cover);
   const previewingRotation = useTwinStore((s) => s.rotationPreview !== null);
+  const previewDataMode = useTwinStore((s) => s.baseline?.data_mode);
   const declaredCrops = useParcelStore((s) => s.declaration.crops);
   const heightmap = useTwinStore((s) => s.heightmap);
   const pilot = isPilotFarm(farm.farm_id);
@@ -305,7 +306,7 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
                   >
                     <strong>{v.zone.name}</strong>
                     <span>
-                      {crop.text} <DataStateBadge state={crop.state} compact /> · {v.zone.area_ha.toFixed(0)} ha
+                      {crop.text} <DataStateBadge state={previewingRotation ? (previewDataMode === "synthetic" ? "SYNTHETIC" : "SIMULATED") : crop.state} compact /> · {v.zone.area_ha.toFixed(0)} ha
                     </span>
                     <span className="zone-label-value">
                       {es.layers[layer]}: {layerLabel(v, layer, ndviMissing)} <DataStateBadge state={layerState(v, layer)} compact />

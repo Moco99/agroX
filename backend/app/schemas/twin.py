@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -166,6 +167,9 @@ class TwinSimulateRequest(StrictRequest):
     start: date | None = None
     end: date | None = None
     scenario: TwinScenario = Field(default_factory=TwinScenario)
+    reference_year: int | None = Field(
+        default=None, ge=1900, le=9997, description="Historical analogue year; simulated weather, not a forecast"
+    )
     fork_date: date | None = Field(default=None, description="observed weather up to this day, scenario after it")
     zone_ids: list[str] | None = None
     planting_dates: dict[str, date] | None = Field(
@@ -177,6 +181,7 @@ class TwinSimulateRequest(StrictRequest):
     crop_overrides: dict[str, str] | None = Field(
         default=None, description="DECLARED crop_id per zone_id (frontend contract); wins over zone_crops"
     )
+    crop_override_state: Literal["DECLARED", "SIMULATED"] = "DECLARED"
     monte_carlo: MonteCarloRequest | None = None
     include_states: bool = True
     include_comparison: bool = True

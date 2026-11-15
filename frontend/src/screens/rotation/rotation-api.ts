@@ -6,6 +6,7 @@ export interface RotationRequest {
   farm_id: string;
   start: string;
   end: string;
+  reference_year?: number | null;
   cycles: number;
   top_k: number;
   cycle_windows?: RotationWindow[];

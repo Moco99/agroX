@@ -12,6 +12,7 @@ import { es, fmt, fmtDate, fmtDateShort } from "../../i18n/es";
 import { ndviReading } from "../../lib/readings";
 import { analyzeSeason, compareWithPreviousYears, downsample, groupClearByZone, EVENT_LABELS, VEG_PARAMS, verdictText } from "../../lib/vegetation";
 import { useTwinStore } from "../../store/twin-store";
+import { useParcelStore } from "../../store/parcel-store";
 import { color, NDVI_RAMP, rampColor } from "../../styles/tokens";
 import type { ObservationPoint, ObservationSeries } from "../../types/api";
 
@@ -36,6 +37,8 @@ export default function VegetationScreen() {
   const sentinel2 = useTwinStore((s) => s.sentinel2);
   const modis = useTwinStore((s) => s.modis);
   const selectedZoneId = useTwinStore((s) => s.selectedZoneId);
+  const retryNdvi = useTwinStore((s) => s.retryNdvi);
+  const ndviSource = useParcelStore((s) => s.sources.ndvi);
   const selectZone = useTwinStore((s) => s.selectZone);
   const [zoneId, setZoneId] = useState<string | null>(null);
 
@@ -88,7 +91,8 @@ export default function VegetationScreen() {
   const warnings = [...new Set([...(sentinel2?.warnings ?? []), ...(modis?.warnings ?? [])])];
   const active = zones.find((z) => z.zone_id === activeId);
   const ndviStage = stageStatusOf(farm, "ndvi");
-  const ndviPending = ndviStage === "pending" || ndviStage === "running" || ndviStage === "loading";
+  const ndviFailed = ndviSource.state === "error" || ndviStage === "failed";
+  const ndviPending = !ndviFailed && (ndviStage === "pending" || ndviStage === "running" || ndviStage === "loading");
 
   return (
     <div className="module-screen vegetation-screen">
@@ -98,10 +102,14 @@ export default function VegetationScreen() {
         <p className="meaning"><Term id="ndvi" />: {es.glossary.ndvi.text}</p>
       </header>
       <ModelNote withScore={false} compact />
+      {ndviFailed && primary && primary.points.length > 0 && <div className="card" role="alert">
+        <p>{es.vegetation.stale}</p><button type="button" className="ghost-button" onClick={() => void retryNdvi()}>{es.vegetation.retryNdvi}</button>
+      </div>}
       {!primary || primary.points.length === 0 ? (
         <div className="card empty-state" role="status">
           {/* While the NDVI stage is still downloading, say so instead of the generic empty message */}
-          <p>{ndviPending ? es.vegetation.downloading : es.vegetation.empty}</p>
+          <p>{ndviFailed ? es.vegetation.unavailable : ndviPending ? es.vegetation.downloading : es.vegetation.empty}</p>
+          {ndviFailed && <><p className="muted">{ndviSource.message ?? farm.load_status?.stages.find((s) => s.stage === "ndvi")?.message}</p><button type="button" className="ghost-button" onClick={() => void retryNdvi()}>{es.vegetation.retryNdvi}</button></>}
           <button type="button" className="ghost-button" onClick={() => navigateTo("map")}>{es.states.goExplore}</button>
           {warnings.length > 0 && <ul className="climate-warnings">{warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
         </div>

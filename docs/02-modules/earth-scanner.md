@@ -63,3 +63,9 @@ La pantalla de exploración es un globo MapLibre con zoom continuo hasta escala 
 ## Abrir cualquier parcela (UI)
 
 El `farm_id` ya no está fijo: `store/parcel-store.ts` guarda la parcela activa (piloto por defecto; `?farm=`), `store/open-parcel.ts` es el único punto que la cambia y `lib/parcel.ts` deriva `pt_<lat>_<lon>` y valida la latitud (−60..75). La carga de una parcela llama primero a `GET /api/farms/{id}` (lo lento: suelo y primer NDVI, en solitario para no duplicar trabajo aguas arriba) y después en paralelo a simulación, NDVI Sentinel-2, clima del punto (`/api/climate?lat=&lon=`), imagen base/NDVI raster y relieve, cada una con su estado. La etapa «granja» se ancla a la parcela activa (`stageForCamera` recibe el ancla), así que cualquier parcela abierta tiene el mismo recorrido globo → granja → gemelo. Fuera del piloto no hay MODIS, SMAP ni resumen regional; el NDVI es solo Sentinel-2 y el cultivo es `DECLARED`. Detalle de pantallas: [ui-spec](../07-design/ui-spec.md).
+
+## NDVI en parcelas en vivo
+
+La preparación de una parcela ejecuta NDVI como etapa independiente: la interfaz sigue su estado aunque las etapas obligatorias ya hayan terminado. Si la descarga falla o agota el tiempo de espera, la pantalla ofrece reintentar y conserva cualquier serie anterior de la misma parcela. Una serie vacía de escenas sin píxeles válidos se presenta como ausencia de datos, no como fallo ni valor cero.
+
+Para acotar el tiempo de respuesta, el proveedor consulta hasta 72 escenas Sentinel-2 repartidas a lo largo de las fechas disponibles y limita el tiempo de cada solicitud. Es una muestra, no la serie completa: nubes, cobertura y errores de escenas pueden dejar huecos. Si fallan todas las lecturas, no se guarda un resultado vacío en caché; el reintento vuelve a solicitar los datos.

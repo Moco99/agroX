@@ -300,12 +300,14 @@ export interface TwinSimulateRequest {
   farm_id: string;
   start: string;
   end: string;
+  reference_year?: number | null;
   scenario: Partial<TwinScenario>;
   fork_date?: string | null;
   // crop_id -> ISO planting date (the backend keys planting dates by crop, not by zone)
   planting_dates?: Record<string, string>;
   // zone_id -> catalog crop_id declared by the user (DECLARED); only sent when it differs from the farm's crop
   crop_overrides?: Record<string, string>;
+  crop_override_state?: "SIMULATED" | null;
   monte_carlo?: { n: number; seed: number } | null;
   include_states?: boolean;
   include_comparison?: boolean;
