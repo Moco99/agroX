@@ -10,6 +10,7 @@ const M_PER_DEG_LON_EQ = 111_320;
 
 export interface Projector {
   toLocal: (lon: number, lat: number) => [number, number];
+  fromLocal: (x: number, y: number) => [number, number];
   extent: { minX: number; maxX: number; minY: number; maxY: number };
 }
 
@@ -22,11 +23,13 @@ export function makeProjector(farm: Farm): Projector {
   const lon0 = farm.centroid.lon;
   const kx = M_PER_DEG_LON_EQ * Math.cos((lat0 * Math.PI) / 180);
   const toLocal = (lon: number, lat: number): [number, number] => [(lon - lon0) * kx, (lat - lat0) * M_PER_DEG_LAT];
+  const fromLocal = (x: number, y: number): [number, number] => [lon0 + x / kx, lat0 + y / M_PER_DEG_LAT];
   const pts = ring(farm.geometry).map(([lon, lat]) => toLocal(lon ?? lon0, lat ?? lat0));
   const xs = pts.map((p) => p[0]);
   const ys = pts.map((p) => p[1]);
   return {
     toLocal,
+    fromLocal,
     extent: { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) },
   };
 }
