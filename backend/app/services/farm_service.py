@@ -22,6 +22,7 @@ from app.schemas.farm import (
 )
 from app.schemas.observations import NdviOverlay, ObservationPoint, ObservationSeries
 from app.services import farm_load_service, imagery_service
+from app.services.errors import InvalidRequestError
 
 # The point-farm NDVI series takes ~60 s the first time: responses never wait for it (ADR-024)
 NDVI_LOADING_WARNING = "Sentinel-2 NDVI series still loading in the background: poll /api/farms/{farm_id}/status"
@@ -179,13 +180,21 @@ def land_cover(p: Providers, pt: tuple[float, float] | None) -> LandCover:
     )
 
 
+def _check_period(start: date | None, end: date | None) -> None:
+    # A reversed period used to return 200 with no points, indistinguishable from "no observations"
+    if start is not None and end is not None and end < start:
+        raise InvalidRequestError("end must be on or after start")
+
+
 def ndvi_series(p: Providers, farm_id: str, source_id: str, start: date | None, end: date | None) -> ObservationSeries:
+    _check_period(start, end)
     series = p.observations.ndvi_series(farm_id, source_id)
     points = [pt for pt in series.points if (start is None or pt.date >= start) and (end is None or pt.date <= end)]
     return series.model_copy(update={"points": points})
 
 
 def soil_moisture(p: Providers, farm_id: str, start: date | None, end: date | None) -> ObservationSeries:
+    _check_period(start, end)
     series = p.observations.soil_moisture(farm_id)
     points = [pt for pt in series.points if (start is None or pt.date >= start) and (end is None or pt.date <= end)]
     return series.model_copy(update={"points": points})

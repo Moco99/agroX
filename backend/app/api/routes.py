@@ -155,7 +155,12 @@ def twin_simulate(p: ProvidersDep, body: TwinSimulateRequest) -> TwinSimulateRes
 
 
 @router.get("/twin/observed-vs-simulated", response_model=TwinSimulateResponse)
-def observed_vs_simulated(p: ProvidersDep, farm_id: str = "story_pilot_farm", year: int = 2024) -> TwinSimulateResponse:
+def observed_vs_simulated(
+    p: ProvidersDep,
+    farm_id: str = "story_pilot_farm",
+    # NASA POWER daily history starts in 1981; an unbounded year made date() raise a 500
+    year: Annotated[int, Query(ge=1981, le=2100)] = 2024,
+) -> TwinSimulateResponse:
     # Same run as the baseline simulation, without daily states: metrics + discrepancies only
     req = TwinSimulateRequest(
         farm_id=farm_id, start=date(year, 4, 1), end=date(year, 10, 31), include_states=True, include_comparison=True

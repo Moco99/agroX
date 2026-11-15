@@ -20,7 +20,7 @@ from collections.abc import Callable
 from datetime import date, timedelta
 from pathlib import Path
 
-from app.providers.ports import DataNotFoundError
+from app.providers.ports import UpstreamUnavailableError
 from app.providers.real.weather import CORE_COLUMNS, RealWeatherProvider
 from app.schemas.common import DataState, Location, Provenance
 from app.schemas.weather import WeatherDay, WeatherSeries
@@ -48,6 +48,8 @@ T_OUTLIER_DEGC = 12.0
 PRECIP_EXTREME_MM = 150.0
 HISTORY_START = date(1981, 1, 1)
 REFRESH_SECONDS = 24 * 3600
+# After a failed fetch, wait before trying again: without this every request re-paid the 120 s timeout
+RETRY_AFTER_FAILURE_SECONDS = 300
 
 PowerJson = dict[str, object]
 Fetcher = Callable[[float, float, date, date], PowerJson]
@@ -172,7 +174,8 @@ class LivePowerWeatherProvider(RealWeatherProvider):
         return self._cache_dir / f"power_{self._lat}_{self._lon}_{HISTORY_START}_{end}.json"
 
     def _load(self) -> None:
-        if self._live is not None and time.time() - self._loaded_at < REFRESH_SECONDS:
+        ttl = REFRESH_SECONDS if self._live is not None else RETRY_AFTER_FAILURE_SECONDS
+        if self._loaded_at and time.time() - self._loaded_at < ttl:
             return
         # POWER publishes with a few days of lag; asking for today just returns -999 rows
         end = self._today() - timedelta(days=3)
@@ -197,7 +200,9 @@ class LivePowerWeatherProvider(RealWeatherProvider):
         if self._live:
             return self._live[0]
         if not self._allow_fallback:
-            raise DataNotFoundError(f"NASA POWER unavailable for {self._lat}, {self._lon}: {self._error}")
+            raise UpstreamUnavailableError(
+                f"NASA POWER no respondió para {self._lat}, {self._lon}; reintenta en unos minutos ({self._error})"
+            )
         return super()._days()
 
     def get_daily(self, start: date, end: date) -> WeatherSeries:
