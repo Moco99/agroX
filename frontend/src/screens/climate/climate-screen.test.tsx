@@ -27,4 +27,18 @@ describe("ClimateView", () => {
     expect(html).toContain("aviso de serie");
     expect(html).toContain("aviso global");
   });
+
+  it("explains each indicator: meaning, spelled unit, verdict, glossary and formula", () => {
+    const html = renderToStaticMarkup(<ClimateView data={{ ...data, methodology: "climate_v1", indicators: { ...data.indicators, gdd_base_c: 10, hot_threshold_c: 32 } }} />);
+    expect(html).toContain("°C·día");
+    expect(html).toContain("°C·día (grados-día)");
+    expect(html).toContain("T base = 10");
+    expect(html).toContain("superó 32 °C");
+    expect(html).toContain('role="tooltip"');
+    expect(html).toContain("¿Cómo se calcula?");
+    expect(html).toContain("Atención");
+    expect(html).toContain("sin años de referencia");
+    expect(html).toContain("Clima v1");
+    expect(html).toContain("No hay días con datos");
+  });
 });

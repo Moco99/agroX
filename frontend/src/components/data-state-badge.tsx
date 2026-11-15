@@ -17,7 +17,7 @@ export function DataStateBadge({ state, compact = false }: { state: DataState | 
   return (
     <span
       className="badge"
-      title={state}
+      title={`${es.dataState[state]}: ${es.dataStateHelp[state]}`}
       style={{ color: c, borderColor: c, fontSize: compact ? 9 : 10, padding: compact ? "0 4px" : "1px 6px" }}
     >
       {es.dataState[state]}

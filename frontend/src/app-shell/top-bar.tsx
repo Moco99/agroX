@@ -4,6 +4,7 @@ import { PointSearch } from "../screens/point/point-search";
 import { useEffect, useState } from "react";
 import { es, fmtDate } from "../i18n/es";
 import { useStageStore } from "../store/stage-store";
+import { useGuideStore } from "../store/guide-store";
 import { isPilotFarm } from "../lib/parcel";
 import { displayName } from "../lib/parcel-history";
 import { useHistoryStore } from "../store/history-store";
@@ -22,6 +23,8 @@ export function TopBar() {
   const setShowCredits = useStageStore((s) => s.setShowCredits);
   const showCredits = useStageStore((s) => s.showCredits);
   const [searchOpen, setSearchOpen] = useState(false);
+  const guideOpen = useGuideStore((s) => s.open);
+  const setGuideOpen = useGuideStore((s) => s.setOpen);
   const span = useTwinStore((s) => s.span);
   const farmId = useParcelStore((s) => s.farmId);
   const pilot = isPilotFarm(farmId);
@@ -93,6 +96,17 @@ export function TopBar() {
         <span className="chip-button" title={es.layers.title}>
           <span aria-hidden>▤</span> {es.topbar.layers(layerCount)}
         </span>
+        <button
+          type="button"
+          className={`chip-button guide-button${guideOpen ? " is-active" : ""}`}
+          title={es.guide.title}
+          aria-label={es.guide.title}
+          aria-expanded={guideOpen}
+          data-testid="open-guide"
+          onClick={() => setGuideOpen(!guideOpen)}
+        >
+          <span aria-hidden>ⓘ</span> {es.guide.open}
+        </button>
         <button
           type="button"
           className="icon-round"

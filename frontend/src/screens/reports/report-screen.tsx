@@ -1,8 +1,10 @@
 import { DataStateBadge } from "../../components/data-state-badge";
+import { ReadingChip } from "../../components/explain/reading-chip";
 import { es, fmt, fmtDate } from "../../i18n/es";
-import { metricOf } from "../../lib/climate-view";
+import { metricOf, unitSymbol } from "../../lib/climate-view";
 import { cropLabel } from "../../lib/farm-labels";
 import { isPilotFarm } from "../../lib/parcel";
+import { ndviReading, scoreReading, stressReading } from "../../lib/readings";
 import { useModuleView } from "../../store/module-store";
 import { useParcelStore } from "../../store/parcel-store";
 import { useTwinStore } from "../../store/twin-store";
@@ -29,6 +31,7 @@ export interface ReportProps {
 }
 
 function RotationList({ label, result }: { label: string; result: RotationResponse }) {
+  const scores = result.recommendations.map((r) => r.overall_score);
   return (
     <div>
       <h3>
@@ -37,7 +40,8 @@ function RotationList({ label, result }: { label: string; result: RotationRespon
       <ol>
         {result.recommendations.map((item) => (
           <li key={item.sequence.join("-")}>
-            {item.cycles.map((c) => c.name).join(" → ")}: índice <strong>{fmt(item.overall_score, 1)} / 100</strong>
+            {item.cycles.map((c) => c.name).join(" → ")}: {es.reportCopy.index} <strong>{fmt(item.overall_score, 1)} / 100</strong>{" "}
+            <ReadingChip reading={scoreReading(item.overall_score, scores)} />
           </li>
         ))}
       </ol>
@@ -62,6 +66,19 @@ export function ReportView({ farm, climate, twin, rotation, climateFrom = "twin"
       <p className="report-disclaimer" role="note">
         {es.report.disclaimer}
       </p>
+
+      <section className="report-howto" data-testid="report-howto">
+        <h2>{es.reportCopy.howToRead}</h2>
+        <p>{es.modelNote.body}</p>
+        <p>{es.modelNote.score}</p>
+        <ul>
+          {(["MEASURED", "DECLARED", "ESTIMATED", "SIMULATED", "SYNTHETIC"] as const).map((st) => (
+            <li key={st}>
+              <DataStateBadge state={st} compact /> {es.dataStateHelp[st]}
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section>
         <h2>{es.report.farm}</h2>
@@ -131,7 +148,7 @@ export function ReportView({ farm, climate, twin, rotation, climateFrom = "twin"
                   <li key={k}>
                     {es.climateModule.labels[k]}:{" "}
                     <strong>
-                      {fmt(m?.value, k.endsWith("_days") ? 0 : 1)} {m?.unit}
+                      {fmt(m?.value, k.endsWith("_days") ? 0 : 1)} {unitSymbol(m?.unit)}
                     </strong>{" "}
                     <DataStateBadge state={m?.data_state ?? null} compact />
                     {m?.source && <small className="muted"> {m.source}</small>}
@@ -152,12 +169,13 @@ export function ReportView({ farm, climate, twin, rotation, climateFrom = "twin"
             <ul>
               {f.zones.map((z) => (
                 <li key={z.zone_id}>
-                  {z.name}: <strong>{fmt(farm.latest_ndvi[z.zone_id], 2)}</strong> <DataStateBadge state="MEASURED" compact />
+                  {z.name}: <strong>{fmt(farm.latest_ndvi[z.zone_id], 2)}</strong>{" "}
+                  <ReadingChip reading={ndviReading(farm.latest_ndvi[z.zone_id])} /> <DataStateBadge state="MEASURED" compact />
                 </li>
               ))}
             </ul>
             <small className="muted">
-              {fmtDate(farm.latest_ndvi_date)} · {es.report.source}: {farm.latest_ndvi_source ?? "—"}
+              {fmtDate(farm.latest_ndvi_date)} · {es.report.source}: {farm.latest_ndvi_source ?? "—"} · {es.reading.ndvi.note}
             </small>
           </>
         )}
@@ -170,20 +188,21 @@ export function ReportView({ farm, climate, twin, rotation, climateFrom = "twin"
         ) : (
           <>
             <p>
-              {fmtDate(twin.start)} – {fmtDate(twin.end)} · <DataStateBadge state="SIMULATED" compact /> · {twin.twin_level}
+              {fmtDate(twin.start)} – {fmtDate(twin.end)} · <DataStateBadge state="SIMULATED" compact /> · {es.twinLevelText[twin.twin_level]}
             </p>
             <ul>
               <li>
-                Estrés hídrico medio (Ks, ponderado por área): <strong>{fmt(twin.farm_summary.mean_ks_area_weighted, 2)}</strong> ({twin.farm_summary.stress_class})
+                {es.reportCopy.stressLine}: <strong>{fmt(twin.farm_summary.mean_ks_area_weighted, 2)}</strong>{" "}
+                <ReadingChip reading={stressReading(twin.farm_summary.stress_class)} /> <small className="muted">({es.units.ks})</small>
               </li>
               <li>
-                Precipitación del periodo: <strong>{fmt(twin.farm_summary.total_precip_mm, 0)} mm</strong>
+                {es.reportCopy.precipLine}: <strong>{fmt(twin.farm_summary.total_precip_mm, 0)} mm</strong>
               </li>
               <li>
-                Riego aplicado: <strong>{fmt(twin.farm_summary.total_irrigation_mm, 0)} mm</strong>
+                {es.reportCopy.irrigationLine}: <strong>{fmt(twin.farm_summary.total_irrigation_mm, 0)} mm</strong>
               </li>
             </ul>
-            <small className="muted">{twin.methodology}</small>
+            <small className="muted">{es.methodology[twin.methodology] ?? twin.methodology}</small>
           </>
         )}
       </section>
@@ -194,9 +213,11 @@ export function ReportView({ farm, climate, twin, rotation, climateFrom = "twin"
           <p className="muted">{es.report.rotationNone}</p>
         ) : (
           <>
-            <RotationList label="Línea base" result={rotation.baseline} />
-            {rotation.scenario && <RotationList label="Escenario" result={rotation.scenario} />}
-            <small className="muted">Índice comparativo, no una probabilidad. {rotation.baseline.methodology}</small>
+            <RotationList label={es.reportCopy.baseline} result={rotation.baseline} />
+            {rotation.scenario && <RotationList label={es.reportCopy.scenario} result={rotation.scenario} />}
+            <small className="muted">
+              {es.reportCopy.rotationNote} {rotation.baseline.methodology}
+            </small>
           </>
         )}
       </section>
