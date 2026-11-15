@@ -32,6 +32,11 @@ class RotationRecommendRequest(StrictRequest):
     # First cycle is fixed to this crop (validated against the engine catalog); None = automatic
     start_crop: str | None = Field(default=None, max_length=30)
     exclude_same_family: bool = False
+    # Default excludes the same crop in consecutive cycles (also after previous_crop): a rotation recommender
+    # should not lead with a monoculture. Set true to compare continuous cropping explicitly.
+    allow_consecutive_same_crop: bool = False
+    # Share of the rotation component in the final index; None = engine default (product parameter)
+    rotation_weight: float | None = Field(default=None, ge=0, le=1)
     weights: Weights = Field(default_factory=lambda: Weights(water=1, soil=1, climate=1))
     scenario: RotationScenario = Field(default_factory=RotationScenario)
 
