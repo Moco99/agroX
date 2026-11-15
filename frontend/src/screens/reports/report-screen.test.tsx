@@ -35,6 +35,14 @@ describe("ReportView", () => {
     expect(html).toContain("Aún no se ha calculado una comparación de rotaciones");
   });
 
+  it("names the climate window and flags the assumed crop", () => {
+    const f = { ...farm, farm: { ...farm.farm, zones: [{ ...farm.farm.zones[0], crop_id: "corn" }] } } as unknown as FarmAnalyzeResponse;
+    const html = renderToStaticMarkup(<ReportView farm={f} climate={climate} climateFrom="clima" twin={null} rotation={null} />);
+    expect(html).toContain("Ventana del módulo Clima");
+    expect(html).toContain("Maíz (supuesto, sin declarar)");
+    expect(renderToStaticMarkup(<ReportView farm={f} climate={climate} twin={null} rotation={null} />)).toContain("Ventana del gemelo");
+  });
+
   it("degrades to empty-state messages without data", () => {
     const html = renderToStaticMarkup(<ReportView farm={null} climate={null} twin={null} rotation={null} />);
     expect(html).toContain("Sin datos climáticos");

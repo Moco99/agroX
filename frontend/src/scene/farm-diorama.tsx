@@ -15,6 +15,7 @@ import { SCENE_SCALE, ZoneField } from "./zone-field";
 import { useTwinStore } from "../store/twin-store";
 import { useParcelStore } from "../store/parcel-store";
 import { isPilotFarm } from "../lib/parcel";
+import { cropLabel, ndviMissingText, stageStatusOf } from "../lib/farm-labels";
 
 // ─────────────────────────────────────────
 // Section: Isometric low-poly diorama (illustrative; it computes nothing)
@@ -54,6 +55,7 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
     return { west, south, east, north };
   }, [projector, e]);
   const heightmap = useTwinStore((s) => s.heightmap);
+  const ndviMissing = useTwinStore((s) => (pilot ? undefined : ndviMissingText(stageStatusOf(s.farm, "ndvi"))));
   // The slab must cover exactly the textured terrain (the DEM bounds can differ from the farm box), else a bare rim shows
   const groundExtent = useMemo(() => {
     const b = heightmap?.bounds ?? groundBounds;
@@ -93,6 +95,7 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
         // Point farms have four equal squares: push each label outward from the farm centre so they do not stack
         const lx = pilot ? sx : sx + Math.sign(sx - (extent.minX + extent.maxX) / 2) * 0.9;
         const lz = pilot ? sz : sz + Math.sign(sz - (extent.minZ + extent.maxZ) / 2) * 0.5;
+        const crop = cropLabel(v.zone.crop_id, pilot || previewingRotation || Boolean(declaredCrops[v.zone.zone_id]));
         return (
           <group key={v.zone.zone_id}>
             <ZoneField
@@ -117,10 +120,10 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
               >
                 <strong>{v.zone.name}</strong>
                 <span>
-                  {pilot || previewingRotation || declaredCrops[v.zone.zone_id] ? (es.crops[v.zone.crop_id] ?? v.zone.crop_id) : es.unconfirmedCrop} · {v.zone.area_ha.toFixed(0)} ha
+                  {crop.text} <DataStateBadge state={crop.state} compact /> · {v.zone.area_ha.toFixed(0)} ha
                 </span>
                 <span className="zone-label-value">
-                  {es.layers[layer]}: {layerLabel(v, layer)} <DataStateBadge state={layerState(v, layer)} compact />
+                  {es.layers[layer]}: {layerLabel(v, layer, ndviMissing)} <DataStateBadge state={layerState(v, layer)} compact />
                 </span>
               </button>
             </Html>

@@ -45,15 +45,19 @@ export function ObservedTerrain({
       if (ctl.signal.aborted) return t.dispose();
       loaded = t;
       setTexture(t);
+      useTwinStore.setState({ terrainImagery: "ready" });
     };
     const backend = () =>
       hasBasemap ? loadBackendBasemap(api.basemapUrl(farmId), ctl.signal).then(keep) : Promise.reject(new Error("none"));
     setTexture(null);
+    useTwinStore.setState({ terrainImagery: "loading" });
     // Point parcels get the same Esri imagery as the 2D map; the pilot keeps its NAIP basemap. Failure ends in a tint.
     const job = isPilotFarm(farmId)
       ? backend()
       : fetchEsriCanvas(bounds, ctl.signal).then((c) => keep(new THREE.CanvasTexture(c))).catch(backend);
-    job.catch(() => {});
+    job.catch(() => {
+      if (!ctl.signal.aborted) useTwinStore.setState({ terrainImagery: "failed" });
+    });
     return () => {
       ctl.abort();
       loaded?.dispose();

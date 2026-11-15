@@ -217,7 +217,7 @@ docs:
   - id: data-guide
     path: 04-data/data-guide.md
     title: Guía de datos
-    summary: Cómo obtener datos (API live con pt_<lat>_<lon> en cualquier lugar, punto.py, scraper), qué fuente hay detrás de cada dato, reglas, límites y pendientes.
+    summary: Cómo obtener datos (API live en cualquier lugar con parcelas dibujadas poly_* (contrato POST /api/farms/polygon) y pt_<lat>_<lon> solo por API, punto.py, scraper), qué fuente hay detrás de cada dato, reglas, límites y pendientes.
     depends_on: [sources]
     read_when: Antes de usar datos en cualquier módulo (UI, Rotation Engine, What If).
     audience: [all]

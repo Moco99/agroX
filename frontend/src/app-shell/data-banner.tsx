@@ -2,6 +2,8 @@ import { useState } from "react";
 import { es } from "../i18n/es";
 import { activeRun } from "../lib/derive";
 import { useTwinStore } from "../store/twin-store";
+import { isPilotFarm } from "../lib/parcel";
+import { parcelSources } from "../lib/farm-labels";
 
 // ─────────────────────────────────────────
 // Section: Data-state banner (mandatory: says what is real, synthetic, provisional or simulated)
@@ -12,6 +14,8 @@ export function DataBanner() {
   const baseline = useTwinStore((s) => s.baseline);
   const scenario = useTwinStore((s) => s.scenario);
   const farm = useTwinStore((s) => s.farm);
+  const climate = useTwinStore((s) => s.climate);
+  const sentinel2 = useTwinStore((s) => s.sentinel2);
   const [open, setOpen] = useState(false);
   if (!health) return null;
   const run = activeRun(baseline, scenario);
@@ -20,7 +24,11 @@ export function DataBanner() {
   return (
     <div className={`data-banner${synthetic ? " is-synthetic" : ""}`} role="status">
       <div className="data-banner-row">
-        <strong>{synthetic ? es.banner.synthetic : es.banner.real}</strong>
+        <strong>{synthetic
+            ? es.banner.synthetic
+            : farm && !isPilotFarm(farm.farm.farm_id)
+              ? es.banner.realFrom(parcelSources(farm, climate, sentinel2))
+              : es.banner.real}</strong>
         {!synthetic && <span>· {es.banner.provisional}</span>}
         <span>· {es.app.exploratory}</span>
         {run && (
