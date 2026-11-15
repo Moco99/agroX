@@ -722,6 +722,14 @@ export const es = {
     },
     spi: {
       none: "sin años de referencia",
+      // McKee et al. (1993) classes, from wettest to driest
+      extremelyWet: "extremadamente húmedo",
+      veryWet: "muy húmedo",
+      moderatelyWet: "moderadamente húmedo",
+      normal: "cercano a lo normal",
+      moderatelyDry: "moderadamente seco",
+      veryDry: "muy seco",
+      extremelyDry: "extremadamente seco",
     },
     score: {
       best: "la más alta de las opciones comparadas",
@@ -743,7 +751,7 @@ export const es = {
     },
   },
   meaning: {
-    ndvi: "Qué tan verde y activa está la vegetación según el satélite (de −1 a 1).",
+    ndvi: "Qué tan verde y activa está la vegetación según el satélite (de −1 a 1). Lo esperable cambia con el cultivo y la fecha.",
     temperatureMax: "La temperatura más alta del día seleccionado en la línea de tiempo.",
     precipitation: "Lluvia total que ha caído desde el inicio del periodo hasta el día seleccionado.",
     soilWater: "Cuánta agua útil queda en el suelo donde están las raíces, como % de lo que el suelo puede guardar.",
@@ -781,11 +789,11 @@ export const es = {
       title: "Balance hídrico diario (FAO-56)",
       steps: [
         "El suelo se trata como un tanque. Su tamaño (TAW) = agua útil del suelo por metro (AWC) × profundidad de raíz.",
-        "Cada día entra la lluvia y el riego, y sale el agua que consume el cultivo (ETc = Kc × ET0) y lo que se filtra por debajo de las raíces.",
+        "Cada día entra la lluvia (menos lo que escurre) y el riego, y sale el agua que consume el cultivo (ETc ajustada = Ks × Kc × ET0: con estrés, Ks < 1 reduce el consumo) y lo que se filtra por debajo de las raíces.",
         "Agua disponible = (TAW − agotamiento) ÷ TAW, en %.",
         "Si queda menos de (1 − p) del tanque, el cultivo empieza a tener estrés. p viene del catálogo de cultivos.",
       ],
-      formula: "Dr hoy = Dr ayer − (lluvia − escurrimiento) − riego + ETc + percolación",
+      formula: "Dr hoy = Dr ayer − (lluvia − escurrimiento) − riego + Ks × Kc × ET0 + percolación",
       inputs: ["Lluvia y clima diarios (NASA POWER)", "Suelo: AWC (SSURGO o SoilGrids)", "Cultivo: Kc, profundidad de raíz y p (catálogo, provisional)", "Riego del escenario"],
       limits: "Escurrimiento y ascenso capilar simplificados (supuestos del modelo). No es una medición de humedad en campo.",
     },
@@ -794,22 +802,34 @@ export const es = {
       steps: [
         "Mientras el agotamiento no pasa de RAW = p × TAW, Ks = 1 (sin estrés).",
         "Después baja en línea recta hasta 0 cuando el tanque está vacío.",
-        "La clase (sin estrés, leve, moderado, alto) usa umbrales de Ks que publica el backend como configuración de producto, no como valores agronómicos validados.",
+        "La clase del día (sin estrés, leve, moderado, alto) es orientativa: reutiliza los umbrales que el backend publica para el Ks medio de la temporada (configuración de producto, no valores agronómicos validados).",
       ],
       formula: "Ks = (TAW − Dr) ÷ ((1 − p) × TAW)   si Dr > RAW;   Ks = 1 si no",
       inputs: ["Agotamiento Dr del balance hídrico", "TAW y p del cultivo y suelo"],
       limits: "Solo considera agua; no plagas, nutrientes ni manejo.",
     },
-    gdd: {
-      title: "Grados-día (GDD)",
+    gddTwin: {
+      title: "Grados-día del gemelo (por cultivo)",
+      steps: [
+        "Cada día se toman la temperatura máxima y la mínima.",
+        "Si el catálogo del cultivo trae temperatura tope (maíz y soya en el catálogo actual), la máxima se limita a ese tope y la mínima se sube a la temperatura base antes de promediar (método modificado de EE. UU.). Si no trae tope, se usa el promedio simple.",
+        "Al promedio se le resta la temperatura base del cultivo; si el resultado es negativo cuenta como 0.",
+        "Se suma día tras día desde la siembra. El cultivo cambia de etapa al juntar los grados-día de cada etapa (catálogo).",
+      ],
+      formula: "GDD diario = máx(0, (mín(Tmáx, T tope) + máx(Tmín, T base)) ÷ 2 − T base)",
+      inputs: ["Temperaturas máxima y mínima diarias (NASA POWER)", "T base, T tope y grados-día por etapa del cultivo (catálogo, provisional)"],
+      limits: "Los valores de T base y T tope del catálogo están pendientes de verificar contra su fuente.",
+    },
+    gddClimate: {
+      title: "Grados-día del panel de Clima",
       steps: [
         "Cada día: temperatura media = (máxima + mínima) ÷ 2.",
-        "Se resta la temperatura base del cultivo; si el resultado es negativo cuenta como 0.",
-        "Se suma día tras día. El cultivo cambia de etapa al juntar los grados-día de cada etapa (catálogo).",
+        "Se resta una temperatura base fija del panel (la publica el backend); si el resultado es negativo cuenta como 0.",
+        "Se suma día tras día en la ventana elegida.",
       ],
       formula: "GDD diario = máx(0, (Tmáx + Tmín) ÷ 2 − T base)",
-      inputs: ["Temperaturas máxima y mínima diarias (NASA POWER)", "Temperatura base del cultivo (catálogo)"],
-      limits: "Método promedio simple, sin topes de temperatura.",
+      inputs: ["Temperaturas máxima y mínima diarias (NASA POWER)", "T base del panel (backend)"],
+      limits: "Promedio simple sin temperatura tope; no usa los parámetros de un cultivo concreto, así que puede diferir de los grados-día del gemelo.",
     },
     et0: {
       title: "ET0 de referencia (FAO-56 Penman-Monteith)",
@@ -861,10 +881,11 @@ export const es = {
         "Se ajusta una distribución estadística (gamma) a la lluvia de los mismos días en muchos años.",
         "Se convierte la lluvia del periodo a 'desviaciones típicas': 0 es lo normal.",
         "Clases de McKee et al. (1993): −1 a +1 normal; ±1 a ±1.5 moderado; ±1.5 a ±2 muy; más allá, extremo.",
+        "El color es una decisión de producto: lo seco se marca para vigilar o como problema; lo muy húmedo, para vigilar (exceso de agua); lo moderadamente húmedo, como referencia.",
       ],
       formula: "SPI = cuantil normal estándar de P(lluvia ≤ observada)",
       inputs: ["Serie histórica de NASA POWER"],
-      limits: "Con pocos años de historia no se calcula.",
+      limits: "El backend solo lo calcula con al menos 30 años de referencia; con menos no se muestra.",
     },
     stressDays: {
       title: "Días con estrés",
@@ -876,7 +897,7 @@ export const es = {
   },
   glossaryTitle: "Glosario",
   glossary: {
-    ndvi: { term: "NDVI", text: "Índice de vegetación visto desde satélite. Va de −1 a 1: cerca de 0 es suelo desnudo, agua o nubes; más alto indica más hojas verdes y activas." },
+    ndvi: { term: "NDVI", text: "Índice de vegetación visto desde satélite. Va de −1 a 1: valores bajos o negativos son suelo desnudo, agua o nubes (el agua suele ser negativa); más alto indica más hojas verdes y activas." },
     et0: { term: "ET0", text: "Evapotranspiración de referencia: cuánta agua (mm) 'pide' el clima del día a un pasto bien regado. Depende de sol, temperatura, humedad y viento." },
     etc: { term: "ETc", text: "Consumo de agua del cultivo concreto: ET0 × Kc, en mm por día." },
     kc: { term: "Kc", text: "Coeficiente de cultivo: ajusta la ET0 al cultivo y a su etapa (bajo al sembrar, máximo en floración). Sus valores vienen del catálogo (FAO-56)." },
@@ -935,7 +956,7 @@ export const es = {
       good: "Verde: condición favorable para el cultivo.",
       warn: "Amarillo: conviene vigilar.",
       bad: "Rojo: condición desfavorable.",
-      neutral: "Gris: dato de referencia, sin juicio bueno/malo.",
+      neutral: "Gris: dato de referencia, sin juicio bueno/malo (por ejemplo, las clases de NDVI).",
     },
     colorsNote: "El color siempre va con una palabra; nunca es la única señal.",
   },
@@ -1005,8 +1026,8 @@ export const es = {
     currentSub: "última observación clara de cada zona",
     noClear: "Sin observación clara",
     scaleAria: "Escala de color NDVI",
-    scaleLow: "0,2 o menos",
-    scaleHigh: "0,8 o más",
+    scaleLow: "0.2 o menos",
+    scaleHigh: "0.8 o más",
     series: "Serie de NDVI",
     seriesHelp: "Cada línea es una zona. Sube cuando el cultivo crece y reverdece; baja con la cosecha o la sequía.",
     modisContext: "(solo contexto: pocos píxeles por zona)",
@@ -1103,6 +1124,37 @@ export const es = {
     declared: "Declarado",
     notDeclaredValue: "No declarado",
     scoreMeaningTitle: "Qué significa el índice",
+  },
+  explainTpl: {
+    verdict: {
+      NONE: "el agua del suelo alcanzó para el cultivo",
+      LOW: "hubo poca falta de agua (estrés leve)",
+      MEDIUM: "faltó agua en varios momentos (estrés moderado)",
+      HIGH: "faltó agua buena parte del periodo (estrés alto)",
+    } satisfies Record<StressClass, string>,
+    stressDays: (days: number, ks: string | null) =>
+      `${days} ${days === 1 ? "día" : "días"} con estrés hídrico${ks === null ? "" : ` (Ks menor a ${ks})`}`,
+    zoneBase: (name: string, crop: string, ha: string, verdict: string, days: string, minPct: string) =>
+      `${name} (${crop}, ${ha} ha): ${verdict}. Tuvo ${days} y, en el momento más seco, al suelo le quedó ${minPct} % de su agua útil.`,
+    change: { worse: "empeora", better: "mejora", same: "no cambia" },
+    zoneScenario: (name: string, crop: string, change: string, verdict: string, d0: number, d1: number, m0: string, m1: string) =>
+      `${name} (${crop}): con el escenario ${change} — ${verdict}. Días con estrés: ${d0} → ${d1}; agua útil mínima en el suelo: ${m0} % → ${m1} %`,
+    irrigation: (mm: string) => `; riego simulado: ${mm} mm.`,
+    period: (a: string, b: string, rain: string, et0: string) =>
+      `Del ${a} al ${b} llovieron ${rain} mm y el clima “pidió” ${et0} mm de agua de referencia (ET0, FAO-56). `,
+    // Rain vs ET0 (not the crop's ETc): worded as a climate comparison, never as a claim about the crop
+    rainCovers: "En el total del periodo la lluvia superó esa demanda de referencia.",
+    rainShort: "En el total del periodo la lluvia fue menor que esa demanda de referencia, así que el balance depende más del agua guardada en el suelo y del riego.",
+    scenario: (pct: string, temp: string, irrigation: string, note: string) =>
+      `Escenario hipotético: lluvia ${pct} %, temperatura ${temp} °C, riego ${irrigation}. ${note}.`,
+    stages: (a: string, b: string, c: string) =>
+      `Etapas calculadas con el calor acumulado (grados-día): siembra ${a}, floración ${b}, madurez ${c}. Los parámetros del cultivo son provisionales.`,
+    modis: (r: string, lag: number | null) =>
+      `Contraste con el satélite MODIS: la forma del verdor observado se parece a la esperada con r = ${r} (1 = idéntica)` +
+      (lag !== null ? ` y el reverdecimiento difiere ${lag} días.` : "."),
+    tryIrrigation: (zone: string, stress: string) => `${zone} queda con ${stress}: prueba un nivel de riego para ver cuánto lo reduce el modelo.`,
+    moreIrrigation: (level: string, zone: string, stress: string) => `Aun con riego ${level}, ${zone} mantiene ${stress}: compara con un nivel mayor.`,
+    allLow: "Con este escenario el estrés simulado se mantiene bajo en todas las zonas.",
   },
   reportCopy: {
     howToRead: "Cómo leer este informe",

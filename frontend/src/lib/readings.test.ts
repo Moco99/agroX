@@ -28,13 +28,12 @@ describe("readings", () => {
     expect(stressReading("HIGH")).toEqual({ tone: "bad", label: "estrés alto" });
   });
 
-  it("reads NDVI with the colour classes and keeps bare soil neutral", () => {
+  it("describes NDVI with the colour classes but never judges it (always neutral)", () => {
     expect(ndviReading(null).label).toBe("agua, nube o sin dato");
-    expect(ndviReading(-0.1).tone).toBe("neutral");
     expect(ndviReading(0.1)).toEqual({ tone: "neutral", label: "suelo desnudo o casi sin vegetación" });
-    expect(ndviReading(0.3).tone).toBe("warn");
-    expect(ndviReading(0.7).tone).toBe("good");
+    expect(ndviReading(0.3)).toEqual({ tone: "neutral", label: "vegetación escasa" });
     expect(ndviReading(0.9).label).toBe("vegetación muy densa");
+    for (const v of [-0.2, 0.1, 0.3, 0.45, 0.6, 0.7, 0.9]) expect(ndviReading(v).tone).toBe("neutral");
   });
 
   it("reports only the direction of the precipitation anomaly", () => {
@@ -48,7 +47,8 @@ describe("readings", () => {
     expect(spiReading(0.3)).toEqual({ tone: "good", label: "cercano a lo normal" });
     expect(spiReading(-1.2)).toEqual({ tone: "warn", label: "moderadamente seco" });
     expect(spiReading(-2.4).tone).toBe("bad");
-    expect(spiReading(1.7).tone).toBe("bad");
+    expect(spiReading(1.7).tone).toBe("warn");
+    expect(spiReading(1.2).tone).toBe("neutral");
     expect(spiReading(null).tone).toBe("neutral");
   });
 

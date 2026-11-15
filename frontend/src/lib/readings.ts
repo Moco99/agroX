@@ -10,7 +10,7 @@ import type { StressClass } from "../types/api";
 // scientific threshold: every cut-off used here is either a model quantity served by the backend
 // (p, Ks classes), a published convention (SPI classes, McKee et al. 1993), a model definition (EcoCrop
 // trapezoid: 100 inside the optimum, 0 outside the tolerated range) or the visual NDVI colour classes of
-// the design tokens (explicitly labelled as such in the UI).
+// the design tokens (always neutral and labelled as such in the UI).
 
 export type Tone = "good" | "warn" | "bad" | "neutral";
 
@@ -48,12 +48,19 @@ export function ndviReading(value: number | null | undefined): Reading {
     return { tone: "neutral", label: es.reading.ndvi.nodata };
   }
   const [bare = 0, low = 0, mid = 0, high = 0] = NDVI_STOPS;
-  // Bare soil is neutral: it is expected before planting and after harvest
-  if (value <= bare) return { tone: "neutral", label: es.reading.ndvi.bare };
-  if (value < low) return { tone: "warn", label: es.reading.ndvi.low };
-  if (value < mid) return { tone: "neutral", label: es.reading.ndvi.medium };
-  if (value < high) return { tone: "good", label: es.reading.ndvi.high };
-  return { tone: "good", label: es.reading.ndvi.veryHigh };
+  // Always neutral: the ramp stops are colour classes, not agronomic thresholds. A low NDVI is expected
+  // before planting or after harvest, so the words describe the canopy without judging it.
+  const label =
+    value <= bare
+      ? es.reading.ndvi.bare
+      : value < low
+        ? es.reading.ndvi.low
+        : value < mid
+          ? es.reading.ndvi.medium
+          : value < high
+            ? es.reading.ndvi.high
+            : es.reading.ndvi.veryHigh;
+  return { tone: "neutral", label };
 }
 
 // ─────────────────────────────────────────
@@ -69,22 +76,25 @@ export function anomalyReading(pct: number | null): Reading {
 
 // SPI classes follow McKee et al. (1993); the label is descriptive, not a forecast
 export function spiLabel(spi: number): string {
-  if (spi >= 2) return "extremadamente húmedo";
-  if (spi >= 1.5) return "muy húmedo";
-  if (spi >= 1) return "moderadamente húmedo";
-  if (spi > -1) return "cercano a lo normal";
-  if (spi > -1.5) return "moderadamente seco";
-  if (spi > -2) return "muy seco";
-  return "extremadamente seco";
+  const l = es.reading.spi;
+  if (spi >= 2) return l.extremelyWet;
+  if (spi >= 1.5) return l.veryWet;
+  if (spi >= 1) return l.moderatelyWet;
+  if (spi > -1) return l.normal;
+  if (spi > -1.5) return l.moderatelyDry;
+  if (spi > -2) return l.veryDry;
+  return l.extremelyDry;
 }
 
+// Tones are a documented product decision (ui-spec): dry periods are watched (moderate) or flagged
+// (very/extreme dry); very wet periods are only "watch" (possible excess water); moderate wetness is neutral
 export function spiReading(spi: number | null): Reading {
   if (spi === null || !Number.isFinite(spi)) return { tone: "neutral", label: es.reading.spi.none };
   const label = spiLabel(spi);
   if (spi > -1 && spi < 1) return { tone: "good", label };
-  // Very wet and very dry periods are both unfavourable; moderate wetness is only worth a look
-  if (spi <= -1.5 || spi >= 1.5) return { tone: "bad", label };
-  return { tone: "warn", label };
+  if (spi <= -1.5) return { tone: "bad", label };
+  if (spi < 0 || spi >= 1.5) return { tone: "warn", label };
+  return { tone: "neutral", label };
 }
 
 // ─────────────────────────────────────────

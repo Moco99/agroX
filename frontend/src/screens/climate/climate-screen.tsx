@@ -28,7 +28,7 @@ type IndicatorKey = (typeof INDICATOR_KEYS)[number];
 const INDICATOR_HELP: Record<IndicatorKey, { unitLong: string; term?: GlossaryTermId; how?: FormulaId }> = {
   precip_total: { unitLong: es.units.mm },
   t_mean: { unitLong: es.units.celsius },
-  gdd_total: { unitLong: es.units.gdd, term: "gdd", how: "gdd" },
+  gdd_total: { unitLong: es.units.gdd, term: "gdd", how: "gddClimate" },
   et0_total: { unitLong: es.units.mm, term: "et0", how: "et0" },
   frost_days: { unitLong: es.units.days },
   hot_days: { unitLong: es.units.days },

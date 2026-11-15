@@ -64,7 +64,8 @@ describe("explain (template text)", () => {
     const { paragraphs, suggestion } = explain(run, null, null, 0.8);
     const text = paragraphs.join(" ");
     expect(text).toContain("llovieron 300 mm");
-    expect(text).toContain("la lluvia fue menor que la demanda del clima");
+    expect(text).toContain("la lluvia fue menor que esa demanda de referencia");
+    expect(text).not.toContain("el cultivo dependió");
     expect(text).toContain("faltó agua en varios momentos (estrés moderado)");
     expect(text).toMatch(/12 días con estrés hídrico \(Ks menor a 0[.,]80\)/);
     expect(suggestion).toContain("prueba un nivel de riego");
