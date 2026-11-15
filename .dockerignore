@@ -1,0 +1,27 @@
+# Git & IDE
+.git
+.gitignore
+.vscode
+.idea
+
+# Python caches & virtualenvs
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+backend/.venv/
+.venv/
+
+# Node / Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+
+# Heavy local raw data & runtime caches (mounted via volumes if needed)
+data/raw/
+data/cache/
+backend/.cache/
+
+# Local docs / scripts not needed inside containers
+*.pdf
+*.bat
