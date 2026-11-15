@@ -17,6 +17,15 @@ export interface CameraView {
 // Pilot farm centroid (Story County, Iowa); the only place with parcels, NDVI by date and a 3D twin
 export const PILOT_CENTER: LngLat = [-93.490654, 42.028951];
 
+// Approximate extent of the pilot farm (centroid ± ~0.7 km); lets the globe panel recognise a click on it even
+// while another parcel is the active one (the imagery bounds belong to the active parcel only)
+export const PILOT_BOUNDS: GeoBounds = {
+  west: PILOT_CENTER[0] - 0.009,
+  east: PILOT_CENTER[0] + 0.009,
+  south: PILOT_CENTER[1] - 0.0065,
+  north: PILOT_CENTER[1] + 0.0065,
+};
+
 // Whole Earth framed over the Americas, like mockup 12; zoom 2 fills a laptop viewport like the mockup
 export const GLOBE_VIEW: CameraView = { center: [-78, 14], zoom: 2, bearing: 0, pitch: 0 };
 
@@ -195,10 +204,15 @@ const PILOT_RADIUS_KM = 25;
 export type GeoStage = "globe" | "map";
 
 // Continuous zoom drives the stepper: diving into the pilot farm enters "map", leaving it returns to "globe"
-export function stageForCamera(current: GeoStage, camera: { center: LngLat; zoom: number }): GeoStage {
-  const nearPilot = distanceKm([normalizeLon(camera.center[0]), camera.center[1]], PILOT_CENTER) <= PILOT_RADIUS_KM;
-  if (current === "map") return camera.zoom < MAP_EXIT_ZOOM || !nearPilot ? "globe" : "map";
-  return camera.zoom >= MAP_ENTER_ZOOM && nearPilot ? "map" : "globe";
+// The anchor is the active parcel (the pilot by default), so any opened parcel gets the same farm stage
+export function stageForCamera(
+  current: GeoStage,
+  camera: { center: LngLat; zoom: number },
+  anchor: LngLat = PILOT_CENTER,
+): GeoStage {
+  const nearAnchor = distanceKm([normalizeLon(camera.center[0]), camera.center[1]], anchor) <= PILOT_RADIUS_KM;
+  if (current === "map") return camera.zoom < MAP_EXIT_ZOOM || !nearAnchor ? "globe" : "map";
+  return camera.zoom >= MAP_ENTER_ZOOM && nearAnchor ? "map" : "globe";
 }
 
 // Default point-query window: the last two years ending a week ago (latest reanalysis lag), max span the API allows

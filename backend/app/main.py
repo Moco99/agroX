@@ -11,7 +11,7 @@ from app.api.imagery import router as imagery_router
 from app.api.points import router as points_router
 from app.api.routes import router
 from app.config import get_settings
-from app.providers.ports import DataNotFoundError
+from app.providers.ports import DataNotFoundError, InvalidFarmIdError
 from app.services.errors import InvalidRequestError
 from app.storage.ports import StoreUnavailableError
 
@@ -44,6 +44,10 @@ def create_app() -> FastAPI:
     @app.exception_handler(DataNotFoundError)
     async def not_found(_: Request, exc: DataNotFoundError) -> JSONResponse:
         return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+    @app.exception_handler(InvalidFarmIdError)
+    async def invalid_farm(_: Request, exc: InvalidFarmIdError) -> JSONResponse:
+        return JSONResponse(status_code=422, content={"detail": str(exc)})
 
     @app.exception_handler(InvalidRequestError)
     async def invalid(_: Request, exc: InvalidRequestError) -> JSONResponse:

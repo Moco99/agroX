@@ -10,7 +10,9 @@ import { TopBar } from "./app-shell/top-bar";
 import { TransitionOverlay } from "./app-shell/transition-overlay";
 import { ErrorBoundary } from "./components/error-boundary";
 import { es } from "./i18n/es";
+import { LoadProgress } from "./screens/geographic/parcel-panels";
 import { PointScreen } from "./screens/point/point-screen";
+import { useParcelStore } from "./store/parcel-store";
 import { usePointStore } from "./store/point-store";
 import { useStageStore } from "./store/stage-store";
 import { useTwinStore } from "./store/twin-store";
@@ -35,6 +37,7 @@ export function App() {
   const error = useTwinStore((s) => s.error);
   const baseline = useTwinStore((s) => s.baseline);
   const stage = useStageStore((s) => s.stage);
+  const phase = useParcelStore((s) => s.phase);
   const geo = stage !== "twin";
 
   useEffect(() => {
@@ -78,9 +81,13 @@ export function App() {
                     ← {es.stages.backToMap}
                   </button>
                 </>
-              ) : loading ? (
-                loadingBox
-              ) : null}
+              ) : phase === "idle" || phase === "ready" ? (
+                loading ? loadingBox : null
+              ) : (
+                <div className="twin-pending">
+                  <LoadProgress />
+                </div>
+              )}
             </Suspense>
           </ErrorBoundary>
           {/* The point overlay sits above the stage so the map underneath keeps its camera and tile cache */}

@@ -13,7 +13,7 @@ from app.providers.live.farm import GlobalFarmProvider, zone_terrain
 from app.providers.live.parcel import point_farm, point_zone_rings
 from app.providers.live.soil import LiveSoilProvider
 from app.providers.live.weather import LivePowerWeatherProvider
-from app.providers.ports import DataNotFoundError
+from app.providers.ports import DataNotFoundError, InvalidFarmIdError
 from app.schemas.common import DataState
 
 DERIVED = Path(DEFAULT_DERIVED_DIR)
@@ -24,8 +24,10 @@ def test_point_farm_ids() -> None:
     assert point_farm("pt_18.83_-96.78") == (18.83, -96.78)
     assert point_farm("pt_-12.45_-55.95") == (-12.45, -55.95)
     assert point_farm("story_pilot_farm") is None
-    assert point_farm("pt_95_10") is None  # out of range
-    assert point_farm("pt_-70_10") is None  # Antarctica: no POWER/SoilGrids coverage
+    # A pt_ id that is out of range or malformed is a client error (422), not an unknown farm (404)
+    for bad in ("pt_95_10", "pt_-70_10", "pt_abc", "pt_18.8_-200", "pt_18.8"):
+        with pytest.raises(InvalidFarmIdError):
+            point_farm(bad)
 
 
 def test_zones_tile_a_36_ha_square() -> None:
@@ -56,7 +58,7 @@ def _soilgrids(*_: object) -> dict[str, object]:
 
 
 def test_global_farm_uses_soilgrids_and_declares_crop(tmp_path: Path) -> None:
-    soil = LiveSoilProvider(DERIVED, tmp_path, fetcher=_soilgrids, today=TODAY)
+    soil = LiveSoilProvider(DERIVED, tmp_path, fetcher=_soilgrids, min_interval_s=0)
     farms = GlobalFarmProvider(DERIVED, soil, tmp_path, elevation=lambda lat, lon: 250.0, today=TODAY)
     farm = farms.get_farm("pt_-1.29_36.82")
     assert farm.area_ha == 36.0 and len(farm.zones) == 4
@@ -88,7 +90,44 @@ def test_point_farm_survives_soilgrids_outage(tmp_path: Path) -> None:
     def boom(*_: object) -> dict[str, object]:
         raise TimeoutError("slow")
 
-    soils = LiveSoilProvider(DERIVED, tmp_path, fetcher=boom, today=TODAY).get_zone_soils("pt_-12.45_-55.95")
+    provider = LiveSoilProvider(DERIVED, tmp_path, fetcher=boom, retry_delays_s=(0.0, 0.0), min_interval_s=0)
+    soils = provider.get_zone_soils("pt_-12.45_-55.95")
     p = soils["zone_ne"]
     assert p.awc_mm_per_m == 150.0 and p.provenance.data_state is DataState.ESTIMATED
     assert any("SoilGrids unavailable" in w for w in p.warnings)
+
+
+def test_soilgrids_deadline_bounds_first_request_and_late_answer_is_cached(tmp_path: Path) -> None:
+    import threading
+    import time
+
+    release = threading.Event()
+
+    def slow(*_: object) -> dict[str, object]:
+        release.wait(5)
+        return _soilgrids()
+
+    provider = LiveSoilProvider(
+        DERIVED, tmp_path, fetcher=slow, wait_s=0.1, attempt_deadline_s=0.2, retry_delays_s=(0.0,), min_interval_s=0
+    )
+    t0 = time.monotonic()
+    soils = provider.get_zone_soils("pt_-12.45_-55.95")
+    # The first request waits wait_s, never the slow fetch
+    assert time.monotonic() - t0 < 1.0
+    p = soils["zone_ne"]
+    assert p.awc_mm_per_m == 150.0 and p.provenance.data_state is DataState.ESTIMATED
+    assert any("SoilGrids request in progress" in w for w in p.warnings)
+    # The attempt hits its deadline and is recorded as failed, quickly, instead of hanging
+    found = provider.wait("pt_-12.45_-55.95", 2.0)
+    assert found is not None and found.status == "failed" and "within" in str(found.error)
+    # The slow request finally answers: its value replaces the negative entry
+    release.set()
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        found = provider.status("pt_-12.45_-55.95")
+        if found is not None and found.status == "ready":
+            break
+        time.sleep(0.05)
+    assert found is not None and found.status == "ready"
+    final = provider.get_zone_soils("pt_-12.45_-55.95")["zone_ne"]
+    assert final.provenance.source.startswith("SoilGrids 2.0")

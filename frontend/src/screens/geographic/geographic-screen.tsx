@@ -13,9 +13,11 @@ import { GlobeMap, type MapStatus } from "./globe-map";
 // ─────────────────────────────────────────
 
 function Stepper() {
+  const farm = useTwinStore((s) => s.farm)?.farm;
+  const farmSub = farm ? `${farm.area_ha.toFixed(0)} ha · ${farm.zones.length} zonas` : es.stages.stepper.farm.sub;
   const steps = [
     { ...es.stages.stepper.location, state: "done", onClick: () => useMapStore.getState().flyTo("globe") },
-    { ...es.stages.stepper.farm, state: "active", onClick: undefined },
+    { ...es.stages.stepper.farm, sub: farmSub, state: "active", onClick: undefined },
     { ...es.stages.stepper.analysis, state: "todo", onClick: () => useStageStore.getState().goTo("twin") },
   ] as const;
   return (
@@ -64,6 +66,7 @@ export default function GeographicScreen() {
   const pending = useStageStore((s) => s.pending);
   const interacted = useMapStore((s) => s.interacted);
   const layers = useTwinStore((s) => s.mapLayers);
+  const hasBaseline = useTwinStore((s) => s.baseline !== null);
   const [status, setStatus] = useState<MapStatus | null>(null);
   const onStatus = useCallback((s: MapStatus) => setStatus(s), []);
   const atFarm = stage === "map";
@@ -111,7 +114,12 @@ export default function GeographicScreen() {
             <button type="button" className="ghost-button" onClick={() => useMapStore.getState().flyTo("globe")}>
               ← {es.geo.backToGlobe}
             </button>
-            <button type="button" className="explore-cta is-inline" onClick={() => useStageStore.getState().goTo("twin")}>
+            <button
+              type="button"
+              className="explore-cta is-inline"
+              disabled={!hasBaseline}
+              onClick={() => useStageStore.getState().goTo("twin")}
+            >
               {es.geo.cta} ↗
             </button>
           </div>

@@ -16,7 +16,7 @@ from typing import Protocol
 try:
     from rasterio.io import DatasetReader
 except ImportError:
-    DatasetReader = object  # type: ignore
+    DatasetReader = object
 
 # ─────────────────────────────────────────
 # Section: Errors and value objects

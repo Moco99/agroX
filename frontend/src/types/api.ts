@@ -33,6 +33,8 @@ export interface Health {
   derived_built_at: string | null;
   farms: string[];
   warnings: string[];
+  // Added by the any-parcel backend; absent on older servers, in which case live mode implies support
+  any_parcel_supported?: boolean;
 }
 
 export interface PolygonGeometry {
@@ -95,7 +97,47 @@ export interface Farm {
   warnings: string[];
 }
 
+// Optional blocks added by the any-parcel backend: all tolerated when absent (older servers, the pilot)
+export interface DeclaredInputs {
+  hemisphere: "north" | "south";
+  tropical: boolean;
+  suggested_season: { start: string; end: string };
+  // Keyed by crop_id (or zone_id); always a calendar suggestion, never an observation
+  suggested_planting_dates: Record<string, string>;
+  suggestion_state: DataState;
+  note: string;
+  unsupported_crop_note: string;
+}
+
+export interface LandCover {
+  status: "ready" | "pending" | "failed" | "not_applicable";
+  is_cropland: boolean | null;
+  worldcover_2021: string | null;
+  warning: string | null;
+  data_state: DataState;
+}
+
+export interface LoadStage {
+  stage: string;
+  status: "pending" | "running" | "ready" | "provisional" | "failed" | "skipped";
+  required: boolean;
+  message: string | null;
+  retry_after_s: number | null;
+}
+
+export interface FarmLoadStatus {
+  state: "not_started" | "loading" | "ready";
+  progress: number;
+  soil_final: boolean;
+  stages: LoadStage[];
+  poll_after_s: number | null;
+  warnings: string[];
+}
+
 export interface FarmAnalyzeResponse {
+  declared_inputs?: DeclaredInputs | null;
+  land_cover?: LandCover | null;
+  load_status?: FarmLoadStatus | null;
   farm: Farm;
   data_mode: DataMode;
   catalog_version: string;
@@ -211,6 +253,8 @@ export interface ZoneResult {
   crop_id: string;
   area_ha: number;
   planting_date: string;
+  crop_state?: DataState;
+  planting_state?: DataState;
   irrigation_level: IrrigationLevel;
   states: TwinState[];
   summary: ZoneSummary;
@@ -258,6 +302,10 @@ export interface TwinSimulateRequest {
   end: string;
   scenario: Partial<TwinScenario>;
   fork_date?: string | null;
+  // crop_id -> ISO planting date (the backend keys planting dates by crop, not by zone)
+  planting_dates?: Record<string, string>;
+  // zone_id -> catalog crop_id declared by the user (DECLARED); only sent when it differs from the farm's crop
+  crop_overrides?: Record<string, string>;
   monte_carlo?: { n: number; seed: number } | null;
   include_states?: boolean;
   include_comparison?: boolean;

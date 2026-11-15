@@ -26,7 +26,10 @@ for idx, r in enumerate(normal_recs, 1):
     seq_str = " -> ".join(r["sequence"])
     print(f"\nRank {idx}: [{seq_str}] | Score: {r['overall_score']}/100 | Estado: {r['status']}")
     for c in r["cycles"]:
-        print(f"   Ciclo {c['cycle']}: {c['name']:15} | Idoneidad EcoCrop: {c['ecocrop_suitability']:5.1f}% | Riesgo ML: {c['risk_level']:8} | Factor: {c['key_risk_factor']}")
+        print(
+            f"   Ciclo {c['cycle']}: {c['name']:15} | Idoneidad EcoCrop: {c['ecocrop_suitability']:5.1f}%"
+            f" | Riesgo ML: {c['risk_level']:8} | Factor: {c['key_risk_factor']}"
+        )
 
 print("\n" + "=" * 70)
 print("TEST 3: ESCENARIO WHAT-IF: SEQUÍA MODERADA (Lluvia: 420 mm, Temp: 31 °C)")
@@ -36,5 +39,7 @@ for idx, r in enumerate(drought_recs, 1):
     seq_str = " -> ".join(r["sequence"])
     print(f"\nRank {idx}: [{seq_str}] | Score: {r['overall_score']}/100 | Estado: {r['status']}")
     for c in r["cycles"]:
-        print(f"   Ciclo {c['cycle']}: {c['name']:15} | Idoneidad EcoCrop: {c['ecocrop_suitability']:5.1f}% | Riesgo ML: {c['risk_level']:8} | Factor: {c['key_risk_factor']}")
-
+        print(
+            f"   Ciclo {c['cycle']}: {c['name']:15} | Idoneidad EcoCrop: {c['ecocrop_suitability']:5.1f}%"
+            f" | Riesgo ML: {c['risk_level']:8} | Factor: {c['key_risk_factor']}"
+        )

@@ -71,6 +71,16 @@ describe("defaultPointRange", () => {
 // Section: Continuous-zoom stage decisions
 // ─────────────────────────────────────────
 
+describe("stageForCamera with a parcel anchor", () => {
+  const veracruz: [number, number] = [-96.78, 18.83];
+  it("enters the farm stage near the anchor and not near the pilot", () => {
+    const view = { center: veracruz, zoom: 14.6 };
+    expect(stageForCamera("globe", view, veracruz)).toBe("map");
+    expect(stageForCamera("globe", view)).toBe("globe");
+    expect(stageForCamera("globe", PILOT_VIEW, veracruz)).toBe("globe");
+  });
+});
+
 describe("stageForCamera", () => {
   it("enters the farm stage only when zoomed in over the pilot", () => {
     expect(stageForCamera("globe", PILOT_VIEW)).toBe("map");

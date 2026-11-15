@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -17,13 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 ECOCROP_PARQUET = REPO_ROOT / "ecocrop.parquet"
 
 
-def trapezoidal_suitability(
-    val: float,
-    min_val: float,
-    opt_min: float,
-    opt_max: float,
-    max_val: float
-) -> float:
+def trapezoidal_suitability(val: float, min_val: float, opt_min: float, opt_max: float, max_val: float) -> float:
     """Calculate FAO EcoCrop trapezoidal membership score [0, 100].
 
     - 100%: Between opt_min and opt_max.
@@ -51,9 +46,9 @@ def trapezoidal_suitability(
 class EcoCropEngine:
     """In-memory query and scoring engine for FAO EcoCrop species."""
 
-    def __init__(self, parquet_path: Optional[Path] = None):
+    def __init__(self, parquet_path: Path | None = None):
         self.path = parquet_path or ECOCROP_PARQUET
-        self._df: Optional[pd.DataFrame] = None
+        self._df: pd.DataFrame | None = None
         self._load_dataset()
 
     def _load_dataset(self) -> None:
@@ -68,7 +63,7 @@ class EcoCropEngine:
         assert self._df is not None
         return self._df
 
-    def find_crops(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def find_crops(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """Search crops by common name or scientific name."""
         q = query.strip().lower()
         df = self.df
@@ -80,25 +75,37 @@ class EcoCropEngine:
         results = []
         for _, row in sub.iterrows():
             com_list = row["comname"]
-            first_common = com_list[0] if isinstance(com_list, (list, np.ndarray)) and len(com_list) > 0 else str(row["scientificname"])
-            results.append({
-                "scientificname": str(row["scientificname"]),
-                "common_name": first_common,
-                "family": str(row["famname"]).split(":")[-1] if ":" in str(row["famname"]) else str(row["famname"]),
-                "temp_opt": [float(row["topmn"]) if pd.notna(row["topmn"]) else None, float(row["topmx"]) if pd.notna(row["topmx"]) else None],
-                "rain_opt_mm": [float(row["ropmn"]) if pd.notna(row["ropmn"]) else None, float(row["ropmx"]) if pd.notna(row["ropmx"]) else None],
-                "ph_opt": [float(row["phopmn"]) if pd.notna(row["phopmn"]) else None, float(row["phopmx"]) if pd.notna(row["phopmx"]) else None],
-                "cycle_days": [int(row["gmin"]) if pd.notna(row["gmin"]) else None, int(row["gmax"]) if pd.notna(row["gmax"]) else None]
-            })
+            first_common = (
+                com_list[0]
+                if isinstance(com_list, (list, np.ndarray)) and len(com_list) > 0
+                else str(row["scientificname"])
+            )
+            results.append(
+                {
+                    "scientificname": str(row["scientificname"]),
+                    "common_name": first_common,
+                    "family": str(row["famname"]).split(":")[-1] if ":" in str(row["famname"]) else str(row["famname"]),
+                    "temp_opt": [
+                        float(row["topmn"]) if pd.notna(row["topmn"]) else None,
+                        float(row["topmx"]) if pd.notna(row["topmx"]) else None,
+                    ],
+                    "rain_opt_mm": [
+                        float(row["ropmn"]) if pd.notna(row["ropmn"]) else None,
+                        float(row["ropmx"]) if pd.notna(row["ropmx"]) else None,
+                    ],
+                    "ph_opt": [
+                        float(row["phopmn"]) if pd.notna(row["phopmn"]) else None,
+                        float(row["phopmx"]) if pd.notna(row["phopmx"]) else None,
+                    ],
+                    "cycle_days": [
+                        int(row["gmin"]) if pd.notna(row["gmin"]) else None,
+                        int(row["gmax"]) if pd.notna(row["gmax"]) else None,
+                    ],
+                }
+            )
         return results
 
-    def score_crop(
-        self,
-        scientific_name: str,
-        t_mean: float,
-        rain_mm: float,
-        soil_ph: float = 6.5
-    ) -> Dict[str, Any]:
+    def score_crop(self, scientific_name: str, t_mean: float, rain_mm: float, soil_ph: float = 6.5) -> dict[str, Any]:
         """Calculate FAO EcoCrop suitability scores for a specific crop."""
         match = self.df[self.df["scientificname"].str.lower() == scientific_name.strip().lower()]
         if match.empty:
@@ -116,10 +123,14 @@ class EcoCropEngine:
         if s_t == 0.0 or s_r == 0.0:
             composite = 0.0
         else:
-            composite = (s_t * s_r * (s_ph ** 0.5)) ** (1.0 / 2.5)
+            composite = (s_t * s_r * (s_ph**0.5)) ** (1.0 / 2.5)
 
         com_list = row["comname"]
-        first_common = com_list[0] if isinstance(com_list, (list, np.ndarray)) and len(com_list) > 0 else str(row["scientificname"])
+        first_common = (
+            com_list[0]
+            if isinstance(com_list, (list, np.ndarray)) and len(com_list) > 0
+            else str(row["scientificname"])
+        )
         family = str(row["famname"]).split(":")[-1] if ":" in str(row["famname"]) else str(row["famname"])
 
         return {
@@ -130,9 +141,18 @@ class EcoCropEngine:
             "score_temperature": round(float(s_t), 1),
             "score_rain": round(float(s_r), 1),
             "score_ph": round(float(s_ph), 1),
-            "cycle_days": [int(row["gmin"]) if pd.notna(row["gmin"]) else 90, int(row["gmax"]) if pd.notna(row["gmax"]) else 150],
-            "water_opt_mm": [float(row["ropmn"]) if pd.notna(row["ropmn"]) else 500, float(row["ropmx"]) if pd.notna(row["ropmx"]) else 800],
-            "temp_opt_c": [float(row["topmn"]) if pd.notna(row["topmn"]) else 18, float(row["topmx"]) if pd.notna(row["topmx"]) else 30]
+            "cycle_days": [
+                int(row["gmin"]) if pd.notna(row["gmin"]) else 90,
+                int(row["gmax"]) if pd.notna(row["gmax"]) else 150,
+            ],
+            "water_opt_mm": [
+                float(row["ropmn"]) if pd.notna(row["ropmn"]) else 500,
+                float(row["ropmx"]) if pd.notna(row["ropmx"]) else 800,
+            ],
+            "temp_opt_c": [
+                float(row["topmn"]) if pd.notna(row["topmn"]) else 18,
+                float(row["topmx"]) if pd.notna(row["topmx"]) else 30,
+            ],
         }
 
 
@@ -142,7 +162,7 @@ class EcoCropRiskModel:
     Synthetic surrogate of an explicit stress heuristic, not a field-trained model.
     """
 
-    def __init__(self, engine: Optional[EcoCropEngine] = None):
+    def __init__(self, engine: EcoCropEngine | None = None):
         self.engine = engine or EcoCropEngine()
         self.model = None
         self.feature_names = [
@@ -155,7 +175,7 @@ class EcoCropRiskModel:
             "cycle_days",
             "crop_water_need",
             "is_same_family",
-            "is_legume_preceding"
+            "is_legume_preceding",
         ]
         self._train_default_model()
 
@@ -163,6 +183,7 @@ class EcoCropRiskModel:
         """Train or initialize the Random Forest on synthetic samples; labels are heuristic, not observations."""
         try:
             from sklearn.ensemble import RandomForestClassifier
+
             has_sklearn = True
         except ImportError:
             has_sklearn = False
@@ -188,7 +209,7 @@ class EcoCropRiskModel:
         extreme_days = np.rint(t_extreme_ratio * cycle_days)
         t_extreme_ratio = extreme_days / cycle_days
 
-        X = np.column_stack([
+        features_x = np.column_stack([
             t_mean,
             t_extreme_ratio,
             rain_mm,
@@ -203,23 +224,19 @@ class EcoCropRiskModel:
 
         # Product heuristic with synthetic label noise; not physical ground truth
         stress_score = (
-            rain_deficit * 0.40 +
-            t_extreme_ratio * 0.30 +
-            (1.0 - (soil_awc / 220.0)) * 0.15 +
-            is_same_family * 0.15 -
-            is_legume_preceding * 0.10 +
-            rng.normal(0, 0.05, n_samples)
+            rain_deficit * 0.40
+            + t_extreme_ratio * 0.30
+            + (1.0 - (soil_awc / 220.0)) * 0.15
+            + is_same_family * 0.15
+            - is_legume_preceding * 0.10
+            + rng.normal(0, 0.05, n_samples)
         )
 
-        y = np.select(
-            [stress_score < 0.30, stress_score < 0.58],
-            [0, 1],
-            default=2
-        )
+        y = np.select([stress_score < 0.30, stress_score < 0.58], [0, 1], default=2)
 
         if has_sklearn:
             clf = RandomForestClassifier(n_estimators=120, max_depth=12, min_samples_leaf=3, random_state=42)
-            clf.fit(X, y)
+            clf.fit(features_x, y)
             self.model = clf
             self.has_sklearn = True
         else:
@@ -236,8 +253,8 @@ class EcoCropRiskModel:
         soil_ph: float = 6.5,
         soil_awc: float = 150.0,
         is_same_family: bool = False,
-        is_legume_preceding: bool = False
-    ) -> Dict[str, Any]:
+        is_legume_preceding: bool = False,
+    ) -> dict[str, Any]:
         """Predict climatic risk category and return explainability weights."""
         numeric = [t_mean, t_extreme_days, rain_mm, crop_water_need, cycle_days, soil_ph, soil_awc]
         if not all(math.isfinite(float(value)) for value in numeric):
@@ -249,23 +266,27 @@ class EcoCropRiskModel:
         t_extreme_ratio = t_extreme_days / cycle_days
         rain_deficit = max(0.0, (crop_water_need - rain_mm) / max(crop_water_need, 1.0))
 
-        feat = np.array([[
-            t_mean,
-            t_extreme_ratio,
-            rain_mm,
-            rain_deficit,
-            soil_ph,
-            soil_awc,
-            cycle_days,
-            crop_water_need,
-            1.0 if is_same_family else 0.0,
-            1.0 if is_legume_preceding else 0.0
-        ]])
+        feat = np.array(
+            [
+                [
+                    t_mean,
+                    t_extreme_ratio,
+                    rain_mm,
+                    rain_deficit,
+                    soil_ph,
+                    soil_awc,
+                    cycle_days,
+                    crop_water_need,
+                    1.0 if is_same_family else 0.0,
+                    1.0 if is_legume_preceding else 0.0,
+                ]
+            ]
+        )
 
         if getattr(self, "has_sklearn", False) and self.model is not None:
             probs = np.zeros(3)
             probs[self.model.classes_.astype(int)] = self.model.predict_proba(feat)[0]
-            importances = dict(zip(self.feature_names, [round(float(w), 3) for w in self.model.feature_importances_]))
+            importances = dict(zip(self.feature_names, [round(float(w), 3) for w in self.model.feature_importances_], strict=False))
         else:
             # Same heuristic and label-noise assumption as RF training.
             stress_idx = (
@@ -286,7 +307,7 @@ class EcoCropRiskModel:
         # Explainability: Top contributing factors
         factors = []
         if rain_deficit > 0.3:
-            factors.append(f"Déficit hídrico del {int(rain_deficit*100)}% frente a la demanda del cultivo")
+            factors.append(f"Déficit hídrico del {int(rain_deficit * 100)}% frente a la demanda del cultivo")
         if t_extreme_ratio > 0.1:
             factors.append(f"{t_extreme_days} días con calor extremo superior al umbral térmico")
         if is_same_family:
@@ -305,10 +326,10 @@ class EcoCropRiskModel:
             "probabilities": {
                 "low": round(float(probs[0]), 3),
                 "moderate": round(float(probs[1]), 3),
-                "high": round(float(probs[2]), 3)
+                "high": round(float(probs[2]), 3),
             },
             "primary_factors": factors,
-            "feature_importances": importances
+            "feature_importances": importances,
         }
 
 
@@ -316,31 +337,55 @@ class RotationEngine:
     """Multi-objective crop rotation sequencer and optimizer."""
 
     # Key global commercial crops present in EcoCrop
-    PRIMARY_CROPS = [
+    PRIMARY_CROPS: list[dict[str, Any]] = [
         {"id": "corn", "name": "Maíz", "scientific": "Zea mays", "family": "Poaceae", "is_legume": False},
-        {"id": "bean", "name": "Frijol común", "scientific": "Phaseolus vulgaris", "family": "Fabaceae", "is_legume": True},
+        {
+            "id": "bean",
+            "name": "Frijol común",
+            "scientific": "Phaseolus vulgaris",
+            "family": "Fabaceae",
+            "is_legume": True,
+        },
         {"id": "soybean", "name": "Soya", "scientific": "Glycine max", "family": "Fabaceae", "is_legume": True},
         {"id": "wheat", "name": "Trigo", "scientific": "Triticum aestivum", "family": "Poaceae", "is_legume": False},
         {"id": "sorghum", "name": "Sorgo", "scientific": "Sorghum bicolor", "family": "Poaceae", "is_legume": False},
         {"id": "rice", "name": "Arroz", "scientific": "Oryza sativa", "family": "Poaceae", "is_legume": False},
-        {"id": "sunflower", "name": "Girasol", "scientific": "Helianthus annuus", "family": "Asteraceae", "is_legume": False},
-        {"id": "chickpea", "name": "Garbanzo", "scientific": "Cicer arietinum", "family": "Fabaceae", "is_legume": True},
-        {"id": "cover_vetch", "name": "Vicia (cobertura)", "scientific": "Vicia sativa", "family": "Fabaceae", "is_legume": True}
+        {
+            "id": "sunflower",
+            "name": "Girasol",
+            "scientific": "Helianthus annuus",
+            "family": "Asteraceae",
+            "is_legume": False,
+        },
+        {
+            "id": "chickpea",
+            "name": "Garbanzo",
+            "scientific": "Cicer arietinum",
+            "family": "Fabaceae",
+            "is_legume": True,
+        },
+        {
+            "id": "cover_vetch",
+            "name": "Vicia (cobertura)",
+            "scientific": "Vicia sativa",
+            "family": "Fabaceae",
+            "is_legume": True,
+        },
     ]
 
-    def __init__(self, ecocrop: Optional[EcoCropEngine] = None, risk_model: Optional[EcoCropRiskModel] = None):
+    def __init__(self, ecocrop: EcoCropEngine | None = None, risk_model: EcoCropRiskModel | None = None):
         self.ecocrop = ecocrop or EcoCropEngine()
         self.risk_model = risk_model or EcoCropRiskModel(self.ecocrop)
 
     def evaluate_rotation(
         self,
-        sequence: List[str],
+        sequence: list[str],
         t_mean: float,
         rain_mm: float,
         soil_ph: float = 6.5,
         soil_awc: float = 140.0,
-        t_extreme_days: int = 4
-    ) -> Dict[str, Any]:
+        t_extreme_days: int = 4,
+    ) -> dict[str, Any]:
         """Score a complete rotation sequence across all cycles."""
         crop_map = {c["id"]: c for c in self.PRIMARY_CROPS}
         cycle_details = []
@@ -356,8 +401,8 @@ class RotationEngine:
             eco_score = self.ecocrop.score_crop(crop_meta["scientific"], t_mean, rain_mm, soil_ph)
 
             # Rotation agronomic bonuses / penalties
-            same_fam = (prev_crop is not None and prev_crop["family"] == crop_meta["family"])
-            legume_bonus = (prev_crop is not None and prev_crop["is_legume"] and not crop_meta["is_legume"])
+            same_fam = prev_crop is not None and prev_crop["family"] == crop_meta["family"]
+            legume_bonus = prev_crop is not None and prev_crop["is_legume"] and not crop_meta["is_legume"]
 
             # Machine Learning Risk prediction
             water_need = eco_score["water_opt_mm"][0]
@@ -371,7 +416,7 @@ class RotationEngine:
                 soil_ph=soil_ph,
                 soil_awc=soil_awc,
                 is_same_family=same_fam,
-                is_legume_preceding=legume_bonus
+                is_legume_preceding=legume_bonus,
             )
 
             # Net score: EcoCrop suitability - risk penalty + rotation bonus
@@ -384,17 +429,19 @@ class RotationEngine:
             cycle_score = max(0.0, min(100.0, cycle_score))
             scores.append(cycle_score)
 
-            cycle_details.append({
-                "cycle": cycle_idx + 1,
-                "crop_id": crop_id,
-                "name": crop_meta["name"],
-                "scientific": crop_meta["scientific"],
-                "family": crop_meta["family"],
-                "score": round(cycle_score, 1),
-                "ecocrop_suitability": eco_score["score_composite"],
-                "risk_level": risk["risk_level"],
-                "key_risk_factor": risk["primary_factors"][0]
-            })
+            cycle_details.append(
+                {
+                    "cycle": cycle_idx + 1,
+                    "crop_id": crop_id,
+                    "name": crop_meta["name"],
+                    "scientific": crop_meta["scientific"],
+                    "family": crop_meta["family"],
+                    "score": round(cycle_score, 1),
+                    "ecocrop_suitability": eco_score["score_composite"],
+                    "risk_level": risk["risk_level"],
+                    "key_risk_factor": risk["primary_factors"][0],
+                }
+            )
 
             prev_crop = crop_meta
 
@@ -404,7 +451,7 @@ class RotationEngine:
             "sequence": sequence,
             "overall_score": round(overall_score, 1),
             "cycles": cycle_details,
-            "status": "ÓPTIMA" if overall_score >= 75 else ("VIABLE" if overall_score >= 50 else "RIESGOSA")
+            "status": "ÓPTIMA" if overall_score >= 75 else ("VIABLE" if overall_score >= 50 else "RIESGOSA"),
         }
 
     def recommend_top_rotations(
@@ -415,20 +462,19 @@ class RotationEngine:
         soil_awc: float = 140.0,
         t_extreme_days: int = 4,
         cycles: int = 3,
-        top_k: int = 3
-    ) -> List[Dict[str, Any]]:
+        top_k: int = 3,
+    ) -> list[dict[str, Any]]:
         """Generate and rank the best crop rotations for the given climate."""
         # Candidate crops pool
-        candidate_ids = ["corn", "bean", "soybean", "wheat", "sorghum", "chickpea", "cover_vetch"]
 
         # Generate sensible 3-cycle candidate sequences
         candidate_sequences = [
-            ["corn", "bean", "corn"],          # Diversificación Maíz-Frijol
-            ["corn", "soybean", "wheat"],      # Rotación clásica sostenible
-            ["wheat", "soybean", "corn"],      # Cereal-Leguminosa
-            ["sorghum", "chickpea", "sorghum"],# Alta resiliencia a sequía
-            ["corn", "cover_vetch", "bean"],   # Máxima conservación de suelo
-            ["corn", "corn", "corn"]           # Monocultivo de control
+            ["corn", "bean", "corn"],  # Diversificación Maíz-Frijol
+            ["corn", "soybean", "wheat"],  # Rotación clásica sostenible
+            ["wheat", "soybean", "corn"],  # Cereal-Leguminosa
+            ["sorghum", "chickpea", "sorghum"],  # Alta resiliencia a sequía
+            ["corn", "cover_vetch", "bean"],  # Máxima conservación de suelo
+            ["corn", "corn", "corn"],  # Monocultivo de control
         ]
 
         results = []
@@ -439,7 +485,7 @@ class RotationEngine:
                 rain_mm=rain_mm,
                 soil_ph=soil_ph,
                 soil_awc=soil_awc,
-                t_extreme_days=t_extreme_days
+                t_extreme_days=t_extreme_days,
             )
             results.append(ev)
 
