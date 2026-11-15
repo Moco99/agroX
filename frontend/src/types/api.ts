@@ -307,7 +307,7 @@ export interface TwinSimulateRequest {
   planting_dates?: Record<string, string>;
   // zone_id -> catalog crop_id declared by the user (DECLARED); only sent when it differs from the farm's crop
   crop_overrides?: Record<string, string>;
-  crop_override_state?: "SIMULATED" | null;
+  crop_override_state?: "DECLARED" | "SIMULATED";
   monte_carlo?: { n: number; seed: number } | null;
   include_states?: boolean;
   include_comparison?: boolean;

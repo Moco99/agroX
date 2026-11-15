@@ -170,7 +170,9 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
   const declaredCrops = useParcelStore((s) => s.declaration.crops);
   const heightmap = useTwinStore((s) => s.heightmap);
   const pilot = isPilotFarm(farm.farm_id);
-  const ndviMissing = useTwinStore((s) => (pilot ? undefined : ndviMissingText(stageStatusOf(s.farm, "ndvi"))));
+  const ndviMissing = useTwinStore((s) =>
+    s.referenceYear !== null || s.rotationPreview !== null ? es.ndviNotObserved : pilot ? undefined : ndviMissingText(stageStatusOf(s.farm, "ndvi")),
+  );
   const elevation = useElevation(projector);
   const surface = cover?.worldcover_2021 === "suelo desnudo" ? "#b9a77e" : cover?.worldcover_2021 === "bosque" ? "#384f35" : "#777568";
   const e = projector.extent;
@@ -274,8 +276,8 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
             const zone = zoneLayouts[v.zone.zone_id];
             if (!zone) return null;
             const irrigated = v.zone.irrigation_level !== "NONE";
-            const showPlants = pilot || previewingRotation || Boolean(declaredCrops[v.zone.zone_id]);
-            const crop = cropLabel(v.zone.crop_id, showPlants);
+            const declared = pilot || previewingRotation || Boolean(declaredCrops[v.zone.zone_id]);
+            const crop = cropLabel(v.zone.crop_id, declared);
             return (
               <group key={v.zone.zone_id}>
                 <ZoneField
@@ -289,7 +291,8 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
                   soilWater={v.state?.soil_water_fraction ?? null}
                   selected={selectedZoneId === v.zone.zone_id}
                   onSelect={onSelect}
-                  showPlants={showPlants}
+                  // The run simulates the assumed crop too, so it is drawn; the label keeps its ESTIMATED badge
+                  showPlants
                 />
                 {irrigated && (
                   <CenterPivot
@@ -306,12 +309,13 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
                   >
                     <strong>{v.zone.name}</strong>
                     <span>
-                      {crop.text} <DataStateBadge state={previewingRotation ? (previewDataMode === "synthetic" ? "SYNTHETIC" : "SIMULATED") : crop.state} compact /> · {v.zone.area_ha.toFixed(0)} ha
+                      {crop.text} <DataStateBadge state={previewingRotation ? (previewDataMode === "synthetic" ? "SYNTHETIC" : "SIMULATED") : declared ? (v.zone.crop_state ?? crop.state) : crop.state} compact /> · {v.zone.area_ha.toFixed(0)} ha
                     </span>
                     <span className="zone-label-value">
                       {es.layers[layer]}: {layerLabel(v, layer, ndviMissing)} <DataStateBadge state={layerState(v, layer)} compact />
                     </span>
                     {irrigated && <span className="zone-label-note">{es.twin.pivotIllustrative}</span>}
+                    {v.state?.stage === "PRE_PLANTING" && <span className="zone-label-note">{es.twin.prePlanting}</span>}
                   </button>
                 </Html>
               </group>

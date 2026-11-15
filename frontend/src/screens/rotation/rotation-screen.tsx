@@ -171,6 +171,10 @@ export default function RotationScreen() {
       setError(rangeError);
       return;
     }
+    if (coverage && (from < coverage.start || to > coverage.end) && !referenceYear) {
+      setError(es.weatherReference.required);
+      return;
+    }
     if (weights.water + weights.climate + (ph.trim() ? weights.soil : 0) === 0) {
       setError(es.rotation.noWeights);
       return;
@@ -244,7 +248,7 @@ export default function RotationScreen() {
         {coverage ? <p className="muted">{es.weatherReference.coverage(coverage.start, coverage.end, coverage.available_days, coverage.missing.length)}</p> : <p className="muted">{coverageError ? es.weatherReference.unavailable : es.weatherReference.loading}</p>}
         {coverage && coverage.missing.length > 0 && <details><summary>{es.weatherReference.missingIntervals}</summary><ul>{coverage.missing.map((gap) => <li key={`${gap.start}-${gap.end}`}>{gap.start} — {gap.end}</li>)}</ul></details>}
         <label>{es.weatherReference.year}
-          <input type="number" min={1900} max={new Date().getFullYear()} step={1} value={referenceYear} onChange={(e) => setReferenceYear(e.target.value)} placeholder={es.weatherReference.placeholder} />
+          <input type="number" min={1900} max={coverage ? Number(coverage.end.slice(0, 4)) : undefined} step={1} value={referenceYear} onChange={(e) => setReferenceYear(e.target.value)} placeholder={es.weatherReference.placeholder} />
         </label>
         <p className="muted">{es.weatherReference.explanation}</p>
         <div className="rotation-grid">{!useWindows && <>
@@ -307,7 +311,9 @@ export default function RotationScreen() {
       {previewError && <div className="error-box" role="alert">{previewError}</div>}
       {baseline && !twinReady && <p className="muted" role="status">{es.rotation.twinPreparing}</p>}
       {baseline && <>
-        <div className="card"><h2>{es.rotation.inputsTitle}</h2><InputDetails inputs={baseline.inputs} />
+        <div className="card"><h2>{es.rotation.inputsTitle}</h2>
+          {typeof baseline.inputs.reference_year === "number" && <p className="muted" role="status"><DataStateBadge state={isDataState(baseline.data_state) ? baseline.data_state : "SIMULATED"} compact /> {es.weatherReference.active(baseline.inputs.reference_year)}</p>}
+          <InputDetails inputs={baseline.inputs} />
           <p className="muted">{es.rotation.climateLine(baseline.methodology, String(baseline.inputs.climate_source ?? "—"), isDataState(baseline.inputs.climate_data_state) ? es.dataState[baseline.inputs.climate_data_state] : String(baseline.inputs.climate_data_state ?? "—"))}</p>
         </div>
         <Ranking result={baseline} title={es.rotation.reference} canPreview={twinReady} onPreview={(item, index) => void openPreview(item, index, false)} />

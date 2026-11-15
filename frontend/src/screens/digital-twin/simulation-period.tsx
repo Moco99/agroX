@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { DataStateBadge } from "../../components/data-state-badge";
 import { es } from "../../i18n/es";
 import { getWeatherCoverage, type WeatherCoverage } from "../../lib/weather-coverage";
 import { useParcelStore } from "../../store/parcel-store";
@@ -10,6 +11,7 @@ export function SimulationPeriod() {
   const simulating = useTwinStore((s) => s.simulating);
   const referenceYear = useTwinStore((s) => s.referenceYear);
   const simulateWindow = useTwinStore((s) => s.simulateWindow);
+  const synthetic = useTwinStore((s) => s.baseline?.data_mode === "synthetic");
   const [start, setStart] = useState(span.start);
   const [end, setEnd] = useState(span.end);
   const [reference, setReference] = useState(referenceYear?.toString() ?? "");
@@ -36,7 +38,7 @@ export function SimulationPeriod() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    if (coverage && end > coverage.end && !reference) {
+    if (coverage && (start < coverage.start || end > coverage.end) && !reference) {
       setError(es.weatherReference.required);
       return;
     }
@@ -50,7 +52,7 @@ export function SimulationPeriod() {
   }
 
   return (
-    <section className="card">
+    <section className="card simulation-period">
       <h3>{es.weatherReference.title}</h3>
       {coverage ? (
         <p className="muted">{es.weatherReference.coverage(coverage.start, coverage.end, coverage.available_days, coverage.missing.length)}</p>
@@ -63,7 +65,7 @@ export function SimulationPeriod() {
           <ul>{coverage.missing.map((gap) => <li key={`${gap.start}-${gap.end}`}>{gap.start} — {gap.end}</li>)}</ul>
         </details>
       )}
-      {referenceYear !== null && <p className="muted" role="status">{es.weatherReference.active(referenceYear)}</p>}
+      {referenceYear !== null && <p className="muted" role="status"><DataStateBadge state={synthetic ? "SYNTHETIC" : "SIMULATED"} compact /> {es.weatherReference.active(referenceYear)}</p>}
       <form onSubmit={(e) => void submit(e)}>
         <label className="field">
           <span>{es.weatherReference.start}</span>
@@ -75,7 +77,7 @@ export function SimulationPeriod() {
         </label>
         <label className="field">
           <span>{es.weatherReference.year}</span>
-          <input type="number" min={1900} max={new Date().getFullYear()} step={1} value={reference} onChange={(e) => setReference(e.target.value)} placeholder={es.weatherReference.placeholder} />
+          <input type="number" min={1900} max={coverage ? Number(coverage.end.slice(0, 4)) : undefined} step={1} value={reference} onChange={(e) => setReference(e.target.value)} placeholder={es.weatherReference.placeholder} />
         </label>
         <p className="muted">{es.weatherReference.explanation}</p>
         {error && <p role="alert" className="error-box">{error}</p>}
