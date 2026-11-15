@@ -36,6 +36,9 @@ export interface RotationRecommendation {
   overall_score: number;
   score?: number;
   family_repeats?: number;
+  agroclimatic_score?: number;
+  rotation?: { index: number };
+  explanation?: string[];
   cycles: RotationCycle[];
   warnings: string[];
   score_type: string;

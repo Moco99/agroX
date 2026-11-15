@@ -56,6 +56,8 @@ function Ranking({ result, title, canPreview, onPreview }: RankingProps) {
           ["Compatibilidad lluvia", item.indicators.water], ["Compatibilidad pH", item.indicators.soil], ["Compatibilidad temperatura", item.indicators.climate],
         ] as const).map(([label, value]) => <div key={label}><small>{label}</small><strong>{fmt(value)}</strong><div className="rotation-track"><i style={{ width: `${Math.max(0, Math.min(100, value ?? 0))}%` }} /></div></div>)}</div>
         <p className="muted">Pesos efectivos: lluvia {(item.weights.water * 100).toFixed(0)} % · pH {(item.weights.soil * 100).toFixed(0)} % · temperatura {(item.weights.climate * 100).toFixed(0)} %</p>
+        {item.rotation && item.agroclimatic_score !== undefined && <p className="muted">Clima y suelo {item.agroclimatic_score.toFixed(1)} · Rotación {item.rotation.index.toFixed(1)} (cambio de familia, leguminosas y diversidad)</p>}
+        {item.explanation && item.explanation.length > 0 && <ul className="muted">{item.explanation.map((line) => <li key={line}>{line}</li>)}</ul>}
         {item.family_repeats !== undefined && <p className="muted">Repeticiones consecutivas de familia: {item.family_repeats}</p>}
         <ol className="rotation-cycles">{item.cycles.map((cycle) => <li key={`${cycle.cycle}-${cycle.crop_id}`}><strong>Ciclo {cycle.cycle}: {cycle.name}</strong><span>{cycle.family} · Lluvia {cycle.rainfall_fit.toFixed(1)} · Temperatura {cycle.temperature_fit.toFixed(1)}{cycle.ph_fit !== null ? ` · pH ${cycle.ph_fit.toFixed(1)}` : " · pH sin declarar"}</span>
           {cycle.window && <span>{cycle.window.start} a {cycle.window.end}</span>}
