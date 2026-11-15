@@ -1,11 +1,21 @@
 # Rotation Engine (`rotation`)
 
-> TL;DR: Genera secuencias de cultivos, descarta las que violan reglas, calcula indicadores A/Ssuelo/C (0–100) usando el gemelo y ordena con S = wa·A + ws·Ssuelo + wc·C.
+> TL;DR: Prototipo EcoCrop de siete cultivos con índices comparativos de ajuste a precipitación, temperatura y pH declarado; pondera secuencias y calcula escenarios. No es predicción de rendimiento ni evaluación validada del agua o suelo.
 > Depende de: [data-contracts](../01-architecture/data-contracts.md), [crop-catalog](crop-catalog.md), [model-specs](../03-models/model-specs.md)
 > Estado: draft
 > Última revisión: 2026-11-14
 
 Endpoint: `POST /api/rotations/recommend` ([data-contracts](../01-architecture/data-contracts.md)).
+
+## Implementado actualmente
+
+`rotation_service` usa la serie climática de la parcela y `ecocrop.parquet` local, genera secuencias de 2–4 ciclos para siete cultivos y ordena los proxies EcoCrop con pesos normalizados. Un pH ausente excluye suelo del ranking, en vez de atribuir al lugar un valor supuesto. Si faltan umbrales requeridos, se excluye la secuencia. Se pueden aplicar condiciones hipotéticas de lluvia y temperatura y excluir secuencias con familias consecutivas iguales, incluida la del cultivo previo declarado.
+
+El proxy de agua compara precipitación del periodo con umbrales EcoCrop cuya escala temporal todavía requiere validación; no es disponibilidad ni demanda de riego. El proxy de suelo es ajuste de pH, no salud o protección del suelo. La temperatura y precipitación se reutilizan para todos los ciclos. Los resultados no están validados en campo y no son probabilidades. El clasificador RF fue entrenado con etiquetas sintéticas y se desactiva en esta API. Si faltan datos o el periodo es incompleto, el resultado lleva avisos explícitos. Hay que declarar `farm_id`, `start` y `end`: el cuerpo anterior con supuestos por defecto ya no es compatible.
+
+## Diseño propuesto, aún no implementado
+
+Las secciones siguientes describen capacidades objetivo, no resultados actuales del servicio.
 
 ## Cuatro fases
 

@@ -7,7 +7,7 @@ import type { Projector } from "../lib/geo";
 import { SCENE_SCALE } from "./zone-field";
 
 // The DEM and orthophoto use identical geographic bounds; row zero faces north.
-export function ObservedTerrain({ projector }: { projector: Projector }) {
+export function ObservedTerrain({ projector, fallbackColor = "#526741" }: { projector: Projector; fallbackColor?: string }) {
   const heightmap = useTwinStore((s) => s.heightmap);
   const farmId = useParcelStore((s) => s.farmId);
   const hasBasemap = useTwinStore((s) => s.imageryMeta !== null);
@@ -70,7 +70,7 @@ export function ObservedTerrain({ projector }: { projector: Projector }) {
       <meshStandardMaterial
         key={texture?.uuid ?? "fallback"}
         map={texture}
-        color={texture ? "#ffffff" : "#526741"}
+        color={texture ? "#ffffff" : fallbackColor}
         roughness={0.95}
       />
     </mesh>

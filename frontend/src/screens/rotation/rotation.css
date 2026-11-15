@@ -1,0 +1,40 @@
+.rotation-screen { overflow-y: auto; flex: 1; min-height: 0; padding: 28px; color: var(--text); }
+.rotation-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 20px; }
+.rotation-header h1 { font-size: clamp(24px, 2.5vw, 34px); margin: 5px 0; }
+.rotation-header p { color: var(--text-muted); margin: 6px 0; }
+.rotation-disclaimer { padding: 14px 18px; border: 1px solid #77632b; background: #302d20; color: #f3d788; border-radius: 10px; margin-bottom: 18px; line-height: 1.5; }
+.rotation-layout { display: grid; grid-template-columns: minmax(250px, 350px) minmax(0, 1fr); gap: 22px; align-items: start; }
+.rotation-form, .rotation-results, .rotation-ranking { display: grid; gap: 14px; min-width: 0; }
+.rotation-form .card, .rotation-results .card, .rotation-card { padding: 20px; }
+.rotation-form h2, .rotation-results h2 { font-size: 18px; }
+.rotation-form p { line-height: 1.45; }
+.rotation-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+.rotation-grid label, .rotation-slider { display: grid; gap: 8px; color: var(--text-2); font-size: 12px; }
+.rotation-grid label:last-child { grid-column: 1 / -1; }
+.rotation-grid input, .rotation-grid select { min-width: 0; width: 100%; background: var(--bg-app); border: 1px solid var(--border); border-radius: 6px; padding: 9px; }
+.rotation-checkbox { display: flex; gap: 8px; margin-top: 15px; font-size: 12px; }
+.rotation-slider { margin-top: 16px; grid-template-columns: 1fr auto; }
+.rotation-slider input { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+.rotation-submit { width: 100%; padding: 12px; }
+.rotation-results > .card, .rotation-card { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-card); }
+.rotation-card header { display: flex; justify-content: space-between; gap: 20px; align-items: center; }
+.rotation-card h3 { margin: 8px 0; line-height: 1.35; }
+.rotation-score { white-space: nowrap; color: var(--accent); }
+.rotation-score strong { font-size: 28px; }
+.rotation-score small, .rotation-card small { color: var(--text-muted); }
+.rotation-indicators { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin: 20px 0; }
+.rotation-indicators > div { display: grid; gap: 7px; }
+.rotation-indicators strong { font-size: 18px; }
+.rotation-track { height: 5px; border-radius: 5px; background: #34414a; overflow: hidden; }
+.rotation-track i { display: block; height: 100%; background: var(--accent); }
+.rotation-cycles { padding-left: 20px; color: var(--text-2); }
+.rotation-cycles li { margin: 8px 0; }
+.rotation-cycles span { display: block; color: var(--text-muted); font-size: 12px; margin-top: 4px; }
+.rotation-card details, .rotation-warning { color: var(--text-2); font-size: 12px; line-height: 1.5; }
+.rotation-warning { padding: 16px; border: 1px solid #77632b; border-radius: 10px; }
+.rotation-inputs { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-bottom: 0; }
+.rotation-inputs dt { font-size: 12px; color: var(--text-muted); }
+.rotation-inputs dd { margin: 4px 0; overflow-wrap: anywhere; }
+.rotation-inputs small { color: var(--text-muted); }
+.rotation-empty { padding: 28px; color: var(--text-2); }
+@media (max-width: 900px) { .rotation-layout { grid-template-columns: 1fr; } .rotation-header { flex-wrap: wrap; } }

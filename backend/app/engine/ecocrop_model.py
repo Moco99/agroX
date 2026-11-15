@@ -260,6 +260,7 @@ class EcoCropRiskModel:
             ]
         )
 
+        importances: dict[str, float]
         if getattr(self, "has_sklearn", False) and self.model is not None:
             probs = np.zeros(3)
             probs[self.model.classes_.astype(int)] = self.model.predict_proba(feat)[0]
@@ -370,9 +371,15 @@ class RotationEngine:
         },
     ]
 
-    def __init__(self, ecocrop: EcoCropEngine | None = None, risk_model: EcoCropRiskModel | None = None):
+    def __init__(
+        self,
+        ecocrop: EcoCropEngine | None = None,
+        risk_model: EcoCropRiskModel | None = None,
+        *,
+        enable_risk: bool = True,
+    ):
         self.ecocrop = ecocrop or EcoCropEngine()
-        self.risk_model = risk_model or EcoCropRiskModel(self.ecocrop)
+        self.risk_model = risk_model or (EcoCropRiskModel(self.ecocrop) if enable_risk else None)
 
     def evaluate_rotation(
         self,
@@ -424,16 +431,20 @@ class RotationEngine:
             key = (crop_id, same_family, legume_bonus)
             if key not in cache:
                 eco = self.ecocrop.score_crop(crop_meta["scientific"], t_mean, rain_mm, soil_ph)
-                risk = self.risk_model.predict_risk(
-                    t_mean=t_mean,
-                    t_extreme_days=t_extreme_days,
-                    rain_mm=rain_mm,
-                    crop_water_need=eco["water_opt_mm"][0],
-                    cycle_days=eco["cycle_days"][1],
-                    soil_ph=soil_ph,
-                    soil_awc=soil_awc,
-                    is_same_family=same_family,
-                    is_legume_preceding=legume_bonus,
+                risk: dict[str, Any] = (
+                    self.risk_model.predict_risk(
+                        t_mean=t_mean,
+                        t_extreme_days=t_extreme_days,
+                        rain_mm=rain_mm,
+                        crop_water_need=eco["water_opt_mm"][0],
+                        cycle_days=eco["cycle_days"][1],
+                        soil_ph=soil_ph,
+                        soil_awc=soil_awc,
+                        is_same_family=same_family,
+                        is_legume_preceding=legume_bonus,
+                    )
+                    if self.risk_model is not None
+                    else {"risk_level": None, "primary_factors": [None]}
                 )
                 suitability = eco["score_composite"]
                 adjustment = (-15.0 if same_family else 0.0) + (10.0 if legume_bonus else 0.0)
@@ -445,6 +456,10 @@ class RotationEngine:
                     "family": crop_meta["family"],
                     "score": round(score, 1),
                     "ecocrop_suitability": suitability,
+                    "temperature_fit": eco["score_temperature"],
+                    "rainfall_fit": eco["score_rain"],
+                    "ph_fit": eco["score_ph"],
+                    "dimension_warnings": list(eco["warnings"]),
                     "risk_level": risk["risk_level"],
                     "key_risk_factor": risk["primary_factors"][0],
                     "same_family": same_family,
@@ -498,7 +513,7 @@ class RotationEngine:
         if previous_crop is not None and previous_crop not in families:
             families[previous_crop] = crop_map[previous_crop]["family"]
         sequences = generate_candidates(families, cycles, previous_crop, exclude_same_family)
-        cache = {}
+        cache: dict[tuple[str, bool, bool], dict[str, Any]] = {}
         results = [
             self._evaluate_rotation(seq, t_mean, rain_mm, soil_ph, soil_awc, t_extreme_days, previous_crop, cache)
             for seq in sequences

@@ -227,3 +227,17 @@ VITE_SATELLITE_ATTRIBUTION=Your imagery provider
 ```
 
 Las variables `VITE_*` son públicas en el navegador: no introducir secretos de AWS. Conserva la atribución exigida por tu proveedor.
+
+### Rotaciones y escenarios
+
+La pantalla Rotaciones usa `POST /api/rotations/recommend` con la parcela activa, un periodo climático y el parquet EcoCrop de la raíz. Los índices de temperatura, lluvia y pH son comparativos y exploratorios; no predicen cosechas ni sustituyen validación agronómica. Si no hay pH declarado, suelo se excluye y los pesos restantes se normalizan. La comparación hipotética aplica cambios de temperatura y precipitación a los mismos datos históricos. El clasificador de riesgo sintético no se usa para el ranking.
+
+Ejemplo para clientes de la API (el contrato anterior con cuerpo vacío o valores climáticos por defecto dejó de ser compatible):
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/rotations/recommend \
+  -H 'Content-Type: application/json' \
+  -d '{"farm_id":"story_pilot_farm","start":"2024-04-01","end":"2024-10-31","cycles":3,"top_k":3}'
+```
+
+En modo `live`, las parcelas `pt_<lat>_<lon>` usan clima NASA POWER del punto. El catálogo de búsqueda EcoCrop contiene más especies que los siete cultivos actualmente admitidos como candidatos por el generador de secuencias.

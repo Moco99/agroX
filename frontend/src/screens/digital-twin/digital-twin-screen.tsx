@@ -120,6 +120,7 @@ export function DigitalTwinScreen() {
               <h3>{es.openParcel.declTitle}</h3>
               <DataStateBadge state="DECLARED" compact />
             </div>
+            <p className="muted">{es.assumedCropNote}</p>
             <ul className="zone-ndvi-list">
               {farm.farm.zones.map((z) => {
                 const crop = plan?.zoneCrops[z.zone_id] ?? z.crop_id;
@@ -128,7 +129,7 @@ export function DigitalTwinScreen() {
                 return (
                   <li key={z.zone_id}>
                     <span>
-                      {z.name} · {es.crops[crop] ?? crop}
+                      {z.name} · {declaration.crops[z.zone_id] ? (es.crops[crop] ?? crop) : es.unconfirmedCrop}
                     </span>
                     <span>
                       {planting ? fmtDate(planting) : "—"} <DataStateBadge state={declaredDate ? "DECLARED" : "ESTIMATED"} compact />

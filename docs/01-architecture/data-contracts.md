@@ -25,7 +25,7 @@
 | GET | `/api/observations/ndvi-overlay?farm_id` | PNG base64 coloreado (escala de [design-tokens](../07-design/design-tokens.md)) + `bounds` + `resolution_m` + `source` | **PROPUESTA (implementada)** |
 | GET | `/api/observations/soil-moisture?farm_id&start&end` | `ObservationSeries` SMAP (contexto 9 km) | **PROPUESTA (implementada)** |
 
-Implementados en esta rama: `/api/health`, `/api/crops`, `/api/climate?start&end[&lat&lon]` (lat/lon solo para avisar si se pide fuera del piloto), `/api/farms/analyze` y todos los de la tabla marcados "implementada". Pendientes: `/api/rotations/recommend`, `/api/scenarios/simulate`, `/api/copilot/explain` (la explicación es por plantillas en el frontend). Errores: 404 = granja/zona/fuente inexistente; 422 = parámetros fuera de rango, preset desconocido, periodo fuera de cobertura o que cruza años.
+Implementados en esta rama: `/api/health`, `/api/crops`, `/api/climate?start&end[&lat&lon]` (lat/lon solo para avisar si se pide fuera del piloto), `/api/farms/analyze` y todos los de la tabla marcados "implementada". Pendientes: `/api/scenarios/simulate`, `/api/copilot/explain` (la explicación es por plantillas en el frontend). Errores: 404 = granja/zona/fuente inexistente; 422 = parámetros fuera de rango, preset desconocido, periodo fuera de cobertura o que cruza años.
 
 Fechas en query: `YYYY-MM-DD` (el dossier usaba `YYYYMMDD`; se normaliza a ISO).
 
@@ -97,31 +97,22 @@ class Weights(BaseModel):
 | `FarmZone` (PROPUESTA) | `zone_id, name, crop_id, area_ha, geometry (GeoJSON), soil: SoilProfile, irrigation_level: IrrigationLevel` | ha |
 | `ZoneResult` (PROPUESTA) | `zone_id, crop_id, area_ha, states: list[TwinState], ndvi: float \| None, ndvi_state: DataState, stress_class, data_state` | adim. |
 
-## Ejemplo: `POST /api/rotations/recommend`
+## `POST /api/rotations/recommend` — contrato actual
 
-Entrada:
+**Cambio incompatible:** ya no se aceptan cuerpo vacío ni los valores manuales `t_mean`/`rain_mm`. Envía `farm_id`, `start` y `end`; el backend obtiene el clima de la parcela seleccionada. Los consumidores antiguos deben migrar al siguiente cuerpo:
+
 ```json
-{
-  "location": {"lat": 41.995, "lon": -93.49},
-  "farm": {"current_crop": "corn", "previous_crop": "soybean", "irrigation": false, "soil_texture": null},
-  "planning": {"cycles": 3, "weights": {"water": 0.4, "soil": 0.35, "climate": 0.25}}
-}
+{"farm_id":"story_pilot_farm","start":"2024-04-01","end":"2024-10-31",
+ "cycles":3,"top_k":3,"soil_ph":null,"previous_crop":null,"exclude_same_family":false,
+ "weights":{"water":1,"soil":1,"climate":1},
+ "scenario":{"temp_delta_c":0,"precip_factor":1}}
 ```
 
-Salida:
-```json
-{
-  "methodology": "multicriteria_v1",
-  "data_mode": "synthetic",
-  "recommendations": [
-    {"sequence": ["corn", "soybean", "corn"], "score": 73.1, "status": "PRELIMINARY",
-     "indicators": {"water": 70.0, "soil": 65.0, "climate": 80.0},
-     "warnings": ["soil analysis missing"], "data_state": "SYNTHETIC"}
-  ],
-  "provenance": {"climate": "synthetic:weather_v1", "crops": "catalog_v1"}
-}
-```
-Cifras de ejemplo, no reales.
+El periodo admite hasta 731 días; ciclos 2–4, resultados 1–10 y pH opcional entre 0 y 14. `previous_crop` es un ID de los cultivos compatibles; la exclusión de familia es una regla opcional. El escenario modifica la temperatura media y la precipitación acumulada del mismo periodo, no es pronóstico. Los pesos son no negativos y se normalizan; si no se declara pH, se quita el peso de suelo y se renormalizan los demás. Si solo queda peso de suelo se responde 422.
+
+La respuesta incluye `inputs` con fechas efectivas, días, clima, procedencia, escenario y pesos pedidos; `data_state` y `warnings`; y `recommendations` con `sequence`, `cycles`, `overall_score`, `indicators`, `weights` y `breakdown`. Agua significa ajuste de precipitación a umbrales EcoCrop, clima ajuste térmico y suelo ajuste del pH declarado: **son proxies**, no indicadores validados de balance hídrico ni salud del suelo. El ranking es comparativo, no una probabilidad ni predicción de rendimiento. Umbrales EcoCrop faltantes excluyen al candidato para los indicadores requeridos. La temporalidad de precipitación necesita validación; el mismo periodo de clima se usa en todos los ciclos. El modelo RF sintético no interviene ni se expone como riesgo real. `scenario` distinto de cero es `SIMULATED`, salvo que la entrada sintética mantiene `SYNTHETIC`.
+
+Errores: 422 para entradas inválidas y 404 para parcela desconocida o parcela puntual fuera de modo `live`. El servicio usa siete candidatos de rotación, no la totalidad de especies del parquet. `GET /api/ecocrop/search?q=...&limit=...` permite buscar el catálogo; no añade automáticamente todas las especies a las secuencias.
 
 ## Ejemplo: `POST /api/twin/simulate` (PROPUESTA implementada)
 

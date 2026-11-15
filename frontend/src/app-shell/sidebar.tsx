@@ -1,3 +1,4 @@
+import { useRotationView } from "../store/rotation-store";
 import { es } from "../i18n/es";
 import { useMapStore } from "../store/map-store";
 import { usePointStore } from "../store/point-store";
@@ -10,6 +11,7 @@ import { useStageStore, type Stage } from "../store/stage-store";
 // Globe and farm share the same map, so moving between them is a camera flight; the twin is a separate scene
 export function navigateTo(target: Stage): void {
   usePointStore.getState().close();
+  useRotationView.getState().close();
   const { stage, goTo } = useStageStore.getState();
   if (target === "twin") {
     goTo("twin");
@@ -23,6 +25,7 @@ export function navigateTo(target: Stage): void {
 interface NavItem {
   label: string;
   stage: Stage | null;
+  rotation?: boolean;
   icon: string;
 }
 
@@ -30,13 +33,14 @@ const ITEMS: NavItem[] = [
   { label: es.nav.exploration, stage: "globe", icon: "◎" },
   { label: es.nav.vegetation, stage: "map", icon: "❦" },
   { label: es.nav.climate, stage: null, icon: "☁" },
-  { label: es.nav.rotations, stage: null, icon: "↻" },
+  { label: es.nav.rotations, stage: null, rotation: true, icon: "↻" },
   { label: es.nav.scenarios, stage: "twin", icon: "◈" },
   { label: es.nav.reports, stage: null, icon: "▤" },
 ];
 
 export function Sidebar() {
   const stage = useStageStore((s) => s.stage);
+  const rotationActive = useRotationView((s) => s.active);
   return (
     <aside className="sidebar">
       <div className="logo">
@@ -57,15 +61,16 @@ export function Sidebar() {
       </div>
       <nav>
         {ITEMS.map((item) => {
-          const disabled = item.stage === null;
+          const disabled = item.stage === null && !item.rotation;
           return (
             <button
               key={item.label}
               type="button"
-              className={`nav-item${item.stage === stage ? " is-active" : ""}`}
+              className={`nav-item${(item.rotation ? rotationActive : !rotationActive && item.stage === stage) ? " is-active" : ""}`}
               disabled={disabled}
               onClick={() => {
-                if (item.stage) navigateTo(item.stage);
+                if (item.rotation) { usePointStore.getState().close(); useRotationView.getState().open(); }
+                else if (item.stage) navigateTo(item.stage);
               }}
               title={disabled ? es.nav.soon : item.label}
             >

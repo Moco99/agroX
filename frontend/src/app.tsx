@@ -1,3 +1,4 @@
+import { useRotationView } from "./store/rotation-store";
 import { lazy, Suspense, useEffect } from "react";
 import { DataBanner } from "./app-shell/data-banner";
 import { HelpPopover } from "./app-shell/help-popover";
@@ -21,6 +22,7 @@ import { useTwinStore } from "./store/twin-store";
 // Section: Code-split stages (MapLibre and three.js/R3F load only when their stage is shown)
 // ─────────────────────────────────────────
 
+const RotationScreen = lazy(() => import("./screens/rotation/rotation-screen"));
 const GeographicScreen = lazy(() => import("./screens/geographic/geographic-screen"));
 const DigitalTwinScreen = lazy(() =>
   import("./screens/digital-twin/digital-twin-screen").then((m) => ({ default: m.DigitalTwinScreen })),
@@ -31,6 +33,7 @@ const DigitalTwinScreen = lazy(() =>
 // ─────────────────────────────────────────
 
 export function App() {
+  const rotationActive = useRotationView((s) => s.active);
   const pointActive = usePointStore((s) => s.active);
   const init = useTwinStore((s) => s.init);
   const loading = useTwinStore((s) => s.loading);
@@ -60,8 +63,8 @@ export function App() {
       <Sidebar />
       <div className="main">
         <TopBar />
-        {stage === "twin" && <DataBanner />}
-        {stage === "twin" && error && (
+        {stage === "twin" && !rotationActive && <DataBanner />}
+        {stage === "twin" && !rotationActive && error && (
           <div className="error-box" role="alert">
             {baseline ? error : `${es.app.backendDown} (${error})`}{" "}
             <button type="button" className="ghost-button" onClick={() => void init()}>
@@ -72,7 +75,9 @@ export function App() {
         <div className="stage-host">
           <ErrorBoundary fallback={<div className="error-box" role="alert">{es.app.stageFailed}</div>}>
             <Suspense fallback={loadingBox}>
-              {geo ? (
+              {rotationActive ? (
+                <RotationScreen />
+              ) : geo ? (
                 <GeographicScreen />
               ) : baseline ? (
                 <>
@@ -91,14 +96,14 @@ export function App() {
             </Suspense>
           </ErrorBoundary>
           {/* The point overlay sits above the stage so the map underneath keeps its camera and tile cache */}
-          {pointActive && (
+          {pointActive && !rotationActive && (
             <div className="point-overlay">
               <PointScreen />
             </div>
           )}
           <TransitionOverlay />
         </div>
-        <footer className="bottom-bar">
+        {!rotationActive && <footer className="bottom-bar">
           {geo ? (
             <>
               <MapLayerBar />
@@ -112,7 +117,7 @@ export function App() {
               </>
             )
           )}
-        </footer>
+        </footer>}
       </div>
       <HelpPopover />
     </div>

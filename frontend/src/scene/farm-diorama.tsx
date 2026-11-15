@@ -11,6 +11,9 @@ import { color } from "../styles/tokens";
 import type { Farm } from "../types/api";
 import { Farmstead, Ground, Pond, Road, Sprinkler, Trees } from "./props";
 import { SCENE_SCALE, ZoneField } from "./zone-field";
+import { useTwinStore } from "../store/twin-store";
+import { useParcelStore } from "../store/parcel-store";
+import { isPilotFarm } from "../lib/parcel";
 
 // ─────────────────────────────────────────
 // Section: Isometric low-poly diorama (illustrative; it computes nothing)
@@ -27,6 +30,10 @@ interface FarmDioramaProps {
 }
 
 export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneId, onSelect }: FarmDioramaProps) {
+  const cover = useTwinStore((s) => s.farm?.land_cover);
+  const declaredCrops = useParcelStore((s) => s.declaration.crops);
+  const pilot = isPilotFarm(farm.farm_id);
+  const surface = cover?.worldcover_2021 === "suelo desnudo" ? "#b9a77e" : cover?.worldcover_2021 === "bosque" ? "#384f35" : "#777568";
   const rings = useMemo(
     () => Object.fromEntries(farm.zones.map((z) => [z.zone_id, localRing(z.geometry, projector)])),
     [farm, projector],
@@ -55,13 +62,10 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
     >
       <hemisphereLight args={["#DDE8FF", "#2A2016", 0.9]} />
       <directionalLight castShadow position={[10, 18, 6]} intensity={2.4} shadow-mapSize={[2048,2048]} />
-      <ObservedTerrain projector={projector}/>
+      <ObservedTerrain projector={projector} fallbackColor={pilot ? "#526741" : surface}/>
       <ContactShadows position={[0,-.15,0]} opacity={.4} scale={60} blur={2} far={20}/>
-      <Ground extent={extent} />
-      <Road extent={extent} />
-      <Farmstead extent={extent} />
-      <Pond extent={extent} />
-      <Trees extent={extent} />
+      <Ground extent={extent} surface={pilot ? undefined : surface} />
+      {pilot && <><Road extent={extent} /><Farmstead extent={extent} /><Pond extent={extent} /><Trees extent={extent} /></>}
       {views.map((v) => {
         const ring = rings[v.zone.zone_id];
         if (!ring) return null;
@@ -80,6 +84,7 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
               canopy={canopyFactor(v.zone, date)}
               selected={selectedZoneId === v.zone.zone_id}
               onSelect={onSelect}
+              showPlants={pilot || Boolean(declaredCrops[v.zone.zone_id])}
             />
             {v.zone.irrigation_level !== "NONE" && (
               <Sprinkler position={[sx, 0, sz]} active={(v.state?.irrigation_mm ?? 0) > 0 || layer === "irrigation"} />
@@ -92,7 +97,7 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
               >
                 <strong>{v.zone.name}</strong>
                 <span>
-                  {es.crops[v.zone.crop_id] ?? v.zone.crop_id} · {v.zone.area_ha.toFixed(0)} ha
+                  {pilot || declaredCrops[v.zone.zone_id] ? (es.crops[v.zone.crop_id] ?? v.zone.crop_id) : es.unconfirmedCrop} · {v.zone.area_ha.toFixed(0)} ha
                 </span>
                 <span className="zone-label-value">
                   {es.layers[layer]}: {layerLabel(v, layer)} <DataStateBadge state={layerState(v, layer)} compact />

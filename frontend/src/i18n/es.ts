@@ -10,6 +10,8 @@ import type {
 // ─────────────────────────────────────────
 
 export const es = {
+  unconfirmedCrop: "Cultivo no declarado",
+  assumedCropNote: "La simulación usa maíz como supuesto hasta que declares el cultivo real; no se ha observado maíz en esta ubicación.",
   geo: {
     title: "Exploración satelital global",
     eyebrow: "OBSERVACIÓN DE LA TIERRA",
@@ -71,6 +73,8 @@ export const es = {
   },
   point: {
     search: "Consultar coordenadas",
+    locate: "Ver en mapa",
+    enterCoordinates: "Ingresar coordenadas",
     title: "Análisis del punto consultado",
     hint: "Consulta fuentes históricas bajo demanda por latitud y longitud. Esta consulta no modifica el gemelo de Iowa.",
     lat: "Latitud",
