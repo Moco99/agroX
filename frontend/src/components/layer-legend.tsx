@@ -2,6 +2,10 @@ import { es } from "../i18n/es";
 import { layerRamp } from "../lib/derive";
 import type { Layer } from "../store/twin-store";
 
+// ─────────────────────────────────────────
+// Section: Colour legend of the active map layer (ramp + ticks + one-sentence meaning + spelled unit)
+// ─────────────────────────────────────────
+
 const UNITS: Record<Layer, string> = {
   ndvi: "NDVI",
   stress: "Ks",
@@ -32,6 +36,16 @@ export function LayerLegend({ layer, note, ndviStatus }: { layer: Layer; note?: 
         {ramp.map((s) => (
           <span key={s.value}>{label(layer, s.value)}</span>
         ))}
+      </div>
+      {layer === "ndvi" && (
+        <div className="legend-classes" aria-hidden>
+          {es.legend.ndvi.map((c) => (
+            <span key={c}>{c}</span>
+          ))}
+        </div>
+      )}
+      <div className="legend-meaning" data-testid="legend-meaning">
+        {es.legend.meaning[layer]} <small className="muted">({es.legend.unitsLong[layer]})</small>
       </div>
       {note && <div className="legend-note">{note}</div>}
     </div>

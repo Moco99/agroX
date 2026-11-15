@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { HowCalculated, type FormulaId } from "../../components/explain/how-calculated";
 import { es, fmt, fmtDateShort } from "../../i18n/es";
 import { color } from "../../styles/tokens";
 import type { ObservationSeries, ZoneResult } from "../../types/api";
@@ -20,7 +21,9 @@ import type { ObservationSeries, ZoneResult } from "../../types/api";
 
 type ChartKey = "soil" | "ks" | "gdd" | "ndvi" | "smap";
 const KEYS: ChartKey[] = ["soil", "ks", "gdd", "ndvi", "smap"];
-const LABELS: Record<ChartKey, string> = { soil: "Agua", ks: "Ks", gdd: "GDD", ndvi: "NDVI", smap: "SMAP" };
+const LABELS: Record<ChartKey, string> = es.chartHelp.tabs;
+// Each chart explains itself in one sentence and links to the white-box formula behind its line
+const HOW: Partial<Record<ChartKey, FormulaId>> = { soil: "waterBalance", ks: "ks", gdd: "gddTwin", ndvi: "ndvi" };
 
 interface Props {
   baseZone: ZoneResult;
@@ -180,9 +183,14 @@ export function TwinCharts({ baseZone, scenZone, modis, sentinel2, smap, current
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+      <p className="meaning" data-testid="chart-meaning">
+        {es.chartHelp[key]}
+        {hasScenario && key !== "ndvi" && key !== "smap" && ` ${es.chartHelp.compare}`}
+      </p>
+      {HOW[key] && <HowCalculated id={HOW[key]} />}
       {key === "ndvi" && (
         <p className="chart-note">
-          {es.charts.ndviNote}
+          {es.charts.ndviNote} {es.chartHelp.metrics}
           {ndviMetrics.map((m) => (
             <span key={m.source_id} className="metric-line">
               {es.charts.metrics(m.source_id, m.n_points, fmt(m.correlation, 2), m.lag_days === null ? "—" : `${m.lag_days} d`)}

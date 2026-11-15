@@ -38,6 +38,7 @@ export interface RotationRecommendation {
   family_repeats?: number;
   agroclimatic_score?: number;
   rotation?: { index: number };
+  rotation_weight?: number;
   explanation?: string[];
   cycles: RotationCycle[];
   warnings: string[];
@@ -54,6 +55,7 @@ export interface RotationResponse {
   data_state: string;
 }
 const strings = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === "string");
+const optionalNumber = (v: unknown): boolean => v === undefined || (typeof v === "number" && Number.isFinite(v));
 function isCycle(v: unknown): v is RotationCycle {
   return isRecord(v) && typeof v.cycle === "number" && typeof v.crop_id === "string" &&
     typeof v.name === "string" && typeof v.rainfall_fit === "number" && Number.isFinite(v.rainfall_fit) &&
@@ -66,6 +68,10 @@ function isCycle(v: unknown): v is RotationCycle {
 function isRecommendation(v: unknown): v is RotationRecommendation {
   return isRecord(v) && isRecord(v.weights) && typeof v.weights.water === "number" && typeof v.weights.soil === "number" && typeof v.weights.climate === "number" && isRecord(v.indicators) && [v.indicators.water, v.indicators.soil, v.indicators.climate].every((x) => x === null || (typeof x === "number" && Number.isFinite(x))) && strings(v.sequence) && typeof v.overall_score === "number" && Number.isFinite(v.overall_score) &&
     (v.score === undefined || (typeof v.score === "number" && Number.isFinite(v.score))) &&
+    // Rotation component fields are optional (older responses lack them) but must be well-formed when present
+    optionalNumber(v.agroclimatic_score) && optionalNumber(v.rotation_weight) &&
+    (v.rotation === undefined || (isRecord(v.rotation) && typeof v.rotation.index === "number" && Number.isFinite(v.rotation.index))) &&
+    (v.explanation === undefined || strings(v.explanation)) &&
     Array.isArray(v.cycles) && v.cycles.every(isCycle) && strings(v.warnings) &&
     typeof v.score_type === "string" && typeof v.field_validated === "boolean";
 }

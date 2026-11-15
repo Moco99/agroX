@@ -3,7 +3,7 @@
 > TL;DR: Descripción en texto de los 3 mockups (globo, parcela con NDVI, gemelo digital 3D), mapeo elemento de UI → módulo → dato → `data_state` → prioridad, y la brecha honesta entre mockup y capacidad real. Leer esto basta; abrir las imágenes es opcional.
 > Depende de: [data-contracts](../01-architecture/data-contracts.md)
 > Estado: draft (endpoints marcados PROPUESTA siguen a [data-contracts](../01-architecture/data-contracts.md))
-> Última revisión: 2026-11-14
+> Última revisión: 2026-11-15
 
 Los mockups son **referencia visual ilustrativa** (ADR-010 en [decisions](../00-overview/decisions.md)): mandan las reglas de honestidad, no los números de las imágenes. Colores y escala NDVI: [design-tokens](design-tokens.md). Escena 3D: [digital-farm-3d](../02-modules/digital-farm-3d.md).
 
@@ -126,3 +126,34 @@ Desde el globo, un clic elige un punto. Fuera del piloto, el panel muestra la pa
 **Declarar cultivo y fecha de siembra.** Por zona o para toda la parcela, con los cultivos de `GET /api/crops` (si el usuario necesita otro, el panel dice que aún no está soportado). La fecha de siembra es por cultivo y muestra una sugerencia `ESTIMATED` por hemisferio (la del backend si la da; si no, la ventana del catálogo desplazada seis meses al sur) que el usuario puede aceptar o cambiar. Lo declarado lleva la insignia `DECLARED`, se envía a `POST /api/twin/simulate` (`planting_dates`, `zone_crops`) y se guarda en `localStorage` por `farm_id`.
 
 **Deep links.** `?farm=<id>` (piloto o `pt_*` válido; otro valor se ignora) y `?stage=`. El piloto es el valor por defecto y no escribe `farm`.
+
+## Capa de interpretabilidad (lenguaje simple)
+
+Regla de producto: una persona sin formación agronómica debe entender cada número sin salir de la pantalla. Todo el texto vive en `frontend/src/i18n/es.ts` (secciones `meaning`, `units`, `reading`, `formulas`, `glossary`, `dataStateHelp`, `modelNote`, `guide`).
+
+| Pieza | Qué hace | Componente |
+|---|---|---|
+| KPI explicado | Valor + unidad abreviada **y escrita** ("% del agua útil del suelo (TAW)") + lectura con color, icono y palabra ("Agua disponible: 62 % — ✓ suficiente") + una frase de qué significa + insignia `data_state` | `components/explain/explained-metric.tsx` |
+| Lectura bueno/atención/problema/referencia | Nunca solo color: icono (✓ ! ✕ •) y palabra | `components/explain/reading-chip.tsx`, `lib/readings.ts` |
+| ¿Cómo se calcula? | Desplegable con pasos en palabras simples, fórmula de caja blanca, valores actuales sustituidos, datos de entrada y límites | `components/explain/how-calculated.tsx` |
+| Glosario en contexto | Término subrayado con «?»: tooltip al pasar o enfocar (teclado/toque) para NDVI, ET0, Kc, GDD, SPI, Ks, TAW, RAW, AWC, EcoCrop… | `components/explain/term.tsx` |
+| Nota de modelo transparente | "Modelo transparente, no caja negra": FAO-56 y grados-día, sin ML en el cálculo ni IA generativa en el texto; el puntaje es índice comparativo, no probabilidad ni rendimiento | `components/explain/model-note.tsx` |
+| Leyenda `data_state` | Qué significa Medido/Declarado/Estimado/Simulado/Sintético; también como `title` de cada insignia | `components/explain/data-state-legend.tsx` |
+| Guía rápida y glosario | Botón «Guía» en la barra superior (y en Ayuda): 4 pasos de uso, colores, `data_state`, glosario con búsqueda; `Esc` cierra | `app-shell/guide-panel.tsx` |
+| Leyendas de capa | Rampa + clases NDVI + frase de significado + unidad escrita | `components/layer-legend.tsx` |
+
+**Umbrales de las lecturas (sin cifras inventadas).**
+- Agua disponible: "suficiente" si queda ≥ (1 − p) del TAW (Dr ≤ RAW, FAO-56; p del catálogo vía engine). Por debajo, la severidad sigue la clase de estrés del mismo día.
+- Estrés: la clase del día es **orientativa**. Reutiliza los umbrales que el backend publica para el **Ks medio** (`stress_class_thresholds_mean_ks`, configuración de producto) aplicados a un Ks diario; la UI lo dice así en «¿Cómo se calcula?».
+- NDVI: clases visuales de la rampa canónica (0.2/0.35/0.5/0.65/0.8) con tono **siempre neutral**. Las palabras describen el follaje, no lo juzgan: un NDVI bajo es normal antes de sembrar o tras cosechar.
+- SPI: clases de McKee et al. (1993). Los tonos son una **decisión de producto**: normal = bien; seco moderado = atención; muy o extremadamente seco = problema; húmedo moderado = referencia; muy o extremadamente húmedo = atención (posible exceso de agua). El backend solo lo calcula con ≥ 30 años de referencia (`spi.MIN_YEARS`).
+- Anomalía de lluvia: solo dirección (más/menos que lo usual); requiere ≥ 10 años.
+- Índice de rotación: relativo a la mejor opción comparada; compatibilidades según el trapecio EcoCrop (100 dentro del óptimo, 0 fuera del rango tolerado).
+- Temperatura y precipitación del gemelo: lectura neutral (sin umbral de cultivo en esta vista).
+
+**Fórmulas fieles al código.**
+- Grados-día del gemelo (`engine/phenology.py::daily_gdd`): método modificado cuando el cultivo trae `t_cap_gdd` (Tmáx limitada al tope y Tmín subida a la base); si no, promedio simple. Los grados-día del panel de Clima (`engine/indicators.py`) usan el promedio simple con la base fija que publica el backend. Son dos explicaciones distintas (`gddTwin` / `gddClimate`).
+- El balance hídrico resta `ETc ajustada = Ks × Kc × ET0` (`engine/water_balance.py`).
+- `frontend/src/lib/formulas.test.ts` fija estos textos contra el código del motor.
+
+**Estados vacío / carga / error** dicen qué hacer (reintentar, ir a Exploración, cambiar fechas). Las explicaciones de "AGROX AI" son plantillas deterministas (`lib/explain.ts`) en lenguaje simple; usan `stress_day_ks` del backend cuando está disponible. Los IDs de metodología (`twin_v1`, `climate_v1`) se muestran como texto legible.
