@@ -59,6 +59,21 @@ function fittedZoom(extent: Extent, width: number, height: number): number {
   return (Math.min(width, height) * FIT_FRACTION) / diagonal;
 }
 
+// The R3F store types `controls` as a bare EventDispatcher; OrbitControls additionally emits "start"
+interface StartDispatcher {
+  addEventListener(type: "start", listener: () => void): void;
+  removeEventListener(type: "start", listener: () => void): void;
+}
+
+function emitsStart(value: unknown): value is StartDispatcher {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { addEventListener?: unknown }).addEventListener === "function" &&
+    typeof (value as { removeEventListener?: unknown }).removeEventListener === "function"
+  );
+}
+
 // Follows container resizes (the stage reveal animates the canvas size) until the user touches the
 // controls; from then on their zoom is respected. A new farm starts the cycle again.
 function FitCamera({ extent, farmId }: { extent: Extent; farmId: string }) {
@@ -68,12 +83,14 @@ function FitCamera({ extent, farmId }: { extent: Extent; farmId: string }) {
   const invalidate = useThree((s) => s.invalidate);
   const touchedFor = useRef<string | null>(null);
   useLayoutEffect(() => {
-    if (!controls) return;
+    // Widened to unknown first: narrowing the store type directly keeps its `never` event map
+    const dispatcher: unknown = controls;
+    if (!emitsStart(dispatcher)) return;
     const onStart = () => {
       touchedFor.current = farmId;
     };
-    controls.addEventListener("start", onStart);
-    return () => controls.removeEventListener("start", onStart);
+    dispatcher.addEventListener("start", onStart);
+    return () => dispatcher.removeEventListener("start", onStart);
   }, [controls, farmId]);
   useLayoutEffect(() => {
     if (touchedFor.current === farmId || size.width === 0 || size.height === 0) return;
