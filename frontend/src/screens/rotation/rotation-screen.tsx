@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParcelStore } from "../../store/parcel-store";
 import { useTwinStore, type RotationPreview } from "../../store/twin-store";
 import { useStageStore } from "../../store/stage-store";
+import { useModuleView } from "../../store/module-store";
 import { useRotationView } from "../../store/rotation-store";
 import { recommendRotation, type RotationRecommendation, type RotationRequest, type RotationResponse, type RotationWindow } from "./rotation-api";
 import { isRecord } from "../../types/guards";
@@ -147,7 +148,7 @@ export default function RotationScreen() {
         recommendRotation(body, controller.signal),
         ...(rain !== 0 || temperature !== 0 ? [recommendRotation({ ...body, scenario: { temp_delta_c: temperature, precip_factor: 1 + rain / 100 } }, controller.signal)] : []),
       ]);
-      if (!controller.signal.aborted && base) { setBaseline(base); setScenario(alternative ?? null); setSubmitted(rain !== 0 || temperature !== 0 ? `Lluvia ${rain > 0 ? "+" : ""}${rain} % · temperatura ${temperature > 0 ? "+" : ""}${temperature} °C` : null); }
+      if (!controller.signal.aborted && base) { useModuleView.getState().setRotation({ farmId, baseline: base, scenario: alternative ?? null }); setBaseline(base); setScenario(alternative ?? null); setSubmitted(rain !== 0 || temperature !== 0 ? `Lluvia ${rain > 0 ? "+" : ""}${rain} % · temperatura ${temperature > 0 ? "+" : ""}${temperature} °C` : null); }
     } catch (err) {
       if (!controller.signal.aborted) { setError(err instanceof Error ? err.message : "No se pudo obtener el ranking."); setLoading(false); controller.abort(); }
     } finally { if (!controller.signal.aborted) setLoading(false); }

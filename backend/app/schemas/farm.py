@@ -64,6 +64,27 @@ class FarmAnalyzeRequest(StrictRequest):
     farm_id: str = "story_pilot_farm"
 
 
+class LatLon(StrictRequest):
+    lat: float
+    lon: float
+
+
+class PolygonFarmRequest(StrictRequest):
+    """User-drawn farm: one zone per polygon; vertices in order, ring closure optional."""
+
+    # Coarse bounds here; vertex counts, self-intersection, areas and span are checked in the parcel module
+    polygons: list[list[LatLon]] = Field(min_length=1, max_length=12)
+
+
+class PolygonFarmResponse(BaseModel):
+    farm_id: str
+    zone_count: int
+    # Approximate geodesic area (local equirectangular projection), per zone and total
+    zone_area_ha: list[float]
+    area_ha: float
+    data_state: DataState = DataState.DECLARED
+
+
 class CropOption(BaseModel):
     crop_id: str
     name_es: str

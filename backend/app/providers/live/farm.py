@@ -17,7 +17,17 @@ from datetime import date
 from pathlib import Path
 
 from app.engine.config import erosion_index_for
-from app.providers.live.parcel import ZONE_NAMES, Ring, cached, centroid, point_farm, point_zone_rings
+from app.providers.live.parcel import (
+    ZONE_NAMES,
+    Ring,
+    cached,
+    centroid,
+    custom_rings,
+    is_polygon_farm,
+    point_farm,
+    ring_area_ha,
+    rings_bbox,
+)
 from app.providers.ports import SoilProvider
 from app.providers.real.farm import RealFarmProvider
 from app.schemas.common import DataState, Location, Provenance
@@ -106,7 +116,9 @@ class GlobalFarmProvider(RealFarmProvider):
         if pt is None:
             return super().get_farm(farm_id)
         lat, lon = pt
-        rings = point_zone_rings(lat, lon)
+        rings = custom_rings(farm_id)
+        assert rings is not None
+        drawn = is_polygon_farm(farm_id)
 
         def build() -> dict[str, dict[str, float]]:
             with ThreadPoolExecutor(len(rings)) as ex:
@@ -122,9 +134,9 @@ class GlobalFarmProvider(RealFarmProvider):
         zones = [
             FarmZone(
                 zone_id=zid,
-                name=ZONE_NAMES[zid],
+                name=f"Lote {zid.removeprefix('zone_')}" if drawn else ZONE_NAMES[zid],
                 crop_id=DEFAULT_CROP,
-                area_ha=round((300.0 * 300.0) / 10000, 1),
+                area_ha=round(ring_area_ha(ring), 2),
                 geometry=_polygon(ring),
                 centroid=Location(lat=centroid(ring)[1], lon=centroid(ring)[0]),
                 soil=soils[zid],
@@ -133,29 +145,46 @@ class GlobalFarmProvider(RealFarmProvider):
             )
             for zid, ring in rings.items()
         ]
-        xs = [p[0] for r in rings.values() for p in r]
-        ys = [p[1] for r in rings.values() for p in r]
-        outline = [(min(xs), min(ys)), (max(xs), min(ys)), (max(xs), max(ys)), (min(xs), max(ys)), (min(xs), min(ys))]
+        w, s, e, n = rings_bbox(list(rings.values()))
+        outline = [(w, s), (e, s), (e, n), (w, n), (w, s)]
+        if drawn and len(rings) == 1:
+            outline = next(iter(rings.values()))
+        parcel = (
+            Provenance(
+                source="AGROX drawn farm (polygons drawn by the user on the map)",
+                data_state=DataState.DECLARED,
+                method="one zone per drawn polygon; area by shoelace on a local equirectangular projection "
+                "(approximate geodesic)",
+            )
+            if drawn
+            else Provenance(
+                source="AGROX point farm (36 ha square around the selected point)",
+                data_state=DataState.DECLARED,
+                method="2x2 zones of 300 m; not a surveyed property line",
+            )
+        )
+        boundary_note = (
+            "drawn farm: boundary drawn by the user (DECLARED); farm outline is the bounding box when there are "
+            "several polygons; soil is one SoilGrids sample at the farm centre and terrain one DEM sample per zone"
+            if drawn
+            else "point farm: boundary is a 36 ha square around the selected point, not a surveyed property line"
+        )
         return Farm(
             farm_id=farm_id,
-            name=f"Parcela en {lat:.4f}, {lon:.4f}",
-            area_ha=round(sum(z.area_ha for z in zones), 1),
+            name=f"Parcela dibujada en {lat:.4f}, {lon:.4f}" if drawn else f"Parcela en {lat:.4f}, {lon:.4f}",
+            area_ha=round(sum(z.area_ha for z in zones), 2),
             centroid=Location(lat=lat, lon=lon),
             geometry=_polygon(outline),
             zones=zones,
             provenance={
-                "parcel": Provenance(
-                    source="AGROX point farm (36 ha square around the selected point)",
-                    data_state=DataState.DECLARED,
-                    method="2x2 zones of 300 m; not a surveyed property line",
-                ),
+                "parcel": parcel,
                 "terrain": Provenance(
                     source="Copernicus DEM GLO-30 (Planetary Computer)", data_state=DataState.MEASURED
                 ),
                 "soil": zones[0].soil.provenance,
             },
             warnings=[
-                "point farm: boundary is a 36 ha square around the selected point, not a surveyed property line",
+                boundary_note,
                 f"crop not observed: '{DEFAULT_CROP}' assumed (DECLARED); declare the real crop per zone (zone_crops)",
                 "planting dates are a hemisphere calendar suggestion (ESTIMATED): declare them (planting_dates)",
                 *([f"terrain unavailable (Copernicus DEM: {terrain_error})"] if terrain_error else []),

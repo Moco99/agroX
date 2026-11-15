@@ -28,6 +28,11 @@ describe("rotation API", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: "Periodo sin datos" }), { status: 422 })));
     await expect(recommendRotation(request, new AbortController().signal)).rejects.toThrow("Periodo sin datos");
   });
+  it("names the offending field of a 422 validation error", async () => {
+    const detail = [{ type: "extra_forbidden", loc: ["body", "weights", "agua"], msg: "Extra inputs are not permitted" }];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail }), { status: 422 })));
+    await expect(recommendRotation(request, new AbortController().signal)).rejects.toThrow("Extra inputs are not permitted (campo: weights.agua)");
+  });
   it("rejects malformed ranking data", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ recommendations: [{ overall_score: "alto" }] }), { status: 200 })));
     await expect(recommendRotation(request, new AbortController().signal)).rejects.toThrow("formato inesperado");

@@ -14,7 +14,7 @@ from app.providers.live.parcel import MAX_LAT, MIN_LAT
 from app.providers.real import manifest_entry
 from app.schemas.climate import ClimateResponse
 from app.schemas.crops import CropCatalog
-from app.schemas.farm import FarmAnalyzeRequest, FarmAnalyzeResponse
+from app.schemas.farm import FarmAnalyzeRequest, FarmAnalyzeResponse, PolygonFarmRequest, PolygonFarmResponse
 from app.schemas.load import FarmLoadStatus
 from app.schemas.observations import NdviOverlay, ObservationSeries
 from app.schemas.rotations import RotationRecommendRequest
@@ -48,6 +48,7 @@ def health(p: ProvidersDep) -> dict[str, object]:
             "lat_range": [MIN_LAT, MAX_LAT],
             "lon_range": [-180.0, 180.0],
             "requires_mode": "live",
+            "polygon_id_pattern": "poly_<lat>_<lon>_<12 hex> (POST /api/farms/polygon)",
             "hint": None if p.any_parcel_supported else "restart the backend with AGROX_DATA_MODE=live (make dev-live)",
         },
         "weather_coverage": {"start": cov_start.isoformat(), "end": cov_end.isoformat()},
@@ -86,6 +87,11 @@ def farms(p: ProvidersDep) -> dict[str, object]:
 @router.post("/farms/analyze", response_model=FarmAnalyzeResponse)
 def analyze(p: ProvidersDep, body: FarmAnalyzeRequest) -> FarmAnalyzeResponse:
     return farm_service.analyze_farm(p, body.farm_id)
+
+
+@router.post("/farms/polygon", response_model=PolygonFarmResponse, status_code=201)
+def register_polygon_farm(body: PolygonFarmRequest) -> PolygonFarmResponse:
+    return farm_service.register_polygon(body)
 
 
 @router.get("/farms/{farm_id}", response_model=FarmAnalyzeResponse)

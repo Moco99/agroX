@@ -25,7 +25,9 @@ import {
   type CameraView,
 } from "../../lib/globe-view";
 import { observedNdvi } from "../../lib/derive";
+import { drawFeatures } from "../../lib/draw";
 import { api } from "../../services/api";
+import { useDrawStore } from "../../store/draw-store";
 import { useMapStore } from "../../store/map-store";
 import { openPilot } from "../../store/open-parcel";
 import { useParcelStore } from "../../store/parcel-store";
@@ -57,6 +59,8 @@ const SPIN_MAX_ZOOM = 3;
 const OFFLINE_AFTER_ERRORS = 4;
 // Farm overlays appear once the farm covers a few pixels; below that they would only add clutter
 const PARCEL_MIN_ZOOM = 10;
+// A click within this many pixels of the first vertex closes the polygon being drawn
+const CLOSE_PX = 12;
 
 export interface MapStatus {
   zoom: number;
@@ -207,7 +211,15 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
     map.on("wheel", touched);
 
     map.on("click", (e) => {
-      useMapStore.getState().select({ lat: e.lngLat.lat, lon: normalizeLon(e.lngLat.lng) });
+      const point = { lat: e.lngLat.lat, lon: normalizeLon(e.lngLat.lng) };
+      const draw = useDrawStore.getState();
+      if (!draw.active) {
+        useMapStore.getState().select(point);
+        return;
+      }
+      const first = draw.current[0];
+      const near = first ? map.project([first.lon, first.lat]).dist(e.point) <= CLOSE_PX : false;
+      draw.add(point, near);
     });
 
     // ── Network health: failed GIBS/Esri tiles flip the offline banner; one good tile clears it ──
@@ -369,6 +381,47 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
       paint: { "line-color": "#9dff6a", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.5, 16, 3.5] },
     });
   }, [ready, farm]);
+
+  // ── Drawing mode: finished polygons, the open path and its vertices (first vertex larger: click it to close) ──
+  const drawing = useDrawStore();
+  useEffect(() => {
+    const map = ready;
+    if (!map) return;
+    map.getCanvas().style.cursor = drawing.active ? "crosshair" : "";
+    const data = drawFeatures(drawing);
+    const source = map.getSource<GeoJSONSource>("draw");
+    if (source) {
+      source.setData(data);
+      return;
+    }
+    map.addSource("draw", { type: "geojson", data });
+    map.addLayer({
+      id: "draw-fill",
+      type: "fill",
+      source: "draw",
+      filter: ["==", ["get", "kind"], "polygon"],
+      paint: { "fill-color": "#ffd166", "fill-opacity": 0.25 },
+    });
+    map.addLayer({
+      id: "draw-line",
+      type: "line",
+      source: "draw",
+      filter: ["in", ["get", "kind"], ["literal", ["polygon", "path"]]],
+      paint: { "line-color": "#ffd166", "line-width": 2 },
+    });
+    map.addLayer({
+      id: "draw-vertex",
+      type: "circle",
+      source: "draw",
+      filter: ["in", ["get", "kind"], ["literal", ["first", "vertex"]]],
+      paint: {
+        "circle-radius": ["case", ["==", ["get", "kind"], "first"], 7, 4],
+        "circle-color": "#ffd166",
+        "circle-stroke-color": "#1b1b1b",
+        "circle-stroke-width": 1.5,
+      },
+    });
+  }, [ready, drawing]);
 
   // ── Zone labels (DOM markers: the globe style ships no glyphs for symbol layers) ──
   useEffect(() => {

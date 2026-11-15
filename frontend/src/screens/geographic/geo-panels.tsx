@@ -4,9 +4,11 @@ import { sameQueriedPoint } from "../../lib/coordinates";
 import { DataStateBadge } from "../../components/data-state-badge";
 import { es, fmt } from "../../i18n/es";
 import { defaultPointRange, EXPLORE_PLACES, insideBounds, PILOT_BOUNDS } from "../../lib/globe-view";
+import { areaHa, canConfirm, canFinish } from "../../lib/draw";
 import { isPilotFarm, parcelIdFromPoint } from "../../lib/parcel";
+import { useDrawStore } from "../../store/draw-store";
 import { useMapStore } from "../../store/map-store";
-import { canOpenAt, openParcelAt, openPilot, selectPilot } from "../../store/open-parcel";
+import { canOpenAt, openDrawn, openParcelAt, openPilot, selectPilot } from "../../store/open-parcel";
 import { useParcelStore } from "../../store/parcel-store";
 import { usePointStore } from "../../store/point-store";
 import { useStageStore } from "../../store/stage-store";
@@ -25,6 +27,61 @@ function coverageVerdict(
   const data = result.sections.coverage.data;
   const flag = data?.es_cultivo;
   return typeof flag === "boolean" ? flag : null;
+}
+
+// ─────────────────────────────────────────
+// Section: Draw your own parcel (any simple polygon; several polygons = several zones)
+// ─────────────────────────────────────────
+
+function DrawParcelCard() {
+  const draw = useDrawStore();
+  const capability = useParcelStore((s) => s.capability);
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const total = draw.polygons.reduce((s, p) => s + areaHa(p), 0);
+  const confirm = async () => {
+    setSending(true);
+    setError(null);
+    const err = await openDrawn(draw.polygons);
+    setSending(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    draw.clear();
+    draw.setActive(false);
+  };
+  return (
+    <section className="card" data-testid="draw-parcel">
+      <h3>{es.drawParcel.title}</h3>
+      <p className="muted">{draw.active ? es.drawParcel.activeHint : es.drawParcel.hint}</p>
+      <button type="button" className="ghost-button wide-button" aria-pressed={draw.active}
+        onClick={() => draw.setActive(!draw.active)}>
+        {draw.active ? es.drawParcel.stop : es.drawParcel.start}
+      </button>
+      {(draw.active || draw.polygons.length > 0) && (
+        <>
+          <div className="panel-actions">
+            <button type="button" className="ghost-button" onClick={draw.undo}
+              disabled={draw.current.length === 0 && draw.polygons.length === 0}>{es.drawParcel.undo}</button>
+            <button type="button" className="ghost-button" onClick={draw.finish} disabled={!canFinish(draw)}>
+              {es.drawParcel.finish}
+            </button>
+            <button type="button" className="ghost-button" onClick={draw.clear}>{es.drawParcel.clear}</button>
+          </div>
+          <small className="muted">
+            {es.drawParcel.summary(draw.polygons.length, total, draw.current.length)} <DataStateBadge state="DECLARED" />
+          </small>
+          <button type="button" className="play-button wide-button" onClick={() => void confirm()}
+            disabled={!canConfirm(draw) || sending || capability === "unsupported"}>
+            {sending ? es.drawParcel.sending : es.drawParcel.confirm} ↗
+          </button>
+          {capability === "unsupported" && <p className="coverage-note is-warn">{es.openParcel.unsupported}</p>}
+          {error && <p className="coverage-note is-warn" role="alert">{es.drawParcel.failed(error)}</p>}
+        </>
+      )}
+    </section>
+  );
 }
 
 // ─────────────────────────────────────────
@@ -178,6 +235,7 @@ export function GlobePanel() {
           <p className="muted">{es.geo.choose}</p>
         )}
       </section>
+      <DrawParcelCard />
       {phase !== "idle" && phase !== "ready" && !isPilotFarm(farmId) && <LoadProgress />}
       <section className="card">
         <h3>{es.geo.pilotTitle}</h3>

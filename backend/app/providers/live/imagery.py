@@ -26,7 +26,15 @@ from PIL import Image
 
 from app.engine.imagery import heightmap_stats, true_color_composite
 from app.engine.ndvi import S2_BOA_OFFSET, colorize_ndvi, compute_ndvi
-from app.providers.live.parcel import ZONE_SIDE_M, _lock_for, point_farm
+from app.providers.live.parcel import (
+    M_PER_DEG,
+    ZONE_SIDE_M,
+    _lock_for,
+    is_polygon_farm,
+    point_farm,
+    polygon_zone_rings,
+    rings_bbox,
+)
 from app.providers.ports import DataNotFoundError
 
 PC = "https://planetarycomputer.microsoft.com/api"
@@ -110,6 +118,14 @@ def imagery_bounds(lat: float, lon: float) -> Bounds:
     return (round(lon - dlon, 6), round(lat - dlat, 6), round(lon + dlon, 6), round(lat + dlat, 6))
 
 
+def drawn_bounds(bbox: Bounds) -> Bounds:
+    """Bbox of the drawn polygons plus the same margin as point farms."""
+    w, s, e, n = bbox
+    dlat = IMAGERY_MARGIN_M / M_PER_DEG
+    dlon = IMAGERY_MARGIN_M / (M_PER_DEG * math.cos(math.radians((s + n) / 2)))
+    return (round(w - dlon, 6), round(s - dlat, 6), round(e + dlon, 6), round(n + dlat, 6))
+
+
 def grid_shape(bounds: Bounds, pixel_m: float) -> tuple[int, int]:
     """(width, height) in pixels of the native grid of a sensor over bounds."""
     w, s, e, n = bounds
@@ -169,6 +185,8 @@ class PointImageryProvider:
         return pt
 
     def bounds(self, farm_id: str) -> Bounds:
+        if is_polygon_farm(farm_id):
+            return drawn_bounds(rings_bbox(list(polygon_zone_rings(farm_id).values())))
         return imagery_bounds(*self._point(farm_id))
 
     def _save(self, path: Path, data: bytes) -> None:
