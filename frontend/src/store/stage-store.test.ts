@@ -10,7 +10,7 @@ import { FADE_MS, readDeepLink, REVEAL_MS, useStageStore } from "./stage-store";
 
 function reset(stage: "globe" | "map" | "twin" = "globe"): void {
   useStageStore.setState({ stage, phase: "idle", pending: null, reducedMotion: false, twinIntro: false });
-  useMapStore.setState({ flight: null, interacted: false, selected: null });
+  useMapStore.setState({ flight: null, interacted: false });
 }
 
 describe("readDeepLink", () => {

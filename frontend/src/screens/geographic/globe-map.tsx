@@ -120,7 +120,6 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
   const [retry, setRetry] = useState(0);
   const stage = useStageStore((s) => s.stage);
   const reducedMotion = useStageStore((s) => s.reducedMotion);
-  const selected = useMapStore((s) => s.selected);
   const flight = useMapStore((s) => s.flight);
   const interacted = useMapStore((s) => s.interacted);
   const farm = useTwinStore((s) => s.farm)?.farm;
@@ -213,10 +212,7 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
     map.on("click", (e) => {
       const point = { lat: e.lngLat.lat, lon: normalizeLon(e.lngLat.lng) };
       const draw = useDrawStore.getState();
-      if (!draw.active) {
-        useMapStore.getState().select(point);
-        return;
-      }
+      if (!draw.active) return;
       const first = draw.current[0];
       const near = first ? map.project([first.lon, first.lat]).dist(e.point) <= CLOSE_PX : false;
       draw.add(point, near);
@@ -305,16 +301,6 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
     },
     [],
   );
-
-  // ── Selected point marker ──
-  useEffect(() => {
-    const map = ready;
-    if (!map || !selected) return;
-    const marker = new Marker({ color: "#a4ed75" }).setLngLat([selected.lon, selected.lat]).addTo(map);
-    return () => {
-      marker.remove();
-    };
-  }, [selected, ready]);
 
   // ── The user's own location (set by "Usar mi ubicación") ──
   const located = useMapStore((s) => s.located);

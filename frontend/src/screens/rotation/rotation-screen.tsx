@@ -22,7 +22,7 @@ function InputDetails({ inputs }: { inputs: Record<string, unknown> }) {
     const val = isRecord(value) ? value.value : value;
     const source = isRecord(value) && typeof value.source === "string" ? value.source : "";
     const state = isRecord(value) && typeof value.data_state === "string" ? value.data_state : "";
-    const label: Record<string, string> = { t_mean: "Temperatura media", rain_mm: "Precipitación acumulada", soil_ph: "pH del suelo", soil_awc: "Agua disponible", t_extreme_days: "Días de temperatura extrema", start: "Inicio", end: "Fin", farm_id: "Parcela" };
+    const label: Record<string, string> = { days: "Días", t_mean: "Temperatura media", rain_mm: "Precipitación acumulada", soil_ph: "pH del suelo", soil_awc: "Agua disponible", t_extreme_days: "Días de temperatura extrema", start: "Inicio", end: "Fin", farm_id: "Parcela" };
     if (val === undefined || typeof val === "object" && val !== null) return null;
     return <div key={key}><dt>{label[key] ?? key.replaceAll("_", " ")}</dt><dd>{val === null ? "No declarado" : typeof val === "number" ? val.toFixed(2) : String(val)}{key === "t_mean" ? " °C" : key === "rain_mm" ? " mm" : ""}{key === "soil_ph" && val !== null ? " · Declarado" : ""}{state && <small> · {state}</small>}{source && <small> · {source}</small>}</dd></div>;
   })}</dl>;
@@ -55,7 +55,7 @@ function Ranking({ result, title, canPreview, onPreview }: RankingProps) {
         {item.family_repeats !== undefined && <p className="muted">Repeticiones consecutivas de familia: {item.family_repeats}</p>}
         <ol className="rotation-cycles">{item.cycles.map((cycle) => <li key={`${cycle.cycle}-${cycle.crop_id}`}><strong>Ciclo {cycle.cycle}: {cycle.name}</strong><span>{cycle.family} · Lluvia {cycle.rainfall_fit.toFixed(1)} · Temperatura {cycle.temperature_fit.toFixed(1)}{cycle.ph_fit !== null ? ` · pH ${cycle.ph_fit.toFixed(1)}` : " · pH sin declarar"}</span>
           {cycle.window && <span>{cycle.window.start} a {cycle.window.end}</span>}
-          {cycle.warnings.filter((warning) => warning.startsWith("La ventana")).map((warning) => <span key={warning}>{warning}</span>)}
+          {cycle.warnings.filter((warning) => warning.startsWith("La ventana") || warning.startsWith("Lluvia de")).map((warning) => <span key={warning}>{warning}</span>)}
           {cycle.twin_supported ? (
             <button className="ghost-button rotation-preview" type="button" disabled={!canPreview} onClick={() => onPreview(item, cycle.cycle - 1)}>
               Simular ciclo {cycle.cycle} en 3D
@@ -83,6 +83,7 @@ export default function RotationScreen() {
   const [windows, setWindows] = useState<RotationWindow[]>(Array.from({ length: 4 }, () => ({ start: "", end: "" })));
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previous, setPrevious] = useState("");
+  const [startCrop, setStartCrop] = useState("");
   const [sameFamily, setSameFamily] = useState(false);
   const [ph, setPh] = useState("");
   const [rain, setRain] = useState(0);
@@ -106,7 +107,7 @@ export default function RotationScreen() {
     setLoading(false); setError(null); setPreviewError(null);
     setStart(initialSpan.current.start); setEnd(initialSpan.current.end);
     setBaseline(null); setScenario(null); setSubmitted(null);
-    setPrevious(""); setPh(""); setUseWindows(false);
+    setPrevious(""); setStartCrop(""); setPh(""); setUseWindows(false);
     setWindows(Array.from({ length: 4 }, () => ({ start: "", end: "" })));
   }, [farmId]);
 
@@ -141,7 +142,7 @@ export default function RotationScreen() {
       farm_id: farmId, start: from, end: to, cycles, top_k: 3, exclude_same_family: sameFamily, weights,
       twin_only: twinOnly, ...(cycleWindows ? { cycle_windows: cycleWindows } : {}),
       scenario: { temp_delta_c: 0, precip_factor: 1 },
-      ...(previous ? { previous_crop: previous } : {}), ...(ph.trim() ? { soil_ph: Number(ph) } : {}),
+      ...(previous ? { previous_crop: previous } : {}), ...(startCrop ? { start_crop: startCrop } : {}), ...(ph.trim() ? { soil_ph: Number(ph) } : {}),
     };
     try {
       const [base, alternative] = await Promise.all([
@@ -193,7 +194,8 @@ export default function RotationScreen() {
         </>}
           <label>Ciclos<select value={cycles} onChange={(e) => setCycles(Number(e.target.value))}><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option></select></label>
           <label>pH declarado (opcional)<input type="number" min={0} max={14} step="0.1" placeholder="Sin declarar" value={ph} onChange={(e) => setPh(e.target.value)} /></label>
-          <label>Cultivo anterior<select value={previous} onChange={(e) => setPrevious(e.target.value)}><option value="">No declarado</option>{crops.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label></div>
+          <label>Cultivo anterior<select value={previous} onChange={(e) => setPrevious(e.target.value)}><option value="">No declarado</option>{crops.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+          <label>Cultivo inicial<select value={startCrop} onChange={(e) => setStartCrop(e.target.value)}><option value="">Automático</option>{crops.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label></div>
         <label className="rotation-checkbox"><input type="checkbox" checked={sameFamily} onChange={(e) => setSameFamily(e.target.checked)} /> Evitar familia botánica consecutiva</label><p className="muted">Filtro opcional; su aplicación depende del cultivo y del manejo local.</p>
         <label className="rotation-checkbox"><input type="checkbox" checked={twinOnly} onChange={(e) => setTwinOnly(e.target.checked)} /> Solo cultivos que se pueden simular en el gemelo</label>
         <label className="rotation-checkbox"><input type="checkbox" checked={useWindows} onChange={(e) => setUseWindows(e.target.checked)} /> Usar fechas distintas por ciclo</label>
@@ -213,6 +215,13 @@ export default function RotationScreen() {
           </fieldset>
         ))}
       </section>
+      <details className="card rotation-help"><summary>¿Cómo subir el índice?</summary>
+        <ul>
+          <li><strong>Lluvia:</strong> la lluvia de tu ventana se lleva a la duración del ciclo del cultivo y se compara con su rango óptimo EcoCrop. Una ventana más lluviosa o más seca que ese rango baja el valor.</li>
+          <li><strong>Temperatura:</strong> la temperatura media de la ventana debe caer dentro del rango óptimo del cultivo; cambiar las fechas de siembra mueve este valor.</li>
+          <li><strong>pH:</strong> declara el pH de tu suelo para activar este componente; sin declararlo no cuenta en el índice. Cuanto más cerca del rango óptimo del cultivo, mayor el valor.</li>
+          <li>El índice es comparativo: 100 significa que todos los factores están en su rango óptimo para la ventana y el lugar elegidos. No es una probabilidad ni un rendimiento esperado.</li>
+        </ul></details>
       <section className="card"><h2>Prioridades</h2><p className="muted">Los pesos se normalizan al comparar alternativas.</p>
         {([ ["water", "Agua"], ["soil", "Suelo"], ["climate", "Clima"] ] as const).map(([key, label]) => <label className="rotation-slider" key={key}>{label} <strong>{weights[key]}</strong><input type="range" min={0} max={10} value={weights[key]} onChange={(e) => setWeights((w) => ({ ...w, [key]: Number(e.target.value) }))} /></label>)}
       </section>

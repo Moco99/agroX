@@ -14,7 +14,8 @@ interface Extent {
   maxZ: number;
 }
 
-export function Ground({ extent, surface = "#3E5A35", topPlane = true }: { extent: Extent; surface?: string; topPlane?: boolean }) {
+// `pad` is the total margin added to the extent; 0 when the extent already is the textured area
+export function Ground({ extent, surface = "#3E5A35", topPlane = true, pad = 6 }: { extent: Extent; surface?: string; topPlane?: boolean; pad?: number }) {
   const w = extent.maxX - extent.minX;
   const d = extent.maxZ - extent.minZ;
   const cx = (extent.maxX + extent.minX) / 2;
@@ -23,12 +24,12 @@ export function Ground({ extent, surface = "#3E5A35", topPlane = true }: { exten
     <group>
       {/* Soil slab under the farm gives the diorama its "cut-out" look */}
       <mesh position={[cx, -0.35, cz]}>
-        <boxGeometry args={[w + 6, 0.7, d + 6]} />
+        <boxGeometry args={[w + pad, 0.7, d + pad]} />
         <meshLambertMaterial color="#5B4632" />
       </mesh>
       {topPlane && (
         <mesh position={[cx, 0.0, cz]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[w + 6, d + 6]} />
+          <planeGeometry args={[w + pad, d + pad]} />
           <meshLambertMaterial color={surface} />
         </mesh>
       )}

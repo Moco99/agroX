@@ -54,6 +54,13 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
     return { west, south, east, north };
   }, [projector, e]);
   const heightmap = useTwinStore((s) => s.heightmap);
+  // The slab must cover exactly the textured terrain (the DEM bounds can differ from the farm box), else a bare rim shows
+  const groundExtent = useMemo(() => {
+    const b = heightmap?.bounds ?? groundBounds;
+    const [west, north] = projector.toLocal(b.west, b.north);
+    const [east, south] = projector.toLocal(b.east, b.south);
+    return { minX: west * SCENE_SCALE, maxX: east * SCENE_SCALE, minZ: -north * SCENE_SCALE, maxZ: -south * SCENE_SCALE };
+  }, [heightmap, groundBounds, projector]);
   const anyIrrigation = views.some((v) => v.zone.irrigation_level !== "NONE");
   // A fixed portal target keeps drei <Html> from re-creating its React roots when the canvas parent settles
   const labelsRef = useRef<HTMLDivElement>(null!);
@@ -74,7 +81,7 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
       <ObservedTerrain projector={projector} fallbackBounds={groundBounds} fallbackColor={pilot ? "#526741" : surface}/>
       <BuildingsLayer projector={projector} bounds={heightmap?.bounds ?? groundBounds} />
       <ContactShadows position={[0,-.15,0]} opacity={.4} scale={60} blur={2} far={20}/>
-      <Ground extent={extent} surface={pilot ? undefined : surface} topPlane={Boolean(heightmap)} />
+      <Ground extent={groundExtent} pad={0} surface={pilot ? undefined : surface} topPlane={Boolean(heightmap)} />
       {pilot && <><Road extent={extent} /><Pond extent={extent} /><Trees extent={extent} /></>}
       {views.map((v) => {
         const ring = rings[v.zone.zone_id];

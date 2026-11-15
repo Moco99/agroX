@@ -15,8 +15,8 @@ export const es = {
   geo: {
     title: "Exploración satelital global",
     eyebrow: "OBSERVACIÓN DE LA TIERRA",
-    hint: "Arrastra para girar el globo y acerca con la rueda o dos dedos hasta ver campos individuales en cualquier lugar. Haz clic para elegir un punto.",
-    gesture: "Arrastra para girar · rueda para acercarte hasta las parcelas · clic para elegir un punto",
+    hint: "Arrastra para girar el globo y acerca con la rueda o dos dedos hasta ver campos individuales en cualquier lugar. Dibuja tu parcela sobre la imagen.",
+    gesture: "Arrastra para girar · rueda para acercarte hasta las parcelas · dibuja tu parcela",
     loading: "Cargando el globo…",
     retry: "Reintentar imágenes",
     unavailable:
@@ -24,13 +24,6 @@ export const es = {
     offlineTitle: "Sin conexión: imágenes globales no disponibles",
     offlineBody:
       "Se muestra un mosaico global reducido (NASA Blue Marble, incluido en la app) y, en el piloto de Iowa, la ortofoto NAIP servida por el backend.",
-    selected: "Punto seleccionado",
-    choose: "Haz clic en cualquier punto del globo para consultar sus fuentes (relieve, suelo, clima, vegetación).",
-    analyze: "Consultar este punto",
-    analyzeHint: "La primera consulta tarda unos 20 s: se piden las fuentes en vivo.",
-    insidePilot: "Dentro del piloto: parcelas, NDVI por fecha y gemelo 3D disponibles.",
-    outsidePilot:
-      "Fuera del piloto: puedes abrir una parcela de 36 ha centrada en este punto (límite aproximado, no un predio) con NDVI por fecha y gemelo 3D.",
     pilot: "Visitar piloto de Iowa",
     pinLabel: "Piloto Iowa",
     twin: "Abrir gemelo 3D del piloto",
@@ -38,7 +31,7 @@ export const es = {
     pilotHint:
       "Parcela de referencia con datos medidos de campo (cultivo CDL, suelo SSURGO) y funcionamiento sin conexión.",
     places: "Explorar otros lugares",
-    placesHint: "Imagen satelital a nivel de campo; elige un punto y abre su parcela.",
+    placesHint: "Imagen satelital a nivel de campo; dibuja tu parcela o abre el piloto.",
     place: {
       pampa: "Pampa húmeda · Pergamino, Argentina",
       veracruz: "Caña de azúcar · Úrsulo Galván, Veracruz",
@@ -73,7 +66,7 @@ export const es = {
   },
   point: {
     search: "Consultar coordenadas",
-    locate: "Ver en mapa",
+    locate: "Ir y dibujar parcela",
     enterCoordinates: "Ingresar coordenadas",
     title: "Análisis del punto consultado",
     hint: "Consulta fuentes históricas bajo demanda por latitud y longitud. Esta consulta no modifica el gemelo de Iowa.",
@@ -546,8 +539,6 @@ export const es = {
     parcelId: "Parcela",
     approx: "Límite aproximado de 36 ha alrededor del punto; no es un predio ni un límite catastral.",
     notCrop: "Este punto no parece cultivo; los resultados pueden no servir. Puedes continuar de todos modos.",
-    coverageUnknown: "Cobertura no verificada. Usa «Consultar este punto» para saber si es cultivo.",
-    coverageOk: "La consulta de cobertura indica campo de cultivo.",
     latSouth: "Latitud menor a −60°: no hay cobertura de Sentinel-2 ni de relieve Copernicus utilizable para crear una parcela.",
     latNorth: "Latitud mayor a 75°: no hay cobertura de Sentinel-2 ni de relieve Copernicus utilizable para crear una parcela.",
     invalid: "Coordenadas inválidas: no se puede crear una parcela.",
