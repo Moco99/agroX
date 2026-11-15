@@ -2,6 +2,7 @@ import { useRotationView } from "../store/rotation-store";
 import { es } from "../i18n/es";
 import { useMapStore } from "../store/map-store";
 import { usePointStore } from "../store/point-store";
+import { useModuleView, type ModuleId } from "../store/module-store";
 import { useStageStore, type Stage } from "../store/stage-store";
 
 // ─────────────────────────────────────────
@@ -12,6 +13,7 @@ import { useStageStore, type Stage } from "../store/stage-store";
 export function navigateTo(target: Stage): void {
   usePointStore.getState().close();
   useRotationView.getState().close();
+  useModuleView.getState().close();
   const { stage, goTo } = useStageStore.getState();
   if (target === "twin") {
     goTo("twin");
@@ -26,21 +28,23 @@ interface NavItem {
   label: string;
   stage: Stage | null;
   rotation?: boolean;
+  module?: ModuleId;
   icon: string;
 }
 
 const ITEMS: NavItem[] = [
   { label: es.nav.exploration, stage: "globe", icon: "◎" },
   { label: es.nav.vegetation, stage: "map", icon: "❦" },
-  { label: es.nav.climate, stage: null, icon: "☁" },
+  { label: es.nav.climate, stage: null, module: "climate", icon: "☁" },
   { label: es.nav.rotations, stage: null, rotation: true, icon: "↻" },
   { label: es.nav.scenarios, stage: "twin", icon: "◈" },
-  { label: es.nav.reports, stage: null, icon: "▤" },
+  { label: es.nav.reports, stage: null, module: "reports", icon: "▤" },
 ];
 
 export function Sidebar() {
   const stage = useStageStore((s) => s.stage);
   const rotationActive = useRotationView((s) => s.active);
+  const moduleActive = useModuleView((s) => s.active);
   return (
     <aside className="sidebar">
       <div className="logo">
@@ -61,24 +65,22 @@ export function Sidebar() {
       </div>
       <nav>
         {ITEMS.map((item) => {
-          const disabled = item.stage === null && !item.rotation;
           return (
             <button
               key={item.label}
               type="button"
-              className={`nav-item${(item.rotation ? rotationActive : !rotationActive && item.stage === stage) ? " is-active" : ""}`}
-              disabled={disabled}
+              className={`nav-item${(item.module ? moduleActive === item.module : item.rotation ? rotationActive : !rotationActive && !moduleActive && item.stage === stage) ? " is-active" : ""}`}
               onClick={() => {
-                if (item.rotation) { usePointStore.getState().close(); useRotationView.getState().open(); }
+                if (item.module) { usePointStore.getState().close(); useRotationView.getState().close(); useModuleView.getState().open(item.module); }
+                else if (item.rotation) { usePointStore.getState().close(); useModuleView.getState().close(); useRotationView.getState().open(); }
                 else if (item.stage) navigateTo(item.stage);
               }}
-              title={disabled ? es.nav.soon : item.label}
+              title={item.label}
             >
               <span className="nav-icon" aria-hidden>
                 {item.icon}
               </span>
               {item.label}
-              {disabled && <small className="nav-soon">{es.nav.soon}</small>}
             </button>
           );
         })}

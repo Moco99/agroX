@@ -1,0 +1,17 @@
+.report { max-width: 860px; margin: 0 auto; display: grid; gap: 14px; line-height: 1.5; }
+.report h1 { font-size: 24px; }
+.report h2 { font-size: 16px; margin-bottom: 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+.report table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.report th, .report td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.report ul, .report ol { padding-left: 20px; }
+.report-disclaimer { padding: 12px 16px; border: 1px solid #77632b; background: #302d20; color: #f3d788; border-radius: 10px; }
+.report-actions { max-width: 860px; margin: 0 auto 12px; display: flex; justify-content: flex-end; }
+
+@media print {
+  .sidebar, .top-bar, .topbar, .bottom-bar, .report-actions, .ai-card, .help-pop { display: none !important; }
+  html, body, #root, .app, .main, .stage-host, .module-screen { display: block !important; height: auto !important; overflow: visible !important; background: #fff !important; color: #000 !important; }
+  .report { max-width: none; color: #000; }
+  .report * { color: #000 !important; background: transparent !important; border-color: #888 !important; }
+  .report section { break-inside: avoid; }
+  .report-disclaimer { border: 1px solid #000; }
+}
