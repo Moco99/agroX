@@ -142,6 +142,18 @@ Regla de producto: una persona sin formación agronómica debe entender cada nú
 | Guía rápida y glosario | Botón «Guía» en la barra superior (y en Ayuda): 4 pasos de uso, colores, `data_state`, glosario con búsqueda; `Esc` cierra | `app-shell/guide-panel.tsx` |
 | Leyendas de capa | Rampa + clases NDVI + frase de significado + unidad escrita | `components/layer-legend.tsx` |
 
-**Umbrales de las lecturas (sin cifras inventadas).** Agua disponible: "suficiente" si queda ≥ (1 − p) del TAW (p del catálogo vía engine, FAO-56); por debajo, la severidad sigue la clase de estrés. Estrés: clases de Ks que publica el backend (`stress_class_thresholds_mean_ks`, configuración de producto). NDVI: clases visuales de la rampa canónica (0.2/0.35/0.5/0.65/0.8), rotuladas en la UI como "no umbrales agronómicos". SPI: clases de McKee et al. (1993). Anomalía de lluvia: solo dirección (más/menos que lo usual). Índice de rotación: relativo a la mejor opción comparada; compatibilidades según el trapecio EcoCrop (100 dentro del óptimo, 0 fuera del rango tolerado). Temperatura y precipitación del gemelo: lectura neutral (sin umbral de cultivo en esta vista).
+**Umbrales de las lecturas (sin cifras inventadas).**
+- Agua disponible: "suficiente" si queda ≥ (1 − p) del TAW (Dr ≤ RAW, FAO-56; p del catálogo vía engine). Por debajo, la severidad sigue la clase de estrés del mismo día.
+- Estrés: la clase del día es **orientativa**. Reutiliza los umbrales que el backend publica para el **Ks medio** (`stress_class_thresholds_mean_ks`, configuración de producto) aplicados a un Ks diario; la UI lo dice así en «¿Cómo se calcula?».
+- NDVI: clases visuales de la rampa canónica (0.2/0.35/0.5/0.65/0.8) con tono **siempre neutral**. Las palabras describen el follaje, no lo juzgan: un NDVI bajo es normal antes de sembrar o tras cosechar.
+- SPI: clases de McKee et al. (1993). Los tonos son una **decisión de producto**: normal = bien; seco moderado = atención; muy o extremadamente seco = problema; húmedo moderado = referencia; muy o extremadamente húmedo = atención (posible exceso de agua). El backend solo lo calcula con ≥ 30 años de referencia (`spi.MIN_YEARS`).
+- Anomalía de lluvia: solo dirección (más/menos que lo usual); requiere ≥ 10 años.
+- Índice de rotación: relativo a la mejor opción comparada; compatibilidades según el trapecio EcoCrop (100 dentro del óptimo, 0 fuera del rango tolerado).
+- Temperatura y precipitación del gemelo: lectura neutral (sin umbral de cultivo en esta vista).
+
+**Fórmulas fieles al código.**
+- Grados-día del gemelo (`engine/phenology.py::daily_gdd`): método modificado cuando el cultivo trae `t_cap_gdd` (Tmáx limitada al tope y Tmín subida a la base); si no, promedio simple. Los grados-día del panel de Clima (`engine/indicators.py`) usan el promedio simple con la base fija que publica el backend. Son dos explicaciones distintas (`gddTwin` / `gddClimate`).
+- El balance hídrico resta `ETc ajustada = Ks × Kc × ET0` (`engine/water_balance.py`).
+- `frontend/src/lib/formulas.test.ts` fija estos textos contra el código del motor.
 
 **Estados vacío / carga / error** dicen qué hacer (reintentar, ir a Exploración, cambiar fechas). Las explicaciones de "AGROX AI" son plantillas deterministas (`lib/explain.ts`) en lenguaje simple; usan `stress_day_ks` del backend cuando está disponible. Los IDs de metodología (`twin_v1`, `climate_v1`) se muestran como texto legible.

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DataStateLegend } from "../components/explain/data-state-legend";
 import { ReadingChip } from "../components/explain/reading-chip";
 import { es } from "../i18n/es";
@@ -10,6 +10,7 @@ import { useGuideStore } from "../store/guide-store";
 // ─────────────────────────────────────────
 
 const TONES: Tone[] = ["good", "warn", "bad", "neutral"];
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
 
 // Accent-insensitive match so "indice" finds "índice" on any keyboard
 function normalize(s: string): string {
@@ -82,20 +83,44 @@ export function GuidePanel() {
   const open = useGuideStore((s) => s.open);
   const setOpen = useGuideStore((s) => s.setOpen);
 
-  // Esc closes the guide like the other overlays
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // Modal dialog contract: focus moves in on open, Tab cycles inside, Esc closes and focus returns to the opener
   useEffect(() => {
     if (!open) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      if (e.key !== "Tab" || !panelRef.current) return;
+      const focusable = panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE);
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      opener?.focus();
+    };
   }, [open, setOpen]);
 
   if (!open) return null;
   return (
     <div className="guide-scrim" onClick={() => setOpen(false)}>
       <div
+        ref={panelRef}
         className="guide-panel"
         role="dialog"
         aria-modal="true"
@@ -105,7 +130,7 @@ export function GuidePanel() {
       >
         <div className="card-head">
           <h3>{es.guide.title}</h3>
-          <button type="button" className="icon-button" onClick={() => setOpen(false)} aria-label={es.guide.close}>
+          <button ref={closeRef} type="button" className="icon-button" onClick={() => setOpen(false)} aria-label={es.guide.close}>
             ✕
           </button>
         </div>
