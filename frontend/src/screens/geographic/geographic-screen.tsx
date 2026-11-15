@@ -61,6 +61,23 @@ function fmtCoord(val: number, posHem: string, negHem: string): string {
   return `${Math.abs(val).toFixed(4)}° ${hem}`;
 }
 
+// Precomputed degree ticks around the orbital HUD ring
+const HUD_TICKS = Array.from({ length: 72 }, (_, i) => {
+  const deg = i * 5;
+  const rad = (deg * Math.PI) / 180;
+  const major = deg % 30 === 0;
+  const r1 = 238;
+  const r2 = major ? 246 : 242;
+  return {
+    deg,
+    major,
+    x1: 300 + r1 * Math.cos(rad),
+    y1: 300 + r1 * Math.sin(rad),
+    x2: 300 + r2 * Math.cos(rad),
+    y2: 300 + r2 * Math.sin(rad),
+  };
+});
+
 // ─────────────────────────────────────────
 // Section: Geographic screen (globe + farm stages over one MapLibre view)
 // ─────────────────────────────────────────
@@ -86,33 +103,49 @@ export default function GeographicScreen() {
 
         {stage === "globe" && (
           <svg className="globe-hud-rings" viewBox="0 0 600 600" aria-hidden>
+            <defs>
+              <radialGradient id="globeAtmosGlow" cx="50%" cy="50%" r="50%">
+                <stop offset="68%" stopColor="rgba(56, 189, 248, 0)" />
+                <stop offset="76%" stopColor="rgba(56, 189, 248, 0.22)" />
+                <stop offset="81%" stopColor="rgba(147, 197, 253, 0.35)" />
+                <stop offset="85%" stopColor="rgba(59, 130, 246, 0.12)" />
+                <stop offset="100%" stopColor="rgba(59, 130, 246, 0)" />
+              </radialGradient>
+            </defs>
+            <circle cx="300" cy="300" r="285" fill="url(#globeAtmosGlow)" />
             <circle
               cx="300"
               cy="300"
-              r="225"
+              r="238"
               fill="none"
-              stroke="rgba(125, 180, 245, 0.18)"
-              strokeWidth="1"
-              strokeDasharray="4 6"
+              stroke="rgba(186, 218, 255, 0.22)"
+              strokeWidth="0.9"
             />
             <circle
               cx="300"
               cy="300"
-              r="242"
+              r="254"
               fill="none"
-              stroke="rgba(125, 180, 245, 0.12)"
+              stroke="rgba(148, 197, 255, 0.14)"
               strokeWidth="0.8"
+              strokeDasharray="3 5"
             />
+            {HUD_TICKS.map((t) => (
+              <line
+                key={t.deg}
+                x1={t.x1}
+                y1={t.y1}
+                x2={t.x2}
+                y2={t.y2}
+                stroke={t.major ? "rgba(210, 232, 255, 0.52)" : "rgba(165, 205, 250, 0.24)"}
+                strokeWidth={t.major ? "1.1" : "0.7"}
+              />
+            ))}
+            {/* Cardinal crosshairs (+) */}
             <path
-              d="M300 44V66M300 534V556M44 300H66M534 300H556"
-              stroke="rgba(148, 197, 255, 0.38)"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-            />
-            <path
-              d="M119 119L132 132M481 119L468 132M119 481L132 468M481 481L468 468"
-              stroke="rgba(148, 197, 255, 0.25)"
-              strokeWidth="1"
+              d="M300 28V44M294 36H306M300 556V572M294 564H306M28 300H44M36 294V306M556 300H572M564 294V306"
+              stroke="rgba(220, 238, 255, 0.55)"
+              strokeWidth="1.1"
               strokeLinecap="round"
             />
           </svg>
@@ -130,7 +163,7 @@ export default function GeographicScreen() {
               <span className="hud-slashes" aria-hidden>
                 ///
               </span>{" "}
-              <strong>{status.offline ? es.geo.offlineTitle : es.geo.source(status.zoom)}</strong>
+              <em>{status.offline ? es.geo.offlineTitle : es.geo.source(status.zoom)}</em>
             </div>
             <div className="hud-res-row">
               Resolución: {es.geo.scale(metresPerPixel(status.zoom, status.lat))} · {es.geo.zoom(status.zoom)}

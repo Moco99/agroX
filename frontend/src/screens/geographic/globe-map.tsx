@@ -97,12 +97,21 @@ function pilotPinElement(): HTMLButtonElement {
   el.className = "pilot-pin";
   el.title = es.geo.pilot;
   el.setAttribute("aria-label", es.geo.pilot);
+  const reticle = document.createElement("span");
+  reticle.className = "pilot-pin-reticle";
   const dot = document.createElement("span");
   dot.className = "pilot-pin-dot";
+  reticle.append(dot);
+  const line = document.createElement("span");
+  line.className = "pilot-pin-line";
   const label = document.createElement("span");
   label.className = "pilot-pin-label";
-  label.textContent = es.geo.pinLabel;
-  el.append(dot, label);
+  const bullet = document.createElement("span");
+  bullet.className = "pilot-pin-bullet";
+  const text = document.createElement("span");
+  text.textContent = es.geo.pinLabel;
+  label.append(bullet, text);
+  el.append(reticle, line, label);
   return el;
 }
 

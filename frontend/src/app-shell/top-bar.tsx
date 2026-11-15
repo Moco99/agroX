@@ -9,7 +9,7 @@ import { useParcelStore } from "../store/parcel-store";
 import { SEASONS, useTwinStore } from "../store/twin-store";
 
 // ─────────────────────────────────────────
-// Section: Top bar (brand + NASA collaboration, search ⌘K, season range, layer count, notifications, help, avatar)
+// Section: Top bar (brand + NASA Space Apps collaboration, search ⌘K, season range, layer count, notifications, help, avatar)
 // ─────────────────────────────────────────
 
 export function TopBar() {
@@ -44,63 +44,22 @@ export function TopBar() {
       <div className="top-bar-orbital-row">
         <div className="top-bar-brand">
           <div className="brand-agrox">
-            <svg className="brand-agrox-mark" viewBox="0 0 36 36" width="28" height="28" aria-hidden>
-              <defs>
-                <linearGradient id="agroxWing" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#ffffff" />
-                  <stop offset="100%" stopColor="#94b8e8" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M18 3 L32 31 L24.5 31 L18 19.5 L11.5 31 L4 31 Z"
-                fill="url(#agroxWing)"
-              />
-              <path d="M18 11 L23 22 L18 18.5 L13 22 Z" fill="#071022" />
-              <path d="M6 26 Q18 15 30 22" fill="none" stroke="#60a5fa" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-            <strong className="brand-agrox-name">{es.app.name}</strong>
+            <img
+              src="/logos/agrox-blanco-completo.png"
+              alt={es.app.name}
+              className="brand-agrox-img"
+              draggable={false}
+            />
           </div>
           <span className="brand-divider" aria-hidden />
           <div className="brand-collab">
             <span className="brand-collab-label">EN COLABORACIÓN CON</span>
-            <svg className="nasa-meatball" viewBox="0 0 48 40" width="38" height="32" aria-label="NASA">
-              <circle cx="23" cy="20" r="16" fill="#0b3d91" stroke="rgba(148, 197, 255, 0.35)" strokeWidth="0.8" />
-              <circle cx="15" cy="11" r="0.7" fill="#ffffff" />
-              <circle cx="18" cy="9" r="0.5" fill="#ffffff" />
-              <circle cx="29" cy="11" r="0.7" fill="#ffffff" />
-              <circle cx="31" cy="27" r="0.6" fill="#ffffff" />
-              <circle cx="14" cy="28" r="0.6" fill="#ffffff" />
-              <ellipse
-                cx="23"
-                cy="20"
-                rx="18"
-                ry="6.2"
-                transform="rotate(-24 23 20)"
-                fill="none"
-                stroke="#ffffff"
-                strokeWidth="1.1"
-              />
-              <path
-                d="M7 26 C18 17, 27 11, 41 6 C29 14, 21 21, 13 31 Z"
-                fill="#fc3d21"
-              />
-              <path
-                d="M19 6 C25 14, 29 22, 33 34 C28 24, 24 16, 17 8 Z"
-                fill="#fc3d21"
-              />
-              <text
-                x="23"
-                y="22.5"
-                textAnchor="middle"
-                fill="#ffffff"
-                fontSize="9.2"
-                fontWeight="800"
-                fontFamily="Georgia, 'Times New Roman', serif"
-                letterSpacing="0.6"
-              >
-                NASA
-              </text>
-            </svg>
+            <img
+              src="/logos/spaceapp-blanco.png"
+              alt="NASA Space Apps"
+              className="brand-collab-img"
+              draggable={false}
+            />
           </div>
         </div>
 
@@ -115,6 +74,7 @@ export function TopBar() {
             </span>
             {pilot && (
               <select
+                className="date-range-select-overlay"
                 value={year}
                 onChange={(e) => void loadSeason(Number(e.target.value))}
                 aria-label={es.geo.pilotSeason}

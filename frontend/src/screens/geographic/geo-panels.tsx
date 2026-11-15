@@ -75,15 +75,16 @@ function DrawParcelCard() {
   return (
     <section className="card draw-parcel-card" data-testid="draw-parcel">
       <div className="card-icon-header">
-        <span className="card-lead-icon" aria-hidden>
-          <svg viewBox="0 0 20 20" width="18" height="18" fill="none">
+        <span className="card-plain-icon" aria-hidden>
+          <svg viewBox="0 0 22 22" width="20" height="20" fill="none">
             <path
-              d="M13.8 3.6L16.4 6.2L6.6 16H4V13.4L13.8 3.6Z"
+              d="M15.2 3.8L18.2 6.8L7.4 17.6H4.4V14.6L15.2 3.8Z"
               stroke="currentColor"
               strokeWidth="1.4"
               strokeLinejoin="round"
             />
-            <path d="M12 5.4L14.6 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            <path d="M13.2 5.8L16.2 8.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            <path d="M3.5 19.2H18.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" />
           </svg>
         </span>
         <div className="card-icon-header-copy">
@@ -93,10 +94,10 @@ function DrawParcelCard() {
       </div>
       <div className="draw-split-actions">
         <button type="button" className="ghost-button draw-action-btn" onClick={locate} disabled={locating}>
-          <svg viewBox="0 0 18 18" width="15" height="15" fill="none" aria-hidden>
-            <circle cx="9" cy="9" r="5" stroke="currentColor" strokeWidth="1.4" />
+          <svg viewBox="0 0 18 18" width="16" height="16" fill="none" aria-hidden>
+            <circle cx="9" cy="9" r="5" stroke="currentColor" strokeWidth="1.35" />
             <circle cx="9" cy="9" r="1.5" fill="currentColor" />
-            <path d="M9 2V4M9 14V16M2 9H4M14 9H16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            <path d="M9 1.8V4M9 14V16.2M1.8 9H4M14 9H16.2" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" />
           </svg>
           <span>{locating ? es.drawParcel.locating : es.drawParcel.locate}</span>
         </button>
@@ -106,12 +107,12 @@ function DrawParcelCard() {
           aria-pressed={draw.active}
           onClick={() => draw.setActive(!draw.active)}
         >
-          <svg viewBox="0 0 18 18" width="15" height="15" fill="none" aria-hidden>
-            <rect x="4" y="4" width="10" height="10" stroke="currentColor" strokeWidth="1.3" />
-            <rect x="2.6" y="2.6" width="2.8" height="2.8" fill="currentColor" />
-            <rect x="12.6" y="2.6" width="2.8" height="2.8" fill="currentColor" />
-            <rect x="2.6" y="12.6" width="2.8" height="2.8" fill="currentColor" />
-            <rect x="12.6" y="12.6" width="2.8" height="2.8" fill="currentColor" />
+          <svg viewBox="0 0 18 18" width="16" height="16" fill="none" aria-hidden>
+            <rect x="4.2" y="4.2" width="9.6" height="9.6" stroke="currentColor" strokeWidth="1.3" />
+            <rect x="2.6" y="2.6" width="2.8" height="2.8" rx="0.5" fill="#07101f" stroke="currentColor" strokeWidth="1.2" />
+            <rect x="12.6" y="2.6" width="2.8" height="2.8" rx="0.5" fill="#07101f" stroke="currentColor" strokeWidth="1.2" />
+            <rect x="2.6" y="12.6" width="2.8" height="2.8" rx="0.5" fill="#07101f" stroke="currentColor" strokeWidth="1.2" />
+            <rect x="12.6" y="12.6" width="2.8" height="2.8" rx="0.5" fill="#07101f" stroke="currentColor" strokeWidth="1.2" />
           </svg>
           <span>{draw.active ? es.drawParcel.stop : es.drawParcel.start}</span>
         </button>
@@ -229,27 +230,6 @@ export function GlobePanel() {
           <span className="eyebrow">{es.geo.eyebrow}</span>
           <i className="eyebrow-line" aria-hidden />
         </div>
-        <svg className="panel-satellite-art" viewBox="0 0 110 80" width="92" height="68" fill="none" aria-hidden>
-          <g stroke="rgba(165, 205, 255, 0.72)" strokeWidth="1.1">
-            {/* Left solar array */}
-            <polygon points="8,16 38,31 31,42 2,27" fill="rgba(56, 130, 220, 0.16)" />
-            <line x1="18" y1="21" x2="11" y2="32" />
-            <line x1="28" y1="26" x2="21" y2="37" />
-            <line x1="5" y1="21.5" x2="34.5" y2="36.5" />
-            {/* Right solar array */}
-            <polygon points="73,47 104,62 97,73 66,58" fill="rgba(56, 130, 220, 0.16)" />
-            <line x1="83" y1="52" x2="76" y2="63" />
-            <line x1="93" y1="57" x2="86" y2="68" />
-            <line x1="69.5" y1="52.5" x2="100.5" y2="67.5" />
-            {/* Central bus cylinder */}
-            <polygon points="48,25 66,35 52,58 34,48" fill="rgba(18, 36, 68, 0.85)" stroke="rgba(210, 232, 255, 0.85)" strokeWidth="1.3" />
-            <line x1="34.5" y1="36.5" x2="41" y2="39" />
-            <line x1="59" y1="48" x2="69.5" y2="52.5" />
-            {/* Nadir dish / sensor cone */}
-            <ellipse cx="42" cy="54" rx="7" ry="4" transform="rotate(28 42 54)" fill="rgba(96, 165, 250, 0.25)" />
-            <line x1="39" y1="57" x2="32" y2="68" stroke="rgba(96, 165, 250, 0.65)" strokeDasharray="2 2" />
-          </g>
-        </svg>
         <h2>{es.geo.title}</h2>
         <p className="muted">{es.geo.hint}</p>
       </div>
@@ -261,15 +241,15 @@ export function GlobePanel() {
           aria-expanded={coordinatesOpen}
           onClick={() => setCoordinatesOpen((open) => !open)}
         >
-          <span className="card-lead-icon" aria-hidden>
-            <svg viewBox="0 0 20 20" width="18" height="18" fill="none">
+          <span className="card-plain-icon" aria-hidden>
+            <svg viewBox="0 0 22 22" width="20" height="20" fill="none">
               <path
-                d="M10 17.2C10 17.2 15.2 12.4 15.2 8.2C15.2 5.3 12.9 3 10 3C7.1 3 4.8 5.3 4.8 8.2C4.8 12.4 10 17.2 10 17.2Z"
+                d="M11 19C11 19 16.8 13.8 16.8 9C16.8 5.8 14.2 3.2 11 3.2C7.8 3.2 5.2 5.8 5.2 9C5.2 13.8 11 19 11 19Z"
                 stroke="currentColor"
                 strokeWidth="1.4"
                 strokeLinejoin="round"
               />
-              <circle cx="10" cy="8.2" r="2" stroke="currentColor" strokeWidth="1.4" />
+              <circle cx="11" cy="9" r="2.2" stroke="currentColor" strokeWidth="1.4" />
             </svg>
           </span>
           <span className="action-row-title">{es.point.enterCoordinates}</span>
@@ -284,12 +264,12 @@ export function GlobePanel() {
       {phase !== "idle" && phase !== "ready" && !isPilotFarm(farmId) && <LoadProgress />}
 
       <section className="card pilot-card">
-        <div className="card-icon-header is-clickable" onClick={openPilot}>
-          <span className="card-lead-icon" aria-hidden>
-            <svg viewBox="0 0 20 20" width="18" height="18" fill="none">
-              <path d="M10 3L17.5 7L10 11L2.5 7L10 3Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-              <path d="M2.5 10.5L10 14.5L17.5 10.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M2.5 14L10 18L17.5 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        <button type="button" className="pilot-card-button" onClick={openPilot}>
+          <span className="card-plain-icon" aria-hidden>
+            <svg viewBox="0 0 22 22" width="21" height="21" fill="none">
+              <path d="M11 3.2L19.2 7.5L11 11.8L2.8 7.5L11 3.2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+              <path d="M2.8 11.2L11 15.5L19.2 11.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2.8 14.8L11 19.1L19.2 14.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </span>
           <div className="card-icon-header-copy">
@@ -301,35 +281,37 @@ export function GlobePanel() {
             </div>
             <p className="muted">{es.geo.pilotHint}</p>
           </div>
-        </div>
-        <div className="panel-actions">
-          <button type="button" className="play-button wide-button" onClick={openPilot}>
-            {es.geo.pilot} ↗
-          </button>
-          <button type="button" className="ghost-button" onClick={openPilotTwin}>
-            {es.geo.twin}
+        </button>
+        <div className="pilot-card-subactions">
+          <button type="button" className="pilot-sublink" onClick={openPilotTwin}>
+            {es.geo.twin} ↗
           </button>
         </div>
       </section>
 
-      <section className="card">
-        <h3>{es.geo.places}</h3>
-        <p className="muted">{es.geo.placesHint}</p>
-        <div className="place-list">
-          {EXPLORE_PLACES.map((p) => (
-            <button key={p.id} type="button" className="ghost-button" onClick={() => useMapStore.getState().flyTo(p.view)}>
-              {es.geo.place[p.id]}
-            </button>
-          ))}
+      <details className="orbital-more">
+        <summary>{es.geo.places} e indicadores</summary>
+        <div className="orbital-more-body">
+          <section className="card">
+            <h3>{es.geo.places}</h3>
+            <p className="muted">{es.geo.placesHint}</p>
+            <div className="place-list">
+              {EXPLORE_PLACES.map((p) => (
+                <button key={p.id} type="button" className="ghost-button" onClick={() => useMapStore.getState().flyTo(p.view)}>
+                  {es.geo.place[p.id]}
+                </button>
+              ))}
+            </div>
+          </section>
+          {isPilotFarm(farmId) && (
+            <section className="card">
+              <h3>{es.geo.pilotMetrics}</h3>
+              <SeasonMetrics withNdvi />
+            </section>
+          )}
+          <p className="chart-note">{es.geo.resolution}</p>
         </div>
-      </section>
-      {isPilotFarm(farmId) && (
-        <section className="card">
-          <h3>{es.geo.pilotMetrics}</h3>
-          <SeasonMetrics withNdvi />
-        </section>
-      )}
-      <p className="chart-note">{es.geo.resolution}</p>
+      </details>
     </aside>
   );
 }
