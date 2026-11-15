@@ -123,4 +123,5 @@ def write_json(path: Path, payload: Any) -> None:
 
 
 def relative_to_derived(path: Path) -> str:
-    return str(path.relative_to(DERIVED_DIR))
+    # as_posix: on Windows str() gives backslashes, which would break the versioned manifest on Linux
+    return path.relative_to(DERIVED_DIR).as_posix()
