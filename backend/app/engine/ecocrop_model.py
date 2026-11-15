@@ -8,6 +8,7 @@ and a multi-objective crop rotation recommender.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +47,68 @@ def trapezoidal_suitability(val: float, min_val: float, opt_min: float, opt_max:
     if opt_max < val <= max_val:
         return 100.0 * (max_val - val) / max(max_val - opt_max, 1e-4)
     return 0.0
+
+
+# ─────────────────────────────────────────
+# Section: Seasonal (monthly-limiting) EcoCrop evaluation
+# ─────────────────────────────────────────
+
+# EcoCrop judges temperature month by month and the worst month limits the season (Liebig's law), and it
+# compares the rainfall total of the whole growing season with the crop's range. Season length is the mean
+# of Gmin and Gmax, as in the dismo::ecocrop implementation. Refs: Hijmans et al. (2001) Plant Genet. Resour.
+# Newsl. 127:15-19 (DIVA-GIS EcoCrop); Ramirez-Villegas et al. (2013) Agric. For. Meteorol. 170:67-78.
+# A single mean over a 7-month window hides a cold first month and saturated almost every crop at 100.
+BLOCK_DAYS = 30
+# Planting dates are searched weekly inside the declared window (product resolution, not agronomy).
+SEASON_STEP_DAYS = 7
+
+
+def _block_means(values: Sequence[float]) -> list[float]:
+    """Means of consecutive 30-day blocks; a trailing block under half a block joins the previous one."""
+    edges = list(range(0, len(values), BLOCK_DAYS))
+    if len(edges) > 1 and len(values) - edges[-1] < BLOCK_DAYS / 2:
+        edges.pop()
+    bounds = [*edges, len(values)]
+    return [sum(values[a:b]) / (b - a) for a, b in zip(bounds, bounds[1:], strict=False)]
+
+
+def season_fit(
+    daily_t: Sequence[float], daily_rain: Sequence[float], row: pd.Series, cycle_days: float | None
+) -> dict[str, Any]:
+    """Best season of ``cycle_days`` inside the window: temperature fit of its worst block and rain fit.
+
+    When the window is shorter than the cycle the whole window is used and its rain is extrapolated to the
+    cycle length at the window's daily rate (flagged by ``extrapolated``).
+    """
+    n = len(daily_t)
+    if n == 0 or n != len(daily_rain):
+        raise ValueError("Daily temperature and rain series must be non-empty and aligned")
+    span = n if cycle_days is None else max(1, min(n, round(cycle_days)))
+    prefix = [0.0]
+    for value in daily_rain:
+        prefix.append(prefix[-1] + value)
+    best: dict[str, Any] | None = None
+    for offset in sorted({*range(0, n - span + 1, SEASON_STEP_DAYS), n - span}):
+        blocks = _block_means(daily_t[offset : offset + span])
+        temps = [trapezoidal_suitability(t, row["tmin"], row["topmn"], row["topmx"], row["tmax"]) for t in blocks]
+        worst = min(range(len(temps)), key=temps.__getitem__)
+        rain = prefix[offset + span] - prefix[offset]
+        if cycle_days is not None and span < cycle_days and round(cycle_days) != span:
+            rain = rain / span * cycle_days
+        s_r = trapezoidal_suitability(rain, row["rmin"], row["ropmn"], row["ropmx"], row["rmax"])
+        if best is None or temps[worst] * s_r > best["s_t"] * best["s_r"]:
+            best = {
+                "s_t": temps[worst],
+                "s_r": s_r,
+                "rain": rain,
+                "offset": offset,
+                "days": span,
+                "t_limiting": blocks[worst],
+                "t_mean": sum(blocks) / len(blocks),
+            }
+    assert best is not None
+    best["extrapolated"] = cycle_days is not None and n < round(cycle_days)
+    return best
 
 
 class EcoCropEngine:
@@ -116,12 +179,17 @@ class EcoCropEngine:
         rain_mm: float,
         soil_ph: float = 6.5,
         window_days: int | None = None,
+        *,
+        daily_t: Sequence[float] | None = None,
+        daily_rain: Sequence[float] | None = None,
     ) -> dict[str, Any]:
         """Calculate FAO EcoCrop suitability scores for a specific crop.
 
         EcoCrop rainfall ranges describe a whole crop cycle. When ``window_days`` is given,
         ``rain_mm`` is the total over that window and is converted to the crop's cycle length
         (mean of gmin/gmax) at the window's mean daily rate before comparing.
+        With ``daily_t``/``daily_rain`` the scalar climate is ignored: the best season inside the window is
+        scored with its worst 30-day temperature block and its rain total (see ``season_fit``).
         """
         query = scientific_name.strip()
         if not query:
@@ -138,19 +206,31 @@ class EcoCropEngine:
 
         row = match.iloc[0]
         extrapolated: str | None = None
-        if window_days is not None:
+        season: dict[str, Any] | None = None
+        gmin, gmax = row["gmin"], row["gmax"]
+        cycle_len = (gmin + gmax) / 2 if pd.notna(gmin) and pd.notna(gmax) else None
+        if daily_t is not None and daily_rain is not None:
+            season = season_fit(daily_t, daily_rain, row, cycle_len)
+            t_mean, rain_mm = season["t_mean"], season["rain"]
+            if season["extrapolated"]:
+                extrapolated = (
+                    f"Lluvia de {season['days']} días llevada a {round(cycle_len or 0)} días de ciclo "
+                    f"({rain_mm:.0f} mm) a la tasa diaria de la ventana"
+                )
+        elif window_days is not None:
             if window_days <= 0:
                 raise ValueError("window_days must be positive")
-            gmin, gmax = row["gmin"], row["gmax"]
-            cycle_len = (gmin + gmax) / 2 if pd.notna(gmin) and pd.notna(gmax) else None
             if cycle_len is not None and round(cycle_len) != window_days:
                 rain_mm = rain_mm / window_days * cycle_len
                 extrapolated = (
                     f"Lluvia de {window_days} días llevada a {round(cycle_len)} días de ciclo "
                     f"({rain_mm:.0f} mm) a la tasa diaria de la ventana"
                 )
-        s_t = trapezoidal_suitability(t_mean, row["tmin"], row["topmn"], row["topmx"], row["tmax"])
-        s_r = trapezoidal_suitability(rain_mm, row["rmin"], row["ropmn"], row["ropmx"], row["rmax"])
+        if season is not None:
+            s_t, s_r = season["s_t"], season["s_r"]
+        else:
+            s_t = trapezoidal_suitability(t_mean, row["tmin"], row["topmn"], row["topmx"], row["tmax"])
+            s_r = trapezoidal_suitability(rain_mm, row["rmin"], row["ropmn"], row["ropmx"], row["rmax"])
         s_ph = trapezoidal_suitability(soil_ph, row["phmin"], row["phopmn"], row["phopmx"], row["phmax"])
 
         warnings = []
@@ -183,6 +263,14 @@ class EcoCropEngine:
             "data_state": "incomplete" if warnings else "complete",
             "warnings": warnings + ([extrapolated] if extrapolated else []),
             "rain_cycle_mm": round(float(rain_mm), 1),
+            # Chosen season inside the window (None on the scalar path)
+            "season": None
+            if season is None
+            else {
+                "offset_days": season["offset"],
+                "days": season["days"],
+                "t_limiting_c": round(float(season["t_limiting"]), 1),
+            },
             "score_composite": round(float(composite), 1),
             "score_temperature": round(float(s_t), 1),
             "score_rain": round(float(s_r), 1),
@@ -433,9 +521,10 @@ class RotationEngine:
         soil_awc: float,
         t_extreme_days: int,
         previous_crop: str | None,
-        cache: dict[tuple[str, bool, bool, float, float, int | None], dict[str, Any]],
+        cache: dict[tuple[str, bool, bool, float, float, int | None, int | None], dict[str, Any]],
         cycle_climates: list[tuple[float, float]] | None = None,
         window_days: list[int] | None = None,
+        cycle_series: Sequence[tuple[Sequence[float], Sequence[float]]] | None = None,
     ) -> dict[str, Any]:
         crop_map = {c["id"]: c for c in self.PRIMARY_CROPS}
         if not isinstance(sequence, (list, tuple)) or not 1 <= len(sequence) <= 4:
@@ -459,9 +548,22 @@ class RotationEngine:
             legume_bonus = prev_crop is not None and prev_crop["is_legume"] and not crop_meta["is_legume"]
             cycle_temp, cycle_rain = cycle_climates[cycle_idx] if cycle_climates is not None else (t_mean, rain_mm)
             days = window_days[cycle_idx] if window_days is not None else None
-            key = (crop_id, same_family, legume_bonus, cycle_temp, cycle_rain, days)
+            series = cycle_series[cycle_idx] if cycle_series is not None else None
+            # Identical series objects (one reference climate reused) share one cache entry
+            series_key = (
+                next(i for i, other in enumerate(cycle_series) if other is series) if cycle_series is not None else None
+            )
+            key = (crop_id, same_family, legume_bonus, cycle_temp, cycle_rain, days, series_key)
             if key not in cache:
-                eco = self.ecocrop.score_crop(crop_meta["scientific"], cycle_temp, cycle_rain, soil_ph, days)
+                eco = self.ecocrop.score_crop(
+                    crop_meta["scientific"],
+                    cycle_temp,
+                    cycle_rain,
+                    soil_ph,
+                    days,
+                    daily_t=series[0] if series else None,
+                    daily_rain=series[1] if series else None,
+                )
                 risk: dict[str, Any] = (
                     self.risk_model.predict_risk(
                         t_mean=cycle_temp,
@@ -491,6 +593,7 @@ class RotationEngine:
                     "rainfall_fit": eco["score_rain"],
                     "ph_fit": eco["score_ph"],
                     "rain_cycle_mm": eco["rain_cycle_mm"],
+                    "season": eco.get("season"),
                     "dimension_warnings": list(eco["warnings"]),
                     "risk_level": risk["risk_level"],
                     "key_risk_factor": risk["primary_factors"][0],
@@ -530,6 +633,8 @@ class RotationEngine:
         cycle_climates: list[tuple[float, float]] | None = None,
         window_days: list[int] | None = None,
         start_crop: str | None = None,
+        cycle_series: Sequence[tuple[Sequence[float], Sequence[float]]] | None = None,
+        exclude_same_crop: bool = False,
     ) -> list[dict[str, Any]]:
         """Enumerate 2-4 cycle candidates with optional family exclusion and history.
 
@@ -547,6 +652,8 @@ class RotationEngine:
             return []
         if cycle_climates is not None and len(cycle_climates) != cycles:
             raise ValueError("Provide one climate window per cycle")
+        if cycle_series is not None and len(cycle_series) != cycles:
+            raise ValueError("Provide one daily series per cycle")
         # Include a known previous crop for history even if it is outside the candidate pool.
         families = {c["id"]: c["family"] for c in self.PRIMARY_CROPS if c["id"] in candidate_ids}
         crop_map = {c["id"]: c for c in self.PRIMARY_CROPS}
@@ -554,14 +661,23 @@ class RotationEngine:
             raise ValueError("Unknown previous crop")
         if previous_crop is not None and previous_crop not in families:
             families[previous_crop] = crop_map[previous_crop]["family"]
-        sequences = generate_candidates(families, cycles, previous_crop, exclude_same_family)
+        sequences = generate_candidates(families, cycles, previous_crop, exclude_same_family, exclude_same_crop)
         if start_crop is not None and start_crop not in candidate_ids:
             raise ValueError("start_crop is not an available crop")
-        cache: dict[tuple[str, bool, bool, float, float, int | None], dict[str, Any]] = {}
+        cache: dict[tuple[str, bool, bool, float, float, int | None, int | None], dict[str, Any]] = {}
         results = [
             self._evaluate_rotation(
-                seq, t_mean, rain_mm, soil_ph, soil_awc, t_extreme_days, previous_crop, cache, cycle_climates,
+                seq,
+                t_mean,
+                rain_mm,
+                soil_ph,
+                soil_awc,
+                t_extreme_days,
+                previous_crop,
+                cache,
+                cycle_climates,
                 window_days,
+                cycle_series,
             )
             for seq in sequences
             if all(crop_id in candidate_ids for crop_id in seq) and (start_crop is None or seq[0] == start_crop)

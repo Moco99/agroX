@@ -21,6 +21,13 @@ class DataNotFoundError(LookupError):
     """Requested farm/zone/source does not exist for the active adapter (API maps it to 404)."""
 
 
+class UpstreamUnavailableError(DataNotFoundError):
+    """An external data API (NASA POWER, ...) did not answer; transient, so the API maps it to 503.
+
+    Subclass of DataNotFoundError so existing callers that degrade gracefully on missing data still do.
+    """
+
+
 class InvalidFarmIdError(ValueError):
     """A `pt_<lat>_<lon>` id that is malformed or outside the supported latitudes (API maps it to 422)."""
 
