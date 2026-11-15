@@ -22,9 +22,9 @@ Leyenda estado: ✅ descargado y revisado · 🔑 requiere llave (variable de en
 | `nlcd` | NLCD 2019/2021 | Cobertura del suelo | ✅ | Capa de mapa | Opcional |
 | `gaez` | FAO GAEZ v4 | Aptitud de 7 cultivos | ✅ | Contexto de aptitud | Opcional |
 | `agdatacommons` | USDA Ag Data Commons | Tablas de estudios (rotación, coberturas) | ✅ | Fuentes para el catálogo | Opcional |
-| `sentinel2` | Sentinel-2 L2A (Planetary Computer) | B04, B08, SCL, may–sep 2024 | ✅ (serie truncada) | NDVI 10 m | F4 |
+| `sentinel2` | Sentinel-2 L2A (Planetary Computer) | B04, B08, SCL, cada temporada may–sep 2021–2024 (<10% nubes) | ✅ | NDVI 10 m | F4 |
 | `landsat` | Landsat 8/9 L2 | red, nir08, lwir11 | ✅ (serie truncada) | NDVI/LST | Opcional |
-| `modis_ndvi` | MODIS 13Q1 | NDVI 16 d, 250 m, 46 imágenes | ✅ | **Observación principal del gemelo** | **Sí (F4)** |
+| `modis_ndvi` | MODIS 13Q1 | NDVI 16 d, 250 m, 92 imágenes (Terra+Aqua 2023–2024) | ✅ | **Observación principal del gemelo** | **Sí (F4)** |
 | `naip` | NAIP | Foto aérea ~1 m | ✅ | Fondo visual del mapa | Opcional |
 | `srtm` | NASADEM | Elevación | ✅ | Pendiente (modelo 11), γ por elevación | **Sí** |
 

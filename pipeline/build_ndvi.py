@@ -7,8 +7,8 @@ Outputs (derived/obs/):
   ndvi_s2_overlay_<farm>.json bounds, resolution, date, scene
 
 MODIS scale factor 0.0001 and fill -3000 follow the product spec. Sentinel-2 L2A
-DN use the BOA offset (-1000) introduced with processing baseline 04.00 (2022-01);
-all scenes here are 2024 so the offset is applied and recorded in the metadata.
+DN carry the BOA offset (-1000) only from processing baseline 04.00 on (deployed 2022-01-25);
+the series spans 2021-2024, so the offset is applied per scene from its product generation date.
 """
 
 from __future__ import annotations
@@ -40,6 +40,9 @@ PARCEL_PATH = DERIVED_DIR / "parcel" / f"{FARM_ID}.geojson"
 MODIS_SCALE = 0.0001
 MODIS_FILL = -3000
 S2_BOA_OFFSET = -1000.0
+# Baseline 04.00 went live on this date; every product generated from then on (including reprocessed
+# older acquisitions) carries the offset, earlier products (e.g. baseline 03.00 in 2021) do not.
+S2_BASELINE_04_FROM = "20220125"
 S2_SCALE = 10000.0
 # SCL classes kept as clear-sky land: 4 vegetation, 5 not vegetated, 6 water (water NDVI < 0 shows as no-data colour)
 SCL_KEEP = {4, 5, 6}
@@ -176,7 +179,13 @@ def s2_scenes() -> dict[str, dict[str, Path]]:
     return {k: v for k, v in scenes.items() if {"B04", "B08", "SCL"} <= set(v)}
 
 
-def s2_ndvi(scene: dict[str, Path]) -> tuple[np.ndarray, np.ndarray, Any, Any]:
+def s2_offset(scene_id: str) -> float:
+    # The last token of a Planetary Computer L2A id is the product generation time (YYYYMMDDTHHMMSS)
+    generated = scene_id.rsplit("_", 1)[1][:8]
+    return S2_BOA_OFFSET if generated >= S2_BASELINE_04_FROM else 0.0
+
+
+def s2_ndvi(scene: dict[str, Path], offset: float) -> tuple[np.ndarray, np.ndarray, Any, Any]:
     with (
         rasterio.open(scene["B04"]) as red_src,
         rasterio.open(scene["B08"]) as nir_src,
@@ -193,8 +202,8 @@ def s2_ndvi(scene: dict[str, Path]) -> tuple[np.ndarray, np.ndarray, Any, Any]:
         rows = np.minimum((np.arange(red.shape[0]) / ry).astype(int), scl.shape[0] - 1)
         cols = np.minimum((np.arange(red.shape[1]) / rx).astype(int), scl.shape[1] - 1)
         scl_up = scl[rows][:, cols]
-    red_r = (red + S2_BOA_OFFSET) / S2_SCALE
-    nir_r = (nir + S2_BOA_OFFSET) / S2_SCALE
+    red_r = (red + offset) / S2_SCALE
+    nir_r = (nir + offset) / S2_SCALE
     denom = nir_r + red_r
     with np.errstate(divide="ignore", invalid="ignore"):
         ndvi = np.where(denom != 0, (nir_r - red_r) / denom, np.nan)
@@ -209,7 +218,7 @@ def build_s2(zones: list[tuple[str, Polygon]]) -> tuple[list[Path], dict[str, An
     best_scene: tuple[float, str, np.ndarray, Any] | None = None
     masks: dict[str, np.ndarray] | None = None
     for scene_id in sorted(scenes):
-        ndvi, valid, transform, crs = s2_ndvi(scenes[scene_id])
+        ndvi, valid, transform, crs = s2_ndvi(scenes[scene_id], s2_offset(scene_id))
         date = re.search(r"_(\d{8})T", scene_id).group(1)  # type: ignore[union-attr]
         date_iso = f"{date[:4]}-{date[4:6]}-{date[6:]}"
         if masks is None:
@@ -230,7 +239,8 @@ def build_s2(zones: list[tuple[str, Polygon]]) -> tuple[list[Path], dict[str, An
                     "n_pixels": int(vals.size),
                 }
             )
-        if best_scene is None or farm_valid > best_scene[0]:
+        # scenes iterate oldest first; >= lets the most recent fully clear scene win ties (overlay shows current state)
+        if best_scene is None or farm_valid >= best_scene[0]:
             best_scene = (farm_valid, scene_id, ndvi, transform)
     rows.sort(key=lambda r: (r["date"], r["zone_id"]))
     out_csv = DERIVED_DIR / "obs" / f"ndvi_s2_{FARM_ID}.csv"
@@ -286,12 +296,13 @@ def build_s2(zones: list[tuple[str, Polygon]]) -> tuple[list[Path], dict[str, An
         "source_id": "sentinel2",
         "resolution": "10 m (SCL 20 m)",
         "period": {"start": dates[0], "end": dates[-1]},
-        "method": f"NDVI=(B08-B04)/(B08+B04) after BOA offset {S2_BOA_OFFSET:+.0f} and scale 1/{S2_SCALE:.0f}; "
+        "method": f"NDVI=(B08-B04)/(B08+B04) after BOA offset {S2_BOA_OFFSET:+.0f} (products generated from "
+        f"{S2_BASELINE_04_FROM}, baseline >= 04.00; none before) and scale 1/{S2_SCALE:.0f}; "
         f"SCL keep {sorted(SCL_KEEP)}; zone mean over pixel centres; overlay from scene with best valid fraction",
         "overlay_scene": scene_id,
         "scenes": len(scenes),
-        "coverage_note": "Only end-of-season scenes (2024-08-31..2024-09-30) exist: the scraper fetched the last 6 "
-        "items of the range (data-pipeline debt a).",
+        "coverage_note": f"{len(dates)} dates {dates[0]}..{dates[-1]}: May-Sep growing seasons as fetched by the "
+        "scraper (cloud cover < 10%), so winter gaps are expected.",
     }
     print(f"[ndvi] S2 scenes={len(scenes)} overlay={scene_id} valid={best_scene[0]:.2f} size={crop.shape}")
     return [out_csv, png_path, json_path], meta

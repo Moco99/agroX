@@ -1,7 +1,7 @@
 {
   "artifacts": {
     "crop_catalog_v1": {
-      "built_at": "2026-11-15T00:22:57Z",
+      "built_at": "2026-11-15T02:04:00Z",
       "crops": [
         "corn",
         "soybean",
@@ -15,43 +15,43 @@
       "verified": false
     },
     "obs_ndvi_modis": {
-      "built_at": "2026-11-15T00:22:58Z",
+      "built_at": "2026-11-15T02:04:19Z",
       "data_state": "MEASURED",
       "files": [
         "obs/ndvi_modis_story_pilot_farm.csv"
       ],
       "method": "scale 0.0001, fill -3000 dropped; mean of pixel centres inside zone, nearest pixel fallback; no pixel-reliability layer downloaded (qa_flag=no_qa_layer)",
       "period": {
-        "composites": 44,
+        "composites": 89,
         "end": "2024-12-10",
-        "start": "2023-12-27"
+        "start": "2022-12-19"
       },
       "resolution": "250 m",
-      "scenes": 46,
+      "scenes": 91,
       "source": "MODIS MOD13Q1 + MYD13Q1 v061 NDVI 250 m 16-day (Planetary Computer subset)",
       "source_id": "modis_ndvi"
     },
     "obs_ndvi_sentinel2": {
-      "built_at": "2026-11-15T00:22:59Z",
-      "coverage_note": "Only end-of-season scenes (2024-08-31..2024-09-30) exist: the scraper fetched the last 6 items of the range (data-pipeline debt a).",
+      "built_at": "2026-11-15T02:04:37Z",
+      "coverage_note": "102 dates 2021-05-01..2024-09-30: May-Sep growing seasons as fetched by the scraper (cloud cover < 10%), so winter gaps are expected.",
       "data_state": "MEASURED",
       "files": [
         "obs/ndvi_s2_story_pilot_farm.csv",
         "obs/ndvi_s2_overlay_story_pilot_farm.png",
         "obs/ndvi_s2_overlay_story_pilot_farm.json"
       ],
-      "method": "NDVI=(B08-B04)/(B08+B04) after BOA offset -1000 and scale 1/10000; SCL keep [4, 5, 6]; zone mean over pixel centres; overlay from scene with best valid fraction",
-      "overlay_scene": "S2A_MSIL2A_20240831T170851_R112_T15TVG_20240901T000753",
+      "method": "NDVI=(B08-B04)/(B08+B04) after BOA offset -1000 (products generated from 20220125, baseline >= 04.00; none before) and scale 1/10000; SCL keep [4, 5, 6]; zone mean over pixel centres; overlay from scene with best valid fraction",
+      "overlay_scene": "S2B_MSIL2A_20240902T165849_R069_T15TVG_20240902T212603",
       "period": {
         "end": "2024-09-30",
-        "start": "2024-08-31"
+        "start": "2021-05-01"
       },
       "resolution": "10 m (SCL 20 m)",
-      "scenes": 6,
+      "scenes": 131,
       "source_id": "sentinel2"
     },
     "obs_smap": {
-      "built_at": "2026-11-15T00:23:18Z",
+      "built_at": "2026-11-15T02:06:53Z",
       "cell": {
         "lat": 42.04337692260742,
         "lon": -93.50103759765625
@@ -77,7 +77,7 @@
       }
     },
     "parcel_farm": {
-      "built_at": "2026-11-15T00:22:58Z",
+      "built_at": "2026-11-15T02:04:14Z",
       "data_state": "MEASURED",
       "files": [
         "parcel/story_pilot_farm.geojson"
@@ -132,7 +132,7 @@
       ]
     },
     "soil_ssurgo": {
-      "built_at": "2026-11-15T00:22:58Z",
+      "built_at": "2026-11-15T02:04:18Z",
       "data_state": "MEASURED",
       "files": [
         "soil/story_pilot_farm.json"
@@ -147,7 +147,7 @@
       "source_id": "ssurgo"
     },
     "terrain_slope": {
-      "built_at": "2026-11-15T00:22:58Z",
+      "built_at": "2026-11-15T02:04:14Z",
       "data_state": "MEASURED",
       "files": [
         "terrain/story_pilot_farm.json"
@@ -162,7 +162,7 @@
       "source_id": "srtm"
     },
     "weather_power_daily": {
-      "built_at": "2026-11-15T00:22:57Z",
+      "built_at": "2026-11-15T02:04:00Z",
       "data_state": "MEASURED",
       "files": [
         "weather/power_daily_story_pilot.csv",
