@@ -14,8 +14,54 @@ make dev     # backend http://127.0.0.1:8000/api/health  ·  frontend http://127
 - Calidad: `make test` (pytest), `make lint` (ruff, mypy, tsc), `make build` (frontend).
 - Simulación exploratoria: no predice rendimiento; parámetros de cultivo provisionales (`verified=false`). Decisiones en `docs/00-overview/decisions.md` (ADR-012..020).
 
+## App global: datos de cualquier punto del mundo
 
-## Recolector de datos
+La app funciona así: el usuario hace clic en cualquier lugar del mapa y en ~10 segundos tiene
+todo lo necesario para recomendar una rotación de cultivos. No se guarda el mundo: se pide en vivo
+solo ese punto, y se guarda en caché para que la segunda vez sea instantánea.
+
+```bash
+python scraper/punto.py 30.80 75.55                        # últimos 2 años
+python scraper/punto.py 30.80 75.55 2023-01-01 2024-12-31  # periodo a elegir
+```
+
+Desde el backend de la app:
+
+```python
+from punto import consultar
+datos = consultar(lat, lon)   # dict listo para mandar como JSON al mapa
+```
+
+| Sección | Qué responde | Fuente (global, sin llave) | Resolución |
+|---|---|---|---|
+| `cobertura` | ¿Es campo de cultivo? ¿Lo fue cada año 2017-2023? Avisa si el clic cayó en ciudad, bosque o agua | ESA WorldCover 2021 + Impact Observatory LULC anual | 10 m |
+| `terreno` | Elevación y pendiente (riesgo de erosión) | Copernicus DEM | 30 m |
+| `suelo` | Arcilla, arena, limo, pH, carbono orgánico, nitrógeno, CIC y densidad a 0-5, 5-15 y 15-30 cm | SoilGrids (ISRIC) | 250 m |
+| `clima` | Serie diaria (temperatura, lluvia, humedad, radiación, humedad del suelo) + normales de 30 años | NASA POWER | ~50 km |
+| `vegetacion` | NDVI de cada pasada de Sentinel-2 sin nubes: muestra cuándo crece el cultivo, cuántas cosechas hay al año y cuándo el suelo queda desnudo | ESA Sentinel-2 L2A | 10 m |
+| `aptitud` | Índice 0-100 para 20 cultivos de rotación (cereales, leguminosas, oleaginosas), **sin riego y con riego** | FAO GAEZ v4 | ~9 km |
+
+Probado en Iowa, Mato Grosso (Brasil), Punjab (India) y Beauce (Francia): 9-12 s por punto nuevo, 1 s si ya se consultó.
+Si una fuente falla, las demás llegan igual y la sección trae `"error"`.
+
+### Cómo recomendaría la app una rotación (propuesta)
+
+1. **Filtrar:** si `cobertura.es_cultivo` es falso, avisar y no recomendar.
+2. **Candidatos:** cultivos con `aptitud` alta (temporal o con riego, según el agricultor).
+3. **Ajustar por suelo:** pH, textura y carbono descartan o premian cultivos (p. ej. leguminosas fijan nitrógeno si `nitrogeno_g_kg` es bajo).
+4. **Ajustar por terreno:** con pendiente alta, priorizar cultivos de cobertura que frenan la erosión.
+5. **Leer la serie de NDVI:** cuántas cosechas hay al año y en qué meses, para encajar la rotación en las temporadas reales.
+6. **Clima:** las normales de 30 años y la serie reciente detectan sequías, heladas y calor.
+7. **Explicar:** cada recomendación dice qué dato la justifica y de qué fuente sale.
+
+### Qué no va en vivo y por qué
+
+SMAP, ECOSTRESS, IMERG, NLDAS/GLDAS, GEDI y ERA5 tardan minutos por pedido o pesan cientos de MB por archivo.
+Sirven para análisis por lotes con `scraper/scrape.py` (abajo), no para responder un clic.
+La humedad del suelo y la lluvia en vivo salen de NASA POWER.
+CDL, SSURGO, PRISM, NASS y similares solo cubren EE.UU.; en la app global los reemplazan WorldCover/LULC, SoilGrids y POWER.
+
+## Recolector por lotes (zona fija)
 
 ### La idea en corto
 

@@ -1,46 +1,252 @@
 {
   "area": {
-      "name": "Zona de prueba: 10x10 km cerca de Ames, Story County, Iowa (rotacion maiz-soya)",
-      "bbox": [
-          -93.55,
-          41.95,
-          -93.43,
-          42.04
-      ],
-      "state": "IA",
-      "county_fips": "19169",
-      "county_name": "STORY",
-      "ssurgo_area": "IA169",
-      "start": "2023-01-01",
-      "end": "2024-12-31"
+    "name": "Zona de prueba: 10x10 km cerca de Ames, Story County, Iowa (rotacion maiz-soya)",
+    "bbox": [
+      -93.55,
+      41.95,
+      -93.43,
+      42.04
+    ],
+    "state": "IA",
+    "county_fips": "19169",
+    "county_name": "STORY",
+    "ssurgo_area": "IA169",
+    "start": "2023-01-01",
+    "end": "2024-12-31"
   },
   "sources": [
-    {"id": "power", "notes": "NASA POWER: clima diario agricola en el centro del area"},
-    {"id": "nwis", "notes": "USGS NWIS: caudal y nivel de agua subterranea en el area"},
-    {"id": "cdl", "years": [2021, 2022, 2023, 2024], "notes": "CropScape CDL: que cultivo hubo en cada pixel de 30 m, por condado"},
-    {"id": "ssurgo", "notes": "SSURGO del condado + STATSGO2 del estado (lo mismo que Web Soil Survey)"},
-    {"id": "prism", "vars": ["ppt", "tmean"], "notes": "PRISM mensual 4 km, todo EE.UU. continental"},
-    {"id": "cocorahs", "notes": "CoCoRaHS: lluvia diaria de voluntarios en todo el estado"},
-    {"id": "nlcd", "coverages": ["mrlc_download__NLCD_2019_Land_Cover_L48", "mrlc_download__NLCD_2021_Land_Cover_L48"], "notes": "NLCD recortado al area"},
-    {"id": "gaez", "crops": ["Maize", "Soybean", "Wheat", "Alfalfa", "Oat", "Rye", "Sorghum"], "notes": "FAO GAEZ v4: aptitud por cultivo, clima 1981-2010, global ~9 km"},
-    {"id": "agdatacommons", "search": ["rotation", "cover crop", "soil health", "corn", "soybean"], "max_mb": 50, "notes": "USDA Ag Data Commons (Figshare): tablas de datasets con esas palabras en el titulo"},
-    {"id": "sentinel2", "hook": "stac", "datetime": "2024-05-01T00:00:00Z/2024-09-30T23:59:59Z", "collection": "sentinel-2-l2a", "assets": ["B04", "B08", "SCL"], "query": {"eo:cloud_cover": {"lt": 10}}, "max_items": 6, "max_size": 1500, "notes": "Sentinel-2 (ESA) via Planetary Computer, recortado al area"},
-    {"id": "landsat", "hook": "stac", "datetime": "2024-05-01T00:00:00Z/2024-09-30T23:59:59Z", "collection": "landsat-c2-l2", "assets": ["red", "nir08", "lwir11"], "query": {"eo:cloud_cover": {"lt": 10}}, "max_items": 6, "max_size": 1000, "notes": "Landsat 8/9 nivel 2, recortado"},
-    {"id": "modis_ndvi", "hook": "stac", "collection": "modis-13Q1-061", "assets": ["250m_16_days_NDVI"], "max_items": 46, "max_size": 200, "notes": "MODIS NDVI 16 dias 250 m"},
-    {"id": "naip", "hook": "stac", "collection": "naip", "assets": ["image"], "max_items": 2, "max_size": 4000, "notes": "NAIP foto aerea ~1 m"},
-    {"id": "srtm", "hook": "stac", "collection": "nasadem", "assets": ["elevation"], "max_items": 1, "max_size": 1000, "all_dates": true, "notes": "NASADEM = SRTM reprocesado por NASA"},
-    {"id": "smap", "hook": "harmony", "short_name": "SPL3SMP_E", "notes": "SMAP humedad de suelo diaria 9 km, recortada al area con Harmony (~1.4 MB/dia en vez de 658 MB)"},
-    {"id": "imerg", "hook": "harmony", "short_name": "GPM_3IMERGM", "notes": "GPM IMERG lluvia mensual, recortada con Harmony. Requiere autorizar GES DISC en Earthdata"},
-    {"id": "ecostress_lst", "hook": "earthdata", "short_name": "ECO_L2T_LSTE", "version": "002", "max_granules": 20, "notes": "ECOSTRESS temperatura de superficie (tiles 70 m)"},
-    {"id": "ecostress_et", "hook": "earthdata", "short_name": "ECO_L3T_JET", "version": "002", "max_granules": 20, "notes": "ECOSTRESS evapotranspiracion (tiles 70 m)"},
-    {"id": "viirs_ndvi", "hook": "earthdata", "short_name": "VNP13A1", "max_granules": 10, "notes": "VIIRS indices de vegetacion 500 m; ~100 MB por archivo y Harmony no lo recorta. Apagado: MODIS NDVI ya cubre esto recortado", "enabled": false},
-    {"id": "nldas", "hook": "earthdata", "short_name": "NLDAS_NOAH0125_M", "max_granules": 24, "notes": "NLDAS mensual (EE.UU.)"},
-    {"id": "gldas", "hook": "earthdata", "short_name": "GLDAS_NOAH025_M", "version": "2.1", "max_granules": 24, "notes": "GLDAS mensual (global)"},
-    {"id": "gedi", "hook": "harmony", "short_name": "GEDI_L4A_AGB_Density_V2_1_2056", "notes": "GEDI L4A biomasa, solo los disparos dentro del area (Harmony)"},
-    {"id": "nass", "since": 2000, "notes": "USDA NASS QuickStats: estadisticas del condado y estado. Llave: NASS_API_KEY"},
-    {"id": "ams", "slugs": [2850], "notes": "USDA AMS Market News (2850 = Iowa Daily Cash Grain Bids). Llave: AMS_API_KEY"},
-    {"id": "openet", "enabled": false, "notes": "OpenET: solo estados del oeste de EE.UU.; Iowa no esta cubierto. Llave: OPENET_API_KEY"},
-    {"id": "era5", "dataset": "reanalysis-era5-single-levels-monthly-means", "variables": ["2m_temperature", "total_precipitation", "volumetric_soil_water_layer_1"], "notes": "ERA5 mensual del area. Llave: CDS_API_KEY"},
-    {"id": "landfire", "layers": ["LF2024_EVT", "LF2024_EVC", "LF2024_EVH", "LF2020_SlpD"], "notes": "LANDFIRE vegetacion; pide un correo: LANDFIRE_EMAIL"}
+    {
+      "id": "power",
+      "notes": "NASA POWER: clima diario agricola en el centro del area"
+    },
+    {
+      "id": "nwis",
+      "notes": "USGS NWIS: caudal y nivel de agua subterranea en el area"
+    },
+    {
+      "id": "cdl",
+      "years": [
+        2021,
+        2022,
+        2023,
+        2024
+      ],
+      "notes": "CropScape CDL: que cultivo hubo en cada pixel de 30 m, por condado"
+    },
+    {
+      "id": "ssurgo",
+      "notes": "SSURGO del condado + STATSGO2 del estado (lo mismo que Web Soil Survey)"
+    },
+    {
+      "id": "prism",
+      "vars": [
+        "ppt",
+        "tmean"
+      ],
+      "notes": "PRISM mensual 4 km, todo EE.UU. continental"
+    },
+    {
+      "id": "cocorahs",
+      "notes": "CoCoRaHS: lluvia diaria de voluntarios en todo el estado"
+    },
+    {
+      "id": "nlcd",
+      "coverages": [
+        "mrlc_download__NLCD_2019_Land_Cover_L48",
+        "mrlc_download__NLCD_2021_Land_Cover_L48"
+      ],
+      "notes": "NLCD recortado al area"
+    },
+    {
+      "id": "gaez",
+      "crops": [
+        "Maize",
+        "Soybean",
+        "Wheat",
+        "Alfalfa",
+        "Oat",
+        "Rye",
+        "Sorghum"
+      ],
+      "notes": "FAO GAEZ v4: aptitud por cultivo, clima 1981-2010, global ~9 km"
+    },
+    {
+      "id": "agdatacommons",
+      "search": [
+        "rotation",
+        "cover crop",
+        "soil health",
+        "corn",
+        "soybean"
+      ],
+      "max_mb": 50,
+      "notes": "USDA Ag Data Commons (Figshare): tablas de datasets con esas palabras en el titulo"
+    },
+    {
+      "id": "sentinel2",
+      "hook": "stac",
+      "datetime": "2021-05-01T00:00:00Z/2024-09-30T23:59:59Z",
+      "collection": "sentinel-2-l2a",
+      "assets": [
+        "B04",
+        "B08",
+        "SCL"
+      ],
+      "query": {
+        "eo:cloud_cover": {
+          "lt": 10
+        }
+      },
+      "max_items": 40,
+      "max_size": 1500,
+      "notes": "Sentinel-2 (ESA) 2021-2024, temporada de cultivo (may-sep), recortado al area. Para validar el CDL con la señal de satelite"
+    },
+    {
+      "id": "landsat",
+      "hook": "stac",
+      "datetime": "2024-05-01T00:00:00Z/2024-09-30T23:59:59Z",
+      "collection": "landsat-c2-l2",
+      "assets": [
+        "red",
+        "nir08",
+        "lwir11"
+      ],
+      "query": {
+        "eo:cloud_cover": {
+          "lt": 10
+        }
+      },
+      "max_items": 6,
+      "max_size": 1000,
+      "notes": "Landsat 8/9 nivel 2, recortado"
+    },
+    {
+      "id": "modis_ndvi",
+      "hook": "stac",
+      "collection": "modis-13Q1-061",
+      "assets": [
+        "250m_16_days_NDVI"
+      ],
+      "max_items": 46,
+      "max_size": 200,
+      "notes": "MODIS NDVI 16 dias 250 m"
+    },
+    {
+      "id": "naip",
+      "hook": "stac",
+      "collection": "naip",
+      "assets": [
+        "image"
+      ],
+      "max_items": 2,
+      "max_size": 4000,
+      "notes": "NAIP foto aerea ~1 m"
+    },
+    {
+      "id": "srtm",
+      "hook": "stac",
+      "collection": "nasadem",
+      "assets": [
+        "elevation"
+      ],
+      "max_items": 1,
+      "max_size": 1000,
+      "all_dates": true,
+      "notes": "NASADEM = SRTM reprocesado por NASA"
+    },
+    {
+      "id": "smap",
+      "hook": "harmony",
+      "short_name": "SPL3SMP_E",
+      "notes": "SMAP humedad de suelo diaria 9 km, recortada al area con Harmony (~1.4 MB/dia en vez de 658 MB)"
+    },
+    {
+      "id": "imerg",
+      "hook": "harmony",
+      "short_name": "GPM_3IMERGM",
+      "notes": "GPM IMERG lluvia mensual, recortada con Harmony. Requiere autorizar GES DISC en Earthdata"
+    },
+    {
+      "id": "ecostress_lst",
+      "hook": "earthdata",
+      "short_name": "ECO_L2T_LSTE",
+      "version": "002",
+      "max_granules": 20,
+      "notes": "ECOSTRESS temperatura de superficie (tiles 70 m)"
+    },
+    {
+      "id": "ecostress_et",
+      "hook": "earthdata",
+      "short_name": "ECO_L3T_JET",
+      "version": "002",
+      "max_granules": 20,
+      "notes": "ECOSTRESS evapotranspiracion (tiles 70 m)"
+    },
+    {
+      "id": "viirs_ndvi",
+      "hook": "earthdata",
+      "short_name": "VNP13A1",
+      "max_granules": 10,
+      "notes": "VIIRS indices de vegetacion 500 m; ~100 MB por archivo y Harmony no lo recorta. Apagado: MODIS NDVI ya cubre esto recortado",
+      "enabled": false
+    },
+    {
+      "id": "nldas",
+      "hook": "earthdata",
+      "short_name": "NLDAS_NOAH0125_M",
+      "max_granules": 24,
+      "notes": "NLDAS mensual (EE.UU.)"
+    },
+    {
+      "id": "gldas",
+      "hook": "earthdata",
+      "short_name": "GLDAS_NOAH025_M",
+      "version": "2.1",
+      "max_granules": 24,
+      "notes": "GLDAS mensual (global)"
+    },
+    {
+      "id": "gedi",
+      "hook": "harmony",
+      "short_name": "GEDI_L4A_AGB_Density_V2_1_2056",
+      "notes": "GEDI L4A biomasa, solo los disparos dentro del area (Harmony)"
+    },
+    {
+      "id": "nass",
+      "since": 2000,
+      "notes": "USDA NASS QuickStats: estadisticas del condado y estado. Llave: NASS_API_KEY"
+    },
+    {
+      "id": "ams",
+      "slugs": [
+        2850
+      ],
+      "notes": "USDA AMS Market News (2850 = Iowa Daily Cash Grain Bids). Llave: AMS_API_KEY"
+    },
+    {
+      "id": "openet",
+      "enabled": false,
+      "notes": "OpenET: solo estados del oeste de EE.UU.; Iowa no esta cubierto. Llave: OPENET_API_KEY"
+    },
+    {
+      "id": "era5",
+      "dataset": "reanalysis-era5-single-levels-monthly-means",
+      "variables": [
+        "2m_temperature",
+        "total_precipitation",
+        "volumetric_soil_water_layer_1"
+      ],
+      "notes": "ERA5 mensual del area. Llave: CDS_API_KEY"
+    },
+    {
+      "id": "landfire",
+      "layers": [
+        "LF2024_EVT",
+        "LF2024_EVC",
+        "LF2024_EVH",
+        "LF2020_SlpD"
+      ],
+      "notes": "LANDFIRE vegetacion; pide un correo: LANDFIRE_EMAIL"
+    }
   ]
 }
