@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { es, fmtDate } from "../i18n/es";
 import { useStageStore } from "../store/stage-store";
 import { isPilotFarm } from "../lib/parcel";
+import { displayName } from "../lib/parcel-history";
+import { useHistoryStore } from "../store/history-store";
 import { useParcelStore } from "../store/parcel-store";
 import { SEASONS, useTwinStore } from "../store/twin-store";
 
@@ -23,6 +25,11 @@ export function TopBar() {
   const span = useTwinStore((s) => s.span);
   const farmId = useParcelStore((s) => s.farmId);
   const pilot = isPilotFarm(farmId);
+  const record = useHistoryStore((s) => s.items.find((p) => p.farmId === farmId));
+  const farm = useTwinStore((s) => s.farm)?.farm;
+  // The loaded farm payload is the most accurate area; the history entry covers the time before it arrives
+  const areaHa = farm?.farm_id === farmId ? farm.area_ha : (record?.areaHa ?? null);
+  const parcelName = displayName({ farmId, customName: record?.customName ?? null, centroid: record?.centroid ?? null });
   const { start, end } = span;
   // The twin stage always has exactly one active layer (radio); globe/map count their two pilot toggles
   const layerCount = stage === "twin" ? 1 : [mapLayers.ndvi, mapLayers.boundaries].filter(Boolean).length;
@@ -59,6 +66,11 @@ export function TopBar() {
         )}
       </div>
       <div className="top-bar-right">
+        <span className="chip-button parcel-chip" title={es.history.current} data-testid="current-parcel">
+          <span aria-hidden>⬚</span>
+          <strong>{parcelName}</strong>
+          {areaHa !== null && <span>· {areaHa.toFixed(1)} ha</span>}
+        </span>
         <label className="date-range" title={pilot ? es.geo.pilotSeason : es.openParcel.seasonTitle}>
           <span aria-hidden>▦</span>
           <span>

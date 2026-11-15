@@ -1,7 +1,9 @@
 import { checkParcelLat, parcelIdFromPoint, PILOT_FARM_ID } from "../lib/parcel";
 import { es } from "../i18n/es";
 import { ApiError, api } from "../services/api";
+import type { ParcelRecord } from "../lib/parcel-history";
 import type { LatLon } from "../types/parcel";
+import { useHistoryStore } from "./history-store";
 import { useMapStore } from "./map-store";
 import { useParcelStore } from "./parcel-store";
 import { useStageStore } from "./stage-store";
@@ -27,7 +29,8 @@ export function canOpenAt(point: LatLon): OpenResult {
 }
 
 // Makes `farmId` active, flies there and loads it; re-opening the parcel that is already loading or loaded only flies
-function activate(farmId: string, fly = true): void {
+function activate(farmId: string, fly = true, extra?: { polygons?: LatLon[][]; areaHa?: number }): void {
+  useHistoryStore.getState().record(farmId, extra);
   const parcel = useParcelStore.getState();
   const same = parcel.farmId === farmId && (parcel.phase === "loading" || parcel.phase === "ready");
   if (!same) {
@@ -41,8 +44,8 @@ function activate(farmId: string, fly = true): void {
 export async function openDrawn(polygons: LatLon[][]): Promise<string | null> {
   if (useParcelStore.getState().capability === "unsupported") return es.openParcel.unsupported;
   try {
-    const { farm_id } = await api.registerPolygonFarm(polygons);
-    activate(farm_id, false);
+    const { farm_id, area_ha } = await api.registerPolygonFarm(polygons);
+    activate(farm_id, false, { polygons, areaHa: area_ha });
     useStageStore.getState().goTo("twin");
     return null;
   } catch (e) {
@@ -68,4 +71,31 @@ export function retryActive(): void {
 
 export function cancelOpen(): void {
   useTwinStore.getState().cancelLoad();
+}
+
+// Reopens a parcel from "Mis parcelas". Drawn parcels are re-registered first (same polygons give the same id), so
+// they resolve even when the backend was restarted and forgot the geometry. Resolves to an error message or null.
+export async function openFromHistory(rec: ParcelRecord): Promise<string | null> {
+  if (rec.polygons && rec.polygons.length > 0) {
+    try {
+      const { farm_id } = await api.registerPolygonFarm(rec.polygons);
+      activate(farm_id);
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e);
+    }
+  }
+  activate(rec.farmId);
+  return null;
+}
+
+// Offers the same recovery for the active parcel (deep link or failed load): true when the history holds its polygons
+export function canReregister(farmId: string): boolean {
+  return (useHistoryStore.getState().items.find((p) => p.farmId === farmId)?.polygons?.length ?? 0) > 0;
+}
+
+export async function reregisterActive(): Promise<string | null> {
+  const rec = useHistoryStore.getState().items.find((p) => p.farmId === useParcelStore.getState().farmId);
+  if (!rec) return es.history.noPolygons;
+  return openFromHistory(rec);
 }

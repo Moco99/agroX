@@ -216,6 +216,40 @@ export const es = {
     source: "Fuente",
     noData: "Sin dato",
   },
+  history: {
+    title: "Mis parcelas",
+    empty: "Aún no has abierto ninguna parcela.",
+    open: "Abrir",
+    rename: "Renombrar",
+    save: "Guardar",
+    cancel: "Cancelar",
+    remove: "Eliminar",
+    nameLabel: "Nombre de la parcela",
+    current: "Parcela actual",
+    meta: (ha: number | null, zones: number | null) =>
+      [ha === null ? null : `${ha.toFixed(1)} ha`, zones === null ? null : `${zones} zona${zones === 1 ? "" : "s"}`]
+        .filter(Boolean)
+        .join(" · ") || "Sin datos aún",
+    noPolygons: "No hay polígonos guardados de esta parcela.",
+    unknownTitle: "El servidor ya no conoce esta parcela",
+    unknownHint: "Tienes guardados sus polígonos en tu historial. Puedes volver a registrarla y abrirla.",
+    reregister: "Volver a registrar desde mi historial",
+    openFailed: (m: string) => `No se pudo abrir la parcela: ${m}`,
+  },
+  coordHelp: {
+    placeholder: "Ej. 20.73, -97.89",
+    label: "Coordenadas o lugar",
+    examples: "Acepta 20.73, -97.89 · 20.73 -97.89 · 20°43'54\"N 97°53'30\"W · un enlace de Google Maps · o un nombre de lugar.",
+    tipTitle: "¿Cómo obtengo mis coordenadas?",
+    tipComputer: "En Google Maps (computadora): clic derecho sobre el punto y toca los números para copiarlos.",
+    tipPhone: "En el teléfono: mantén presionado el punto en el mapa y copia las coordenadas que aparecen arriba.",
+    format: "No entendí ese formato. Prueba con 20.73, -97.89.",
+    latRange: "La latitud debe estar entre -60 y 75 (hay imágenes y datos solo ahí).",
+    lonRange: "La longitud debe estar entre -180 y 180.",
+    searching: "Buscando lugares…",
+    noPlaces: "Sin resultados para ese nombre.",
+    places: "Lugares encontrados",
+  },
   topbar: {
     search: "Buscar ubicación, establecimiento o área…",
     searchHint:

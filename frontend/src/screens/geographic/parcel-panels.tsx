@@ -3,7 +3,7 @@ import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Too
 import { DataStateBadge } from "../../components/data-state-badge";
 import { es, fmt, fmtDate } from "../../i18n/es";
 import { isPilotFarm } from "../../lib/parcel";
-import { cancelOpen, openPilot, retryActive } from "../../store/open-parcel";
+import { cancelOpen, canReregister, openPilot, reregisterActive, retryActive } from "../../store/open-parcel";
 import { SOURCE_KEYS, useParcelStore } from "../../store/parcel-store";
 import { useTwinStore } from "../../store/twin-store";
 import { color } from "../../styles/tokens";
@@ -14,6 +14,21 @@ import type { DataState, FarmZone } from "../../types/api";
 // ─────────────────────────────────────────
 
 const SPIN: Record<string, string> = { pending: "◌", ok: "✓", error: "✕", skipped: "–", idle: "·" };
+
+// A poly_ id the restarted backend no longer knows: offer to register the polygons kept in the history again
+function ReregisterOffer() {
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div className="coverage-note is-warn" role="alert">
+      <strong>{es.history.unknownTitle}</strong>
+      <p>{es.history.unknownHint}</p>
+      <button type="button" className="play-button" onClick={() => void reregisterActive().then(setError)}>
+        {es.history.reregister}
+      </button>
+      {error && <p>{es.history.openFailed(error)}</p>}
+    </div>
+  );
+}
 
 export function LoadProgress() {
   const phase = useParcelStore((s) => s.phase);
@@ -46,6 +61,7 @@ export function LoadProgress() {
           <small className="muted">{es.openParcel.elapsed(seconds)}</small>
         </>
       )}
+      {phase === "error" && canReregister(farmId) && <ReregisterOffer />}
       <ul className="load-sources">
         {SOURCE_KEYS.map((k) => {
           const st = sources[k];

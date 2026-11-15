@@ -318,6 +318,9 @@ export interface ObservationPoint {
   zone_id: string | null;
   n_pixels: number | null;
   qa_flag: string | null;
+  valid_fraction?: number | null;
+  p10?: number | null;
+  p90?: number | null;
 }
 
 export interface ObservationSeries {

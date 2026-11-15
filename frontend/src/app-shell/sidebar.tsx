@@ -34,7 +34,7 @@ interface NavItem {
 
 const ITEMS: NavItem[] = [
   { label: es.nav.exploration, stage: "globe", icon: "◎" },
-  { label: es.nav.vegetation, stage: "map", icon: "❦" },
+  { label: es.nav.vegetation, stage: null, module: "vegetation", icon: "❦" },
   { label: es.nav.climate, stage: null, module: "climate", icon: "☁" },
   { label: es.nav.rotations, stage: null, rotation: true, icon: "↻" },
   { label: es.nav.scenarios, stage: "twin", icon: "◈" },
