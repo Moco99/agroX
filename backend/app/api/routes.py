@@ -30,7 +30,8 @@ ProvidersDep = Annotated[Providers, Depends(providers_dep)]
 def health(p: ProvidersDep) -> dict[str, object]:
     settings = get_settings()
     cov_start, cov_end = p.weather.coverage()
-    built = manifest_entry(settings.derived_dir, "weather_power_daily").get("built_at") if p.mode == "real" else None
+    from_derived = p.mode in ("real", "live")
+    built = manifest_entry(settings.derived_dir, "weather_power_daily").get("built_at") if from_derived else None
     return {
         "status": "ok",
         "version": settings.version,

@@ -40,7 +40,7 @@ React (Vite)  ── REST/JSON ──►  FastAPI routers   (validación Pydanti
 | `CropCatalogProvider` | `CropCatalog` | Parámetros provisionales | `derived/catalog/catalog_v1.json` verificado |
 | `ObservationProvider` | `ObservationSeries` (NDVI, SMAP) | NDVI doble logística + ruido | `derived/obs/ndvi_modis_<parcel_id>.csv`, `smap_*.csv` |
 
-Selección del adaptador por variable de entorno `AGROX_DATA_MODE=synthetic|real` (por puerto se permite override, p. ej. `AGROX_WEATHER_MODE`), resuelta en un único módulo `providers/factory.py`.
+Selección del adaptador por variable de entorno `AGROX_DATA_MODE=synthetic|real|live` (`live`: clima directo de la API de NASA POWER 1981→hoy con caché en disco y respaldo a `derived/`; el resto de puertos igual que `real`) (por puerto se permite override, p. ej. `AGROX_WEATHER_MODE`), resuelta en un único módulo `providers/factory.py`.
 
 ## Flujo de una petición (ej. `POST /api/twin/simulate`)
 

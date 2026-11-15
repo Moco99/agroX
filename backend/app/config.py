@@ -8,6 +8,8 @@ from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parent
 DEFAULT_DERIVED_DIR = APP_DIR / "data" / "derived"
+# Live API responses are cached outside git (repo data/ is ignored)
+DEFAULT_CACHE_DIR = APP_DIR.parents[1] / "data" / "cache"
 
 
 @dataclass(frozen=True)
@@ -16,19 +18,21 @@ class Settings:
     derived_dir: Path
     synthetic_seed: int
     cors_origins: tuple[str, ...]
+    cache_dir: Path = DEFAULT_CACHE_DIR
     version: str = "0.1.0"
 
 
 def get_settings() -> Settings:
     """Read settings on each call so tests can flip AGROX_DATA_MODE without reloading modules."""
     mode = os.environ.get("AGROX_DATA_MODE", "real").strip().lower()
-    if mode not in {"real", "synthetic"}:
+    if mode not in {"real", "synthetic", "live"}:
         mode = "real"
     derived = Path(os.environ.get("AGROX_DERIVED_DIR", str(DEFAULT_DERIVED_DIR)))
+    cache = Path(os.environ.get("AGROX_CACHE_DIR", str(DEFAULT_CACHE_DIR)))
     seed = int(os.environ.get("AGROX_SYNTHETIC_SEED", "20261114"))
     origins = tuple(
         o.strip()
         for o in os.environ.get("AGROX_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
         if o.strip()
     )
-    return Settings(data_mode=mode, derived_dir=derived, synthetic_seed=seed, cors_origins=origins)
+    return Settings(data_mode=mode, derived_dir=derived, synthetic_seed=seed, cors_origins=origins, cache_dir=cache)
