@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { PointSearch } from "../point/point-search";
+import { sameQueriedPoint } from "../../lib/coordinates";
 import { DataStateBadge } from "../../components/data-state-badge";
 import { es, fmt } from "../../i18n/es";
 import { defaultPointRange, EXPLORE_PLACES, insideBounds, PILOT_BOUNDS } from "../../lib/globe-view";
@@ -18,7 +21,7 @@ function coverageVerdict(
   selected: { lat: number; lon: number },
 ): boolean | null {
   if (!result) return null;
-  if (Math.abs(result.point.lat - selected.lat) > 0.02 || Math.abs(result.point.lon - selected.lon) > 0.02) return null;
+  if (!sameQueriedPoint(result.point, selected)) return null;
   const data = result.sections.coverage.data;
   const flag = data?.es_cultivo;
   return typeof flag === "boolean" ? flag : null;
@@ -81,6 +84,7 @@ function openPilotTwin(): void {
 // ─────────────────────────────────────────
 
 export function GlobePanel() {
+  const [coordinatesOpen, setCoordinatesOpen] = useState(false);
   const selected = useMapStore((s) => s.selected);
   const pointLoading = usePointStore((s) => s.loading);
   const pointResult = usePointStore((s) => s.result);
@@ -115,6 +119,11 @@ export function GlobePanel() {
         <h2>{es.geo.title}</h2>
         <p className="muted">{es.geo.hint}</p>
       </div>
+      <section className="card">
+        <button type="button" className="ghost-button wide-button" aria-expanded={coordinatesOpen}
+          onClick={() => setCoordinatesOpen((open) => !open)}>{es.point.enterCoordinates}</button>
+        {coordinatesOpen && <PointSearch onSubmit={() => setCoordinatesOpen(false)} />}
+      </section>
       <section className="card" data-testid="selected-point">
         <h3>{es.geo.selected}</h3>
         {selected ? (

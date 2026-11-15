@@ -48,7 +48,9 @@ def test_ecocrop_risk_model():
 
     # Severe drought & sustained heat, away from the heuristic class boundary.
     # The old 25-day case has stress ~0.585, almost exactly the 0.58 threshold.
-    res_high = risk_model.predict_risk(t_mean=36.0, t_extreme_days=80, rain_mm=150.0, crop_water_need=800.0, is_same_family=True)
+    res_high = risk_model.predict_risk(
+        t_mean=36.0, t_extreme_days=80, rain_mm=150.0, crop_water_need=800.0, is_same_family=True
+    )
     assert res_high["risk_level"] == "ALTO"
     assert len(res_high["primary_factors"]) >= 1
 

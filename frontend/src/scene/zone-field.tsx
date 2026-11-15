@@ -22,6 +22,7 @@ interface ZoneFieldProps {
   canopy: number;
   selected: boolean;
   onSelect: (zoneId: string) => void;
+  showPlants?: boolean;
 }
 
 function toScene([x, y]: [number, number]): THREE.Vector3 {
@@ -37,6 +38,7 @@ export function ZoneField({
   canopy,
   selected,
   onSelect,
+  showPlants = true,
 }: ZoneFieldProps) {
   const dem = useTwinStore((s) => s.heightmap);
   const elevation = useMemo(
@@ -149,7 +151,7 @@ export function ZoneField({
     mesh.count = positions.length;
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [positions, fill, canopy, cropId, zoneId, elevation]);
+  }, [positions, fill, canopy, cropId, zoneId, elevation, showPlants]);
 
   return (
     <group>
@@ -169,7 +171,7 @@ export function ZoneField({
           linewidth={2}
         />
       </lineLoop>
-      <instancedMesh
+      {showPlants && <instancedMesh
         ref={meshRef}
         args={[plantGeometry, undefined, Math.max(positions.length, 1)]}
         onClick={(e) => {
@@ -178,7 +180,7 @@ export function ZoneField({
         }}
       >
         <meshLambertMaterial vertexColors={false} />
-      </instancedMesh>
+      </instancedMesh>}
     </group>
   );
 }

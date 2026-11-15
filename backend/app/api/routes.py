@@ -162,32 +162,17 @@ def observed_vs_simulated(p: ProvidersDep, farm_id: str = "story_pilot_farm", ye
 # ─────────────────────────────────────────
 
 
-
 @router.get("/ecocrop/search")
-def search_ecocrop(q: str = "maiz", limit: int = 10) -> list[dict[str, object]]:
-    from app.engine.ecocrop_model import EcoCropEngine
-    engine = EcoCropEngine()
-    return engine.find_crops(q, limit=limit)
+def search_ecocrop(
+    q: Annotated[str, Query(min_length=1, max_length=100)], limit: Annotated[int, Query(ge=1, le=50)] = 10
+) -> list[dict[str, object]]:
+    from app.services import rotation_service
+
+    return rotation_service.search(q, limit)
 
 
 @router.post("/rotations/recommend")
-def recommend_rotations(body: RotationRecommendRequest | None = None) -> dict[str, object]:
-    from app.engine.ecocrop_model import RotationEngine
-    req = body or RotationRecommendRequest()
-    recommender = RotationEngine()
-    results = recommender.recommend_top_rotations(
-        t_mean=req.t_mean,
-        rain_mm=req.rain_mm,
-        soil_ph=req.soil_ph,
-        soil_awc=req.soil_awc,
-        t_extreme_days=req.t_extreme_days,
-        cycles=req.cycles,
-        top_k=req.top_k,
-    )
-    return {
-        "status": "ok",
-        "methodology": "EcoCrop-RF Hybrid (FAO Trapezoidal Suitability + Random Forest Stress Classifier)",
-        "inputs": req.model_dump(),
-        "recommendations": results,
-    }
+def recommend_rotations(p: ProvidersDep, body: RotationRecommendRequest) -> dict[str, object]:
+    from app.services import rotation_service
 
+    return rotation_service.recommend(p, body)

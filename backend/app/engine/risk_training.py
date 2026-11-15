@@ -111,7 +111,7 @@ def load_training_config() -> dict[str, Any]:
             "params": BASELINE_PARAMS.copy(),
             "selection": "legacy_defaults",
         }
-    config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    config: dict[str, Any] = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     if config["data_version"] != DATA_VERSION or tuple(config["feature_names"]) != FEATURE_NAMES:
         raise ValueError("Risk training configuration does not match the data/feature schema")
     return config

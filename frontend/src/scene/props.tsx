@@ -14,7 +14,7 @@ interface Extent {
   maxZ: number;
 }
 
-export function Ground({ extent }: { extent: Extent }) {
+export function Ground({ extent, surface = "#3E5A35" }: { extent: Extent; surface?: string }) {
   const w = extent.maxX - extent.minX;
   const d = extent.maxZ - extent.minZ;
   const cx = (extent.maxX + extent.minX) / 2;
@@ -28,7 +28,7 @@ export function Ground({ extent }: { extent: Extent }) {
       </mesh>
       <mesh position={[cx, 0.0, cz]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[w + 6, d + 6]} />
-        <meshLambertMaterial color="#3E5A35" />
+        <meshLambertMaterial color={surface} />
       </mesh>
     </group>
   );

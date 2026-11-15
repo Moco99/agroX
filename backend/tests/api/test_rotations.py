@@ -1,0 +1,90 @@
+"""Rotation API uses actual farm climate and explicitly separates scenario assumptions."""
+from fastapi.testclient import TestClient
+
+from app.main import create_app
+
+BASE = {"farm_id": "story_pilot_farm", "start": "2024-04-01", "end": "2024-10-31", "top_k": 3}
+
+
+def test_farm_inputs_and_missing_ph_are_explicit() -> None:
+    response = TestClient(create_app()).post("/api/rotations/recommend", json=BASE)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["inputs"]["days"] > 0
+    assert body["inputs"]["climate_source"]
+    assert body["inputs"]["soil_ph"] is None
+    assert body["recommendations"]
+    for item in body["recommendations"]:
+        assert item["indicators"]["soil"] is None
+        assert item["weights"]["soil"] == 0
+        assert abs(sum(item["weights"].values()) - 1) < 1e-9
+        assert item["score_type"] == "comparative_index"
+        assert item["field_validated"] is False
+        assert all("risk_level" not in cycle and "ecocrop_suitability" not in cycle for cycle in item["cycles"])
+
+
+def test_scenario_changes_inputs_and_is_labelled() -> None:
+    client = TestClient(create_app())
+    base = client.post("/api/rotations/recommend", json=BASE).json()
+    scenario = client.post(
+        "/api/rotations/recommend",
+        json={**BASE, "scenario": {"temp_delta_c": 2, "precip_factor": 0.7}, "soil_ph": 6.4},
+    ).json()
+    assert scenario["data_state"] == "SIMULATED"
+    assert scenario["inputs"]["soil_ph"] == 6.4
+    assert abs(scenario["inputs"]["t_mean"] - base["inputs"]["t_mean"] - 2) < 0.02
+    assert abs(scenario["inputs"]["rain_mm"] - 0.7 * base["inputs"]["rain_mm"]) < 0.02
+    assert scenario["recommendations"][0]["indicators"]["soil"] is not None
+
+
+def test_validation_and_missing_farms() -> None:
+    client = TestClient(create_app())
+    assert client.post("/api/rotations/recommend", json={}).status_code == 422
+    assert client.post("/api/rotations/recommend", json={**BASE, "cycles": 50}).status_code == 422
+    assert client.post("/api/rotations/recommend", json={**BASE, "soil_ph": 15}).status_code == 422
+    assert client.post("/api/rotations/recommend", json={**BASE, "farm_id": "unknown"}).status_code == 404
+    assert client.post("/api/rotations/recommend", json={**BASE, "previous_crop": "invalid"}).status_code == 422
+
+
+def test_synthetic_inputs_stay_synthetic_under_scenario(monkeypatch) -> None:
+    monkeypatch.setenv("AGROX_DATA_MODE", "synthetic")
+    response = TestClient(create_app()).post(
+        "/api/rotations/recommend", json={**BASE, "scenario": {"temp_delta_c": 2, "precip_factor": 0.7}}
+    )
+    assert response.status_code == 200
+    assert response.json()["data_state"] == "SYNTHETIC"
+    assert response.json()["inputs"]["scenario"]["temp_delta_c"] == 2
+
+
+def test_missing_required_ecocrop_thresholds_are_not_ranked(monkeypatch) -> None:
+    from app.services.rotation_service import engine
+
+    crop_engine = engine().ecocrop
+    original = crop_engine.score_crop
+
+    def incomplete(scientific_name: str, *args: float, **kwargs: float) -> dict:
+        result = original(scientific_name, *args, **kwargs)
+        if scientific_name == "Zea mays":
+            result["warnings"].append("Missing temperature input or thresholds; score uses neutral/fallback values")
+        return result
+
+    monkeypatch.setattr(crop_engine, "score_crop", incomplete)
+    response = TestClient(create_app()).post("/api/rotations/recommend", json={**BASE, "top_k": 10})
+    assert response.status_code == 200
+    assert response.json()["recommendations"]
+    assert all("corn" not in item["sequence"] for item in response.json()["recommendations"])
+
+
+def test_reweighting_changes_comparisons_and_breakdown() -> None:
+    client = TestClient(create_app())
+    base = {**BASE, "scenario": {"temp_delta_c": 10, "precip_factor": 0.2}}
+    water = client.post(
+        "/api/rotations/recommend", json={**base, "soil_ph": 6.4, "weights": {"water": 1, "soil": 0, "climate": 0}}
+    ).json()["recommendations"][0]
+    climate = client.post(
+        "/api/rotations/recommend", json={**base, "soil_ph": 6.4, "weights": {"water": 0, "soil": 0, "climate": 1}}
+    ).json()["recommendations"][0]
+    assert abs(water["score"] - water["indicators"]["water"]) < 1e-6
+    assert abs(climate["score"] - climate["indicators"]["climate"]) < 1e-6
+    assert abs(sum(water["breakdown"].values()) - water["score"]) < 1e-6
+    assert water["sequence"] != climate["sequence"] or water["score"] != climate["score"]

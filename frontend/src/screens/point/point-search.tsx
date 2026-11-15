@@ -3,7 +3,9 @@ import type { FormEvent } from "react";
 import { usePointStore } from "../../store/point-store";
 import { es } from "../../i18n/es";
 import { defaultPointRange } from "../../lib/globe-view";
+import { coordinatesView } from "../../lib/coordinates";
 import { useMapStore } from "../../store/map-store";
+import { useStageStore } from "../../store/stage-store";
 export function PointSearch({ onSubmit }: { onSubmit: () => void }) {
   const range = defaultPointRange();
   // Prefill with the point picked on the map so ⌘K → Enter queries what the user is looking at
@@ -14,15 +16,25 @@ export function PointSearch({ onSubmit }: { onSubmit: () => void }) {
   const [end, setEnd] = useState(range.end);
   const [error, setError] = useState(false);
   const query = usePointStore((s) => s.query);
+  function coordinatesValid(): boolean {
+    return coordinatesView(lat, lon) !== null;
+  }
+  function locate() {
+    const view = coordinatesView(lat, lon);
+    if (!view) { setError(true); return; }
+    setError(false);
+    usePointStore.getState().close();
+    useMapStore.getState().select({ lat: Number(lat), lon: Number(lon) });
+    if (useStageStore.getState().stage === "twin") useStageStore.getState().goTo("globe", { instant: true });
+    useMapStore.getState().flyTo(view);
+    onSubmit();
+  }
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (
       start > end ||
       (Date.parse(end) - Date.parse(start)) / 86400000 > 730 ||
-      !Number.isFinite(Number(lat)) ||
-      !Number.isFinite(Number(lon)) ||
-      Math.abs(Number(lat)) > 90 ||
-      Math.abs(Number(lon)) > 180
+      !coordinatesValid()
     ) {
       setError(true);
       return;
@@ -88,6 +100,7 @@ export function PointSearch({ onSubmit }: { onSubmit: () => void }) {
         </label>
       </div>
       {error && <p role="alert">{es.point.validation}</p>}
+      <button type="button" className="ghost-button wide-button" onClick={locate}>{es.point.locate}</button>
       <button type="submit" className="play-button">
         {es.point.submit}
       </button>
