@@ -1,0 +1,53 @@
+{
+  "farm_id": "story_pilot_farm",
+  "zones": [
+    {
+      "zone_id": "zone_nw",
+      "elevation_mean_m": 297.8,
+      "elevation_min_m": 293.7,
+      "elevation_max_m": 301.8,
+      "slope_mean_pct": 3.02,
+      "slope_max_pct": 9.54,
+      "pixels": 540,
+      "data_state": "MEASURED",
+      "warnings": []
+    },
+    {
+      "zone_id": "zone_ne",
+      "elevation_mean_m": 299.3,
+      "elevation_min_m": 294.4,
+      "elevation_max_m": 303.7,
+      "slope_mean_pct": 2.81,
+      "slope_max_pct": 8.43,
+      "pixels": 540,
+      "data_state": "MEASURED",
+      "warnings": []
+    },
+    {
+      "zone_id": "zone_sw",
+      "elevation_mean_m": 300.2,
+      "elevation_min_m": 293.8,
+      "elevation_max_m": 305.6,
+      "slope_mean_pct": 3.67,
+      "slope_max_pct": 9.69,
+      "pixels": 540,
+      "data_state": "MEASURED",
+      "warnings": []
+    },
+    {
+      "zone_id": "zone_se",
+      "elevation_mean_m": 300.1,
+      "elevation_min_m": 294.1,
+      "elevation_max_m": 305.1,
+      "slope_mean_pct": 3.0,
+      "slope_max_pct": 10.38,
+      "pixels": 540,
+      "data_state": "MEASURED",
+      "warnings": []
+    }
+  ],
+  "source": "NASADEM HGT 1 arc-second (SRTM reprocessed)",
+  "data_state": "MEASURED",
+  "method": "3x3 mean smoothing, central-difference gradient, slope % = 100*sqrt(dz/dx^2+dz/dy^2)",
+  "note": "NASADEM vertical noise still inflates slope on flat terrain; use as a relative index."
+}

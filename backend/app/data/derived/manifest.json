@@ -1,0 +1,187 @@
+{
+  "artifacts": {
+    "crop_catalog_v1": {
+      "built_at": "2026-11-15T00:22:57Z",
+      "crops": [
+        "corn",
+        "soybean",
+        "cereal_rye"
+      ],
+      "data_state": "ESTIMATED",
+      "files": [
+        "catalog/catalog_v1.json"
+      ],
+      "source_id": "literature",
+      "verified": false
+    },
+    "obs_ndvi_modis": {
+      "built_at": "2026-11-15T00:22:58Z",
+      "data_state": "MEASURED",
+      "files": [
+        "obs/ndvi_modis_story_pilot_farm.csv"
+      ],
+      "method": "scale 0.0001, fill -3000 dropped; mean of pixel centres inside zone, nearest pixel fallback; no pixel-reliability layer downloaded (qa_flag=no_qa_layer)",
+      "period": {
+        "composites": 44,
+        "end": "2024-12-10",
+        "start": "2023-12-27"
+      },
+      "resolution": "250 m",
+      "scenes": 46,
+      "source": "MODIS MOD13Q1 + MYD13Q1 v061 NDVI 250 m 16-day (Planetary Computer subset)",
+      "source_id": "modis_ndvi"
+    },
+    "obs_ndvi_sentinel2": {
+      "built_at": "2026-11-15T00:22:59Z",
+      "coverage_note": "Only end-of-season scenes (2024-08-31..2024-09-30) exist: the scraper fetched the last 6 items of the range (data-pipeline debt a).",
+      "data_state": "MEASURED",
+      "files": [
+        "obs/ndvi_s2_story_pilot_farm.csv",
+        "obs/ndvi_s2_overlay_story_pilot_farm.png",
+        "obs/ndvi_s2_overlay_story_pilot_farm.json"
+      ],
+      "method": "NDVI=(B08-B04)/(B08+B04) after BOA offset -1000 and scale 1/10000; SCL keep [4, 5, 6]; zone mean over pixel centres; overlay from scene with best valid fraction",
+      "overlay_scene": "S2A_MSIL2A_20240831T170851_R112_T15TVG_20240901T000753",
+      "period": {
+        "end": "2024-09-30",
+        "start": "2024-08-31"
+      },
+      "resolution": "10 m (SCL 20 m)",
+      "scenes": 6,
+      "source_id": "sentinel2"
+    },
+    "obs_smap": {
+      "built_at": "2026-11-15T00:23:18Z",
+      "cell": {
+        "lat": 42.04337692260742,
+        "lon": -93.50103759765625
+      },
+      "data_state": "MEASURED",
+      "files": [
+        "obs/smap_story_pilot.csv",
+        "obs/smap_story_pilot.meta.json"
+      ],
+      "method": "nearest EASE2 cell to farm centroid; AM retrieval preferred, PM fallback; qual_flag raw",
+      "note": "Regional context only (not a field sensor); gaps on frozen soil, dense vegetation or orbit gaps.",
+      "period": {
+        "days": 731,
+        "days_with_retrieval": 404,
+        "end": "2024-12-31",
+        "start": "2023-01-01"
+      },
+      "resolution": "9 km EASE2 cell; ~5 cm surface layer",
+      "source": "SMAP L3 Radiometer Enhanced 9 km daily (SPL3SMP_E), NASA NSIDC via Harmony subset",
+      "source_id": "smap",
+      "units": {
+        "soil_moisture": "m3/m3"
+      }
+    },
+    "parcel_farm": {
+      "built_at": "2026-11-15T00:22:58Z",
+      "data_state": "MEASURED",
+      "files": [
+        "parcel/story_pilot_farm.geojson"
+      ],
+      "inputs": [
+        {
+          "path": "data/raw/cdl/CDL_2021_19169.tif",
+          "sha256": "fefb94039852feccb576c6f20d5f484793792f2f2a78913dc906fd47bca59e44"
+        },
+        {
+          "path": "data/raw/cdl/CDL_2022_19169.tif",
+          "sha256": "ac36294e60c539f2dad128d1e7887fa11385cd3515176fefd163b72862be1da8"
+        },
+        {
+          "path": "data/raw/cdl/CDL_2023_19169.tif",
+          "sha256": "67f277e7a253f0c9fbd22d1c4e4669ad0bbd035259ac5fbf4b1646feaa9b6a6f"
+        },
+        {
+          "path": "data/raw/cdl/CDL_2024_19169.tif",
+          "sha256": "c389fcc6f2d773fc138aad5a6daac7cd0663eccb169edee828cdc2ff20da4ef0"
+        }
+      ],
+      "resolution": "30 m",
+      "source_id": "cdl",
+      "years": [
+        2021,
+        2022,
+        2023,
+        2024
+      ],
+      "zones": [
+        {
+          "area_ha": 36.0,
+          "crop_id": "corn",
+          "zone_id": "zone_nw"
+        },
+        {
+          "area_ha": 36.0,
+          "crop_id": "soybean",
+          "zone_id": "zone_ne"
+        },
+        {
+          "area_ha": 36.0,
+          "crop_id": "corn",
+          "zone_id": "zone_sw"
+        },
+        {
+          "area_ha": 36.0,
+          "crop_id": "soybean",
+          "zone_id": "zone_se"
+        }
+      ]
+    },
+    "soil_ssurgo": {
+      "built_at": "2026-11-15T00:22:58Z",
+      "data_state": "MEASURED",
+      "files": [
+        "soil/story_pilot_farm.json"
+      ],
+      "inputs": [
+        {
+          "path": "data/raw/ssurgo/ssurgo_IA169.zip",
+          "sha256": "ec285f491b9c6e25f422416c6da05190c281d7809270f5f6e52a6b99277478fe"
+        }
+      ],
+      "resolution": "map unit polygons (1:12,000-1:24,000)",
+      "source_id": "ssurgo"
+    },
+    "terrain_slope": {
+      "built_at": "2026-11-15T00:22:58Z",
+      "data_state": "MEASURED",
+      "files": [
+        "terrain/story_pilot_farm.json"
+      ],
+      "inputs": [
+        {
+          "path": "data/raw/srtm/NASADEM_HGT_n42w094_elevation.tif",
+          "sha256": "a5855f2c73a01985f6ba73440c25a5392dca964f218469a7d32b049457eced03"
+        }
+      ],
+      "resolution": "1 arc-second (~30 m)",
+      "source_id": "srtm"
+    },
+    "weather_power_daily": {
+      "built_at": "2026-11-15T00:22:57Z",
+      "data_state": "MEASURED",
+      "files": [
+        "weather/power_daily_story_pilot.csv",
+        "weather/power_daily_story_pilot.meta.json"
+      ],
+      "period": {
+        "days": 731,
+        "end": "2024-12-31",
+        "start": "2023-01-01"
+      },
+      "qa_summary": {
+        "missing": 0,
+        "precip_extreme": 0,
+        "precip_negative": 0,
+        "t_outlier": 1,
+        "tmax_lt_tmin": 0
+      },
+      "source_id": "power"
+    }
+  },
+  "version": 1
+}

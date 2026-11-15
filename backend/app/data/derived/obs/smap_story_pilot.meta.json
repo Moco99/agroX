@@ -1,0 +1,24 @@
+{
+  "files": [
+    "obs/smap_story_pilot.csv"
+  ],
+  "data_state": "MEASURED",
+  "source_id": "smap",
+  "source": "SMAP L3 Radiometer Enhanced 9 km daily (SPL3SMP_E), NASA NSIDC via Harmony subset",
+  "resolution": "9 km EASE2 cell; ~5 cm surface layer",
+  "cell": {
+    "lat": 42.04337692260742,
+    "lon": -93.50103759765625
+  },
+  "period": {
+    "start": "2023-01-01",
+    "end": "2024-12-31",
+    "days": 731,
+    "days_with_retrieval": 404
+  },
+  "units": {
+    "soil_moisture": "m3/m3"
+  },
+  "method": "nearest EASE2 cell to farm centroid; AM retrieval preferred, PM fallback; qual_flag raw",
+  "note": "Regional context only (not a field sensor); gaps on frozen soil, dense vegetation or orbit gaps."
+}

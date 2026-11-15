@@ -1,0 +1,18 @@
+{
+  "farm_id": "story_pilot_farm",
+  "scene_id": "S2A_MSIL2A_20240831T170851_R112_T15TVG_20240901T000753",
+  "date": "2024-08-31",
+  "bounds": {
+    "west": -93.50221333333333,
+    "south": 42.019526066350714,
+    "east": -93.47917333333334,
+    "north": 42.03850710900474
+  },
+  "width_px": 216,
+  "height_px": 178,
+  "resolution_m": 10,
+  "source": "Sentinel-2 L2A (ESA, via Planetary Computer), NDVI from B04/B08 with SCL mask",
+  "data_state": "MEASURED",
+  "valid_fraction_farm": 1.0,
+  "ramp": "design-tokens NDVI ramp; alpha 200 valid / 110 masked (grey)"
+}
