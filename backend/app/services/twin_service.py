@@ -128,7 +128,13 @@ def _plantings(
                 planting = following
             out[z.zone_id] = (planting, DataState.DECLARED)
         else:
-            out[z.zone_id] = (suggested_planting(crop_id, pt[0], start), DataState.ESTIMATED)
+            # Same rule as the pilot: a suggestion that falls before the window (northern Nov-Nov run) would start
+            # the crop already mature, so it moves to the next occurrence when the window still contains it
+            planting = suggested_planting(crop_id, pt[0], start)
+            following = planting.replace(year=planting.year + 1)
+            if planting < start and following <= end:
+                planting = following
+            out[z.zone_id] = (planting, DataState.ESTIMATED)
     return out
 
 
