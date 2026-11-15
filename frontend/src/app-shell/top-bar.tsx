@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { PointSearch } from "../screens/point/point-search";
+import { useEffect, useState } from "react";
 import { es, fmtDate } from "../i18n/es";
 import { useStageStore } from "../store/stage-store";
 import { SEASONS, seasonRange, useTwinStore } from "../store/twin-store";
@@ -16,31 +17,51 @@ export function TopBar() {
   const showCredits = useStageStore((s) => s.showCredits);
   const [searchOpen, setSearchOpen] = useState(false);
   const { start, end } = seasonRange(year);
-  // The twin stage always has exactly one active layer (radio); globe/map count their toggles
-  const layerCount = stage === "twin" ? 1 : Object.values(mapLayers).filter(Boolean).length;
+  // The twin stage always has exactly one active layer (radio); globe/map count their two pilot toggles
+  const layerCount = stage === "twin" ? 1 : [mapLayers.ndvi, mapLayers.boundaries].filter(Boolean).length;
+
+  // ⌘K / Ctrl+K toggles the coordinate search from anywhere; Esc closes it
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      } else if (e.key === "Escape") setSearchOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <header className="top-bar">
       <div className="search-wrap">
-        <button type="button" className="search" onClick={() => setSearchOpen(!searchOpen)} aria-expanded={searchOpen}>
+        <button
+          type="button"
+          className="search"
+          onClick={() => setSearchOpen(!searchOpen)}
+          aria-expanded={searchOpen}
+        >
           <span aria-hidden>⌕</span>
-          <span className="search-placeholder">{es.topbar.search}</span>
+          <span className="search-placeholder">{es.point.search}</span>
           <kbd>{es.topbar.shortcut}</kbd>
         </button>
         {searchOpen && (
           <div className="search-pop" role="dialog">
-            <strong>{es.topbar.searchResult}</strong>
-            <small>{es.topbar.searchHint}</small>
+            <PointSearch onSubmit={() => setSearchOpen(false)} />
           </div>
         )}
       </div>
       <div className="top-bar-right">
-        <label className="date-range" title={es.topbar.season}>
+        <label className="date-range" title={es.geo.pilotSeason}>
           <span aria-hidden>▦</span>
           <span>
-            {fmtDate(start)} – {fmtDate(end)}
+            Iowa · {fmtDate(start)} – {fmtDate(end)}
           </span>
-          <select value={year} onChange={(e) => void loadSeason(Number(e.target.value))} aria-label={es.topbar.season}>
+          <select
+            value={year}
+            onChange={(e) => void loadSeason(Number(e.target.value))}
+            aria-label={es.geo.pilotSeason}
+          >
             {SEASONS.map((y) => (
               <option key={y} value={y}>
                 {y}
@@ -51,7 +72,12 @@ export function TopBar() {
         <span className="chip-button" title={es.layers.title}>
           <span aria-hidden>▤</span> {es.topbar.layers(layerCount)}
         </span>
-        <button type="button" className="icon-round" title={es.topbar.notifications} aria-label={es.topbar.notifications}>
+        <button
+          type="button"
+          className="icon-round"
+          title={es.topbar.notifications}
+          aria-label={es.topbar.notifications}
+        >
           <span aria-hidden>🔔</span>
           <i className="dot" aria-hidden />
         </button>
