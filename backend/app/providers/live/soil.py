@@ -22,6 +22,8 @@ from app.schemas.common import DataState, Provenance
 from app.schemas.soil import SoilProfile
 
 SOILGRIDS_URL = "https://rest.isric.org/soilgrids/v2.0/properties/query"
+# Same fallback the Real* soil adapter uses when SSURGO has no AWC (decisions.md)
+PROVISIONAL_AWC = 150.0
 # SoilGrids standard depth intervals down to 1 m, with their thickness in cm for the weighted mean
 DEPTHS_CM = {"0-5cm": 5, "5-15cm": 10, "15-30cm": 15, "30-60cm": 30, "60-100cm": 40}
 
@@ -33,9 +35,18 @@ def fetch_soilgrids(lon: float, lat: float) -> SoilJson:
     params = [("lon", lon), ("lat", lat), ("value", "mean"), ("property", "wv0033"), ("property", "wv1500")]
     params += [("depth", d) for d in DEPTHS_CM]
     url = f"{SOILGRIDS_URL}?{urllib.parse.urlencode(params)}"
-    # Short timeout: SoilGrids is slow and rate-limited; the twin must not wait on a cross-check
-    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "agrox-backend"}), timeout=20) as r:
-        data = json.loads(r.read())
+    # SoilGrids is slow and rate-limited: one short try, then one longer retry
+    last: Exception | None = None
+    for timeout in (20, 45):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "agrox-backend"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                data = json.loads(r.read())
+            break
+        except (OSError, TimeoutError) as exc:
+            last = exc
+    else:
+        raise TimeoutError(f"SoilGrids did not answer: {last}")
     if not isinstance(data, dict):
         raise ValueError("SoilGrids: unexpected response")
     return data
@@ -96,7 +107,7 @@ class LiveSoilProvider(RealSoilProvider):
             grids = self._soilgrids_awc(farm_id)
         except Exception as exc:
             if not ssurgo:
-                raise
+                return self._provisional(farm_id, exc)
             note = f"SoilGrids cross-check unavailable ({type(exc).__name__})"
             return {z: p.model_copy(update={"warnings": [*p.warnings, note]}) for z, p in ssurgo.items()}
         out: dict[str, SoilProfile] = {}
@@ -126,3 +137,16 @@ class LiveSoilProvider(RealSoilProvider):
         if not out:
             raise DataNotFoundError(f"no soil data for farm '{farm_id}'")
         return out
+
+    def _provisional(self, farm_id: str, exc: Exception) -> dict[str, SoilProfile]:
+        """No survey and no SoilGrids answer: keep the twin runnable with the same provisional AWC as Real*."""
+        note = f"SoilGrids unavailable ({type(exc).__name__}): provisional AWC {PROVISIONAL_AWC} mm/m (ESTIMATED)"
+        return {
+            zid: SoilProfile(
+                awc_mm_per_m=PROVISIONAL_AWC,
+                root_depth_max_m=DEFAULT_ROOT_LIMIT_M,
+                provenance=Provenance(source="provisional default", data_state=DataState.ESTIMATED),
+                warnings=[note, "retry later: this value is not cached"],
+            )
+            for zid in zone_rings(self._dir, farm_id)
+        }

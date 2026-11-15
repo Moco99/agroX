@@ -12,10 +12,19 @@ from functools import lru_cache
 from pathlib import Path
 
 from app.config import DEFAULT_CACHE_DIR, Settings, get_settings
+from app.providers.live.farm import GlobalFarmProvider
 from app.providers.live.observations import LiveObservationProvider
+from app.providers.live.parcel import point_farm
 from app.providers.live.soil import LiveSoilProvider
 from app.providers.live.weather import LivePowerWeatherProvider
-from app.providers.ports import CropCatalogProvider, FarmProvider, ObservationProvider, SoilProvider, WeatherProvider
+from app.providers.ports import (
+    CropCatalogProvider,
+    DataNotFoundError,
+    FarmProvider,
+    ObservationProvider,
+    SoilProvider,
+    WeatherProvider,
+)
 from app.providers.real import read_json
 from app.providers.real.catalog import RealCropCatalogProvider
 from app.providers.real.farm import RealFarmProvider
@@ -38,6 +47,8 @@ class Providers:
     observations: ObservationProvider
     # Ports that silently fell back would be dishonest: the reason travels to every response
     warnings: tuple[str, ...] = field(default_factory=tuple)
+    derived_dir: Path | None = None
+    cache_dir: Path | None = None
 
 
 @lru_cache(maxsize=8)
@@ -64,8 +75,12 @@ def _build(mode: str, derived_dir: Path, seed: int, cache_dir: Path | None = Non
             weather=weather,
             soil=soil_real,
             catalog=RealCropCatalogProvider(derived_dir),
-            farm=RealFarmProvider(derived_dir, soil_real),
+            farm=GlobalFarmProvider(derived_dir, soil_real, cache)
+            if mode == "live"
+            else RealFarmProvider(derived_dir, soil_real),
             observations=observations,
+            derived_dir=derived_dir,
+            cache_dir=cache,
         )
     warnings: tuple[str, ...] = ()
     if mode in ("real", "live"):
@@ -85,3 +100,21 @@ def _build(mode: str, derived_dir: Path, seed: int, cache_dir: Path | None = Non
 def get_providers(settings: Settings | None = None) -> Providers:
     s = settings or get_settings()
     return _build(s.data_mode, s.derived_dir, s.synthetic_seed, s.cache_dir)
+
+
+@lru_cache(maxsize=64)
+def _point_weather(derived_dir: Path, cache_dir: Path, lat: float, lon: float) -> LivePowerWeatherProvider:
+    return LivePowerWeatherProvider(derived_dir, cache_dir, lat, lon, allow_fallback=False)
+
+
+def weather_at(p: Providers, lat: float, lon: float) -> WeatherProvider:
+    """NASA POWER at any point (live mode only)."""
+    if p.mode != "live" or p.derived_dir is None or p.cache_dir is None:
+        raise DataNotFoundError("weather outside the pilot needs AGROX_DATA_MODE=live")
+    return _point_weather(p.derived_dir, p.cache_dir, round(lat, 4), round(lon, 4))
+
+
+def weather_for(p: Providers, farm_id: str) -> WeatherProvider:
+    """Weather provider for a farm: the pilot series, or NASA POWER at the point of a point farm."""
+    pt = point_farm(farm_id)
+    return p.weather if pt is None else weather_at(p, *pt)

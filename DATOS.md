@@ -59,6 +59,8 @@ El gemelo pide sus datos **directo a la API de cada fuente**, con caché diaria 
 | NDVI por zona | Sentinel-2 vía Planetary Computer, **2021 a hoy** | ~300 fechas sin nubes por zona, incluidos 2025 y 2026; ~36 s la primera vez del día |
 | Suelo | SSURGO + **SoilGrids** (ISRIC) | Validación cruzada de la capacidad de agua: SSURGO 176 mm/m frente a SoilGrids 131 mm/m. Fuera de EE.UU. se usa SoilGrids, marcado como `ESTIMATED` |
 
+**En cualquier lugar del mundo:** con `farm_id = pt_<lat>_<lon>` el gemelo arma una parcela de 36 ha con datos globales. Lo probamos en Veracruz, Mato Grosso, Punjab y Francia: la primavera de 2024 en Francia sale con **SPI 2.03 (+58.8 % de lluvia)**, una de las más lluviosas registradas, y Punjab con estrés hídrico alto para maíz sin riego.
+
 En 2023–2024 el clima en vivo da **exactamente** los mismos datos que el pipeline, y hay una prueba que lo verifica.
 
 ---
