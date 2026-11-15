@@ -75,6 +75,9 @@ export function DigitalTwinScreen() {
   const scenZone = scenario?.zones.find((z) => z.zone_id === selected?.zone.zone_id) ?? null;
   const date = selected?.state?.date;
   const pFraction = selected?.state && selected.state.taw_mm > 0 ? selected.state.raw_mm / selected.state.taw_mm : null;
+  // Declared before zoneStyles: a const read before its declaration throws (TDZ) and blanks the screen
+  const pilotFarm = isPilotFarm(farm.farm.farm_id);
+  const ndviMissing = pilotFarm ? undefined : ndviMissingText(stageStatusOf(farm, "ndvi"));
   const zoneStyles = Object.fromEntries(
     views.map((v) => [v.zone.zone_id, { fill: layerColor(v, layer), label: layerLabel(v, layer, ndviMissing) }]),
   );
@@ -89,8 +92,6 @@ export function DigitalTwinScreen() {
   );
   const show3d = canvasTab === "twin" && webgl;
   const fallbackMsg = fallbackNote(terrainImagery, Boolean(heightmap), contextLoaded);
-  const pilotFarm = isPilotFarm(farm.farm.farm_id);
-  const ndviMissing = pilotFarm ? undefined : ndviMissingText(stageStatusOf(farm, "ndvi"));
   const mc = scenZone?.monte_carlo ?? baseZone?.monte_carlo ?? null;
 
   return (

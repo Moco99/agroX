@@ -3,7 +3,7 @@
 > TL;DR: Globo y mapa de granja en un solo visor MapLibre (teselas NASA GIBS + Esri, zoom continuo hasta campos; ADR-021/022); diorama isométrico en React Three Fiber (ADR-009) que representa por zona el estado del gemelo y el escenario, ILUSTRATIVO. No calcula nada.
 > Depende de: [data-contracts](../01-architecture/data-contracts.md), [design-tokens](../07-design/design-tokens.md), [ui-spec](../07-design/ui-spec.md)
 > Estado: draft
-> Última revisión: 2026-11-14
+> Última revisión: 2026-11-15
 
 Pantallas y layout: [ui-spec](../07-design/ui-spec.md) (S3 = este doc; S2 = [earth-scanner](earth-scanner.md)).
 
@@ -29,16 +29,22 @@ Histórico (O-12): se planeó Leaflet; desde ADR-021 el mapa de granja es MapLib
 
 | Elemento | Implementación | Dato que lo mueve |
 |---|---|---|
-| Base de terreno | Losa extruida del contorno de la granja (`ExtrudeGeometry`) con borde de tierra | geometría de la parcela normalizada |
-| Zonas (1–4) | Polígono por `zone_id` sobre la losa, borde luminoso `accent.bright` | `FarmZone.geometry` |
-| Surcos / plantas | `InstancedMesh` por zona (una geometría low-poly por `crop_id`: `corn`, `soybean`, cobertura) | `crop_id`, altura por `stage` |
-| Árboles perimetrales | `InstancedMesh` (cono/icosaedro + tronco), posiciones con seed fija | decorativo |
-| Camino, casa, silo, estanque | Primitivas (`Box`, `Cylinder`, plano con material de agua) | decorativo |
-| Riego | Tubería (línea/cilindro) + aspersores; arcos de agua animados solo si `irrigation_level ≠ NONE` | `irrigation_level` |
+| Base de terreno | Relieve del DEM drapeado con la imagen base (`observed-terrain.tsx`), **faldón** de tierra hasta la losa y losa con tres estratos (`Ground` en `props.tsx`) | `/api/terrain/heightmap`, `/api/imagery/basemap` |
+| Zonas (1–4) | Malla recortada al polígono y drapeada sobre el relieve (`zone-field.tsx`); borde `Line` con la capa activa, `accent.bright` + bloom si está seleccionada | `FarmZone.geometry` |
+| Suelo | Textura de surcos procedural; el color oscurece con `soil_water_fraction` (más húmedo = más oscuro, solo metáfora) y se tiñe con la capa activa | `TwinState.soil_water_fraction`, capa |
+| Plantas | Un `InstancedMesh` por zona con un arquetipo procedural por `crop_id` (`plant-geometry.ts`: `tall_grass` maíz/sorgo, `bush` soya/frijol, `small_grain` trigo/centeno/avena, `sunflower`, `cover`). El shader (`plant-material.ts`) anima altura, órganos reproductivos, senescencia, tinte de capa y viento con uniformes suavizados; también en el paso de sombras | `expected_canopy`, `TwinState.stage` (`PRE_PLANTING` suelo desnudo → … → `HARVESTED` rastrojo) |
+| Edificios observados | Huellas OSM extruidas (`buildings-layer.tsx`), techo y muros con materiales distintos; altura exagerada ×3 | footprints del backend |
+| Árboles, cerca, camino, estanque, granero/silo | `InstancedMesh` con seed fija (`props.tsx`); solo en la parcela piloto. El granero solo se dibuja en un sitio sin edificio observado | decorativo |
+| Riego | Pivote central (`CenterPivot`) solo si `irrigation_level ≠ NONE`; gira y rocía solo los días con `irrigation_mm > 0` o con la capa Riego activa | `irrigation_level`, `TwinState.irrigation_mm` |
 | Etiquetas de zona | drei `Html` (DOM): nombre, cultivo, ha, valor de la capa activa + insignia `data_state` | `ZoneResult` |
-| Colinas de fondo, niebla | Planos con color de `bg.app` | decorativo |
+| Cielo e iluminación | Gradiente de pantalla completa (`SceneBackdrop`), sol direccional con sombras PCF, luz de borde fría y entorno IBL local con `Lightformer` (sin HDR descargado) (`scene-environment.tsx`) | — |
+| Post-proceso | N8AO (oclusión ambiental), SMAA, bloom y viñeta sutiles, según nivel de calidad | — |
 
-Geometría **procedural sin assets** (sin glTF ni Blender), determinista por seed para que la escena sea idéntica entre recargas.
+Geometría **procedural sin assets** (sin glTF ni Blender), determinista por seed para que la escena sea idéntica entre recargas. Las proporciones de las plantas son visuales, no agronómicas: no codifican alturas reales ni espaciamientos de siembra.
+
+### Niveles de calidad y degradación
+
+`lib/scene-quality.ts` (puro, con tests) elige `high | medium | low` a partir de la GPU (`UNMASKED_RENDERER_WEBGL`, `MAX_TEXTURE_SIZE`, núcleos, memoria, móvil, `prefers-reduced-motion`). `?quality=high|medium|low` fija el nivel para demos. Cada nivel define `dpr`, sombras y tamaño del mapa, AO, bloom, viñeta, densidad e instancias máximas por zona, viento y `frameloop`. Un vigilante de cuadros (`frame-watchdog.tsx`) baja un nivel si la media cae de 26 fps dos ventanas seguidas; la pérdida de contexto WebGL también baja un nivel; nunca se sube solo. El atributo `data-quality` del `.diorama` expone el nivel activo. Sin WebGL, la pestaña cae al mapa 2D como antes.
 
 ### Capas de color
 
@@ -71,14 +77,20 @@ Implementado con MapLibre GL JS (ADR-022), no con `three-globe` ni una esfera R3
 ## Componentes sugeridos (`frontend/src/scene/`)
 
 ```
-farm-diorama.tsx      # Canvas, ortho camera, lights, bounded OrbitControls
-terrain-slab.tsx      # extruded farm outline
-zone-field.tsx        # per-zone InstancedMesh + instanceColor
-props.tsx             # house, silo, pond, road, trees (seeded)
-irrigation.tsx        # pipes + sprinklers
-zone-label.tsx        # drei Html label
-layer-color.ts        # value -> color using styles/tokens.ts ramps
-globe/                # stretch
+farm-diorama.tsx      # Canvas, ortho camera fitted to the farm, quality provider, labels, bounded OrbitControls
+observed-terrain.tsx  # DEM relief draped with the basemap + soil skirt
+buildings-layer.tsx   # observed footprints extruded (roof/wall materials)
+zone-field.tsx        # draped soil (moisture tone) + instanced crop rows per zone
+plant-geometry.ts     # procedural plant archetypes per growth form
+plant-material.ts     # shader patch: growth, organs, senescence, tint, wind
+props.tsx             # slab strata, pond, road, trees, farmstead, fence, centre pivot (seeded)
+scene-environment.tsx # backdrop, sun/sky/IBL lights, post-processing
+terrain-sampler.ts    # shared scene scale and elevation sampler
+frame-watchdog.tsx    # fps watchdog that lowers the quality tier
+use-scene-quality.ts  # quality state (probe, URL override, degrade)
+quality-context.ts    # React context for the quality settings
+../lib/crop-visuals.ts   # crop_id -> growth form, stage -> visual, row layout, soil tone (pure, tested)
+../lib/scene-quality.ts  # quality tiers (pure, tested)
 ```
 
 ## Presupuesto
