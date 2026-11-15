@@ -4,6 +4,8 @@ El CDS trabaja por pedidos: se manda el pedido, se espera en la cola y luego se 
 Las rutas son las mismas que usa el cliente oficial (cdsapi / ecmwf-datastores-client).
 Antes de usarlo hay que aceptar la licencia del dataset en su página del CDS. NO PROBADO con llave.
 """
+import requests
+
 from common import need, poll
 
 API = "https://cds.climate.copernicus.eu/api/retrieve/v1"
@@ -24,13 +26,20 @@ def links(session, src):
         "data_format": "netcdf",
         "download_format": "unarchived",
     }
-    r = session.post(f"{API}/processes/{src['dataset']}/execution", json={"inputs": request}, headers=headers, timeout=60)
-    r.raise_for_status()
-    job = r.json()["jobID"]
+    if src.get("job_id"):  # pedido ya enviado antes: se retoma sin mandar otro (no pierde lugar en la cola)
+        job = src["job_id"]
+    else:
+        r = session.post(f"{API}/processes/{src['dataset']}/execution", json={"inputs": request}, headers=headers, timeout=60)
+        r.raise_for_status()
+        job = r.json()["jobID"]
     print(f"   pedido ERA5 {job} en cola...")
 
     def status():
-        st = session.get(f"{API}/jobs/{job}", headers=headers, timeout=60).json()["status"]
+        try:
+            st = session.get(f"{API}/jobs/{job}", headers=headers, timeout=60).json()["status"]
+        except requests.RequestException as e:  # cortes de red: se reintenta en el siguiente ciclo
+            print(f"   (reintentando, error de red: {type(e).__name__})")
+            return None
         if st in ("failed", "dismissed", "rejected"):
             raise RuntimeError(f"ERA5 {job}: {st}")
         return st if st == "successful" else None
