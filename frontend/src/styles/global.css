@@ -949,3 +949,11 @@ input[type="range"] {
 .climate-kpi { display: grid; gap: 3px; align-content: start; }
 .climate-kpi strong { font-size: 20px; }
 .climate-warnings { color: var(--text-2); font-size: 12px; padding-left: 18px; }
+
+.parcel-chip { display:inline-flex; align-items:center; gap:6px; max-width:320px; white-space:nowrap; }
+.parcel-chip strong { overflow:hidden; text-overflow:ellipsis; }
+.place-hits { list-style:none; margin:8px 0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.place-hits .ghost-button { width:100%; text-align:left; font-size:12px; }
+.parcel-list { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:10px; }
+.parcel-list li { display:flex; flex-direction:column; gap:6px; }
+.parcel-list input { min-width:0; }

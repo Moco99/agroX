@@ -4,6 +4,7 @@ import { DataStateBadge } from "../../components/data-state-badge";
 import { es, fmt } from "../../i18n/es";
 import { EXPLORE_PLACES } from "../../lib/globe-view";
 import { areaHa, canConfirm, canFinish, overlapsExisting } from "../../lib/draw";
+import { locateMe, type LocateError } from "../../lib/geolocate";
 import { isPilotFarm } from "../../lib/parcel";
 import { useDrawStore } from "../../store/draw-store";
 import { useMapStore } from "../../store/map-store";
@@ -13,6 +14,7 @@ import { useStageStore } from "../../store/stage-store";
 import { useTwinStore } from "../../store/twin-store";
 import type { RegionMetric } from "../../types/api";
 import { DeclarationPanel } from "./declaration-panel";
+import { MyParcels } from "./my-parcels";
 import { LoadProgress, ParcelClimate, ParcelNdvi, ParcelSoil, ParcelWarnings } from "./parcel-panels";
 
 // ─────────────────────────────────────────
@@ -44,32 +46,28 @@ function DrawParcelCard() {
   };
   // Flies to the browser position at a zoom that suits tracing a parcel, drops a marker and turns drawing on
   const locate = () => {
-    if (!("geolocation" in navigator)) {
-      setGeoNote(es.drawParcel.geoUnsupported);
-      return;
-    }
     setLocating(true);
     setGeoNote(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const point = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+    locateMe().then(
+      (point) => {
         setLocating(false);
         setGeoNote(es.drawParcel.located);
         useMapStore.getState().setLocated(point);
         useMapStore.getState().flyTo({ center: [point.lon, point.lat], zoom: LOCATE_ZOOM, bearing: 0, pitch: 0 });
         draw.setActive(true);
       },
-      (err) => {
+      (code: LocateError) => {
         setLocating(false);
         setGeoNote(
-          err.code === err.PERMISSION_DENIED
-            ? es.drawParcel.geoDenied
-            : err.code === err.TIMEOUT
-              ? es.drawParcel.geoTimeout
-              : es.drawParcel.geoUnavailable,
+          code === "unsupported"
+            ? es.drawParcel.geoUnsupported
+            : code === "denied"
+              ? es.drawParcel.geoDenied
+              : code === "timeout"
+                ? es.drawParcel.geoTimeout
+                : es.drawParcel.geoUnavailable,
         );
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
     );
   };
   return (
@@ -183,6 +181,7 @@ export function GlobePanel() {
         {coordinatesOpen && <PointSearch onSubmit={() => setCoordinatesOpen(false)} />}
       </section>
       <DrawParcelCard />
+      <MyParcels />
       {phase !== "idle" && phase !== "ready" && !isPilotFarm(farmId) && <LoadProgress />}
       <section className="card">
         <h3>{es.geo.pilotTitle}</h3>
