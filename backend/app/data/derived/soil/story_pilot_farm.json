@@ -1,0 +1,423 @@
+{
+  "farm_id": "story_pilot_farm",
+  "source": "USDA NRCS SSURGO, Story County IA169 (Web Soil Survey export)",
+  "method": "largest-overlap map unit per zone; dominant component by comppct_r; AWC depth-weighted 0-100 cm from chorizon.awc_r (cm/cm) * 1000 -> mm/m; texture from the RV texture group of the top horizon",
+  "notes": [
+    "SSURGO is a survey product (map-unit scale), not a field measurement; data_state MEASURED refers to the survey.",
+    "verified=false until an agronomist reviews the mapping of SSURGO classes to FAO-56 parameters."
+  ],
+  "zones": [
+    {
+      "zone_id": "zone_nw",
+      "dominant_overlap_fraction": 0.316,
+      "map_units": [
+        {
+          "mukey": "2922031",
+          "fraction": 0.316
+        },
+        {
+          "mukey": "2765537",
+          "fraction": 0.234
+        },
+        {
+          "mukey": "2800480",
+          "fraction": 0.176
+        },
+        {
+          "mukey": "2835021",
+          "fraction": 0.164
+        },
+        {
+          "mukey": "2835194",
+          "fraction": 0.095
+        }
+      ],
+      "profile": {
+        "mukey": "2922031",
+        "musym": "L507",
+        "map_unit_name": "Canisteo clay loam, Bemis moraine, 0 to 2 percent slopes",
+        "component_name": "Canisteo",
+        "component_pct": 85.0,
+        "taxonomic_class": "Fine-loamy, mixed, superactive, calcareous, mesic Typic Endoaquolls",
+        "drainage_class": "Poorly drained",
+        "hydrologic_group": "C/D",
+        "texture": "CL",
+        "awc_mm_per_m": 176.0,
+        "awc_cross_check_aws0100wta_cm": 17.96,
+        "slope_pct_ssurgo": 0.9,
+        "restrictive_depth_cm": null,
+        "water_table_min_depth_cm": 15.0,
+        "horizons": [
+          {
+            "name": "Ap",
+            "top_cm": 0.0,
+            "bottom_cm": 20.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "CL",
+            "clay_pct": 29.0,
+            "sand_pct": 28.0,
+            "om_pct": 7.0,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "A",
+            "top_cm": 20.0,
+            "bottom_cm": 41.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "CL",
+            "clay_pct": 30.0,
+            "sand_pct": 30.0,
+            "om_pct": 5.0,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "AB",
+            "top_cm": 41.0,
+            "bottom_cm": 51.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "CL",
+            "clay_pct": 30.0,
+            "sand_pct": 30.0,
+            "om_pct": 3.0,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "Bkg",
+            "top_cm": 51.0,
+            "bottom_cm": 91.0,
+            "awc_cm_per_cm": 0.17,
+            "texture": "CL",
+            "clay_pct": 27.0,
+            "sand_pct": 39.0,
+            "om_pct": 1.5,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "Cg",
+            "top_cm": 91.0,
+            "bottom_cm": 200.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "L",
+            "clay_pct": 15.0,
+            "sand_pct": 49.0,
+            "om_pct": 0.25,
+            "ksat_um_s": 9.17
+          }
+        ],
+        "warnings": []
+      },
+      "data_state": "MEASURED",
+      "verified": false,
+      "warnings": []
+    },
+    {
+      "zone_id": "zone_ne",
+      "dominant_overlap_fraction": 0.567,
+      "map_units": [
+        {
+          "mukey": "2922031",
+          "fraction": 0.567
+        },
+        {
+          "mukey": "2835194",
+          "fraction": 0.158
+        },
+        {
+          "mukey": "2800480",
+          "fraction": 0.156
+        },
+        {
+          "mukey": "2765537",
+          "fraction": 0.05
+        },
+        {
+          "mukey": "411333",
+          "fraction": 0.047
+        }
+      ],
+      "profile": {
+        "mukey": "2922031",
+        "musym": "L507",
+        "map_unit_name": "Canisteo clay loam, Bemis moraine, 0 to 2 percent slopes",
+        "component_name": "Canisteo",
+        "component_pct": 85.0,
+        "taxonomic_class": "Fine-loamy, mixed, superactive, calcareous, mesic Typic Endoaquolls",
+        "drainage_class": "Poorly drained",
+        "hydrologic_group": "C/D",
+        "texture": "CL",
+        "awc_mm_per_m": 176.0,
+        "awc_cross_check_aws0100wta_cm": 17.96,
+        "slope_pct_ssurgo": 0.9,
+        "restrictive_depth_cm": null,
+        "water_table_min_depth_cm": 15.0,
+        "horizons": [
+          {
+            "name": "Ap",
+            "top_cm": 0.0,
+            "bottom_cm": 20.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "CL",
+            "clay_pct": 29.0,
+            "sand_pct": 28.0,
+            "om_pct": 7.0,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "A",
+            "top_cm": 20.0,
+            "bottom_cm": 41.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "CL",
+            "clay_pct": 30.0,
+            "sand_pct": 30.0,
+            "om_pct": 5.0,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "AB",
+            "top_cm": 41.0,
+            "bottom_cm": 51.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "CL",
+            "clay_pct": 30.0,
+            "sand_pct": 30.0,
+            "om_pct": 3.0,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "Bkg",
+            "top_cm": 51.0,
+            "bottom_cm": 91.0,
+            "awc_cm_per_cm": 0.17,
+            "texture": "CL",
+            "clay_pct": 27.0,
+            "sand_pct": 39.0,
+            "om_pct": 1.5,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "Cg",
+            "top_cm": 91.0,
+            "bottom_cm": 200.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "L",
+            "clay_pct": 15.0,
+            "sand_pct": 49.0,
+            "om_pct": 0.25,
+            "ksat_um_s": 9.17
+          }
+        ],
+        "warnings": []
+      },
+      "data_state": "MEASURED",
+      "verified": false,
+      "warnings": []
+    },
+    {
+      "zone_id": "zone_sw",
+      "dominant_overlap_fraction": 0.308,
+      "map_units": [
+        {
+          "mukey": "2922031",
+          "fraction": 0.308
+        },
+        {
+          "mukey": "2765537",
+          "fraction": 0.262
+        },
+        {
+          "mukey": "2835021",
+          "fraction": 0.145
+        },
+        {
+          "mukey": "2835194",
+          "fraction": 0.144
+        },
+        {
+          "mukey": "2800480",
+          "fraction": 0.141
+        }
+      ],
+      "profile": {
+        "mukey": "2922031",
+        "musym": "L507",
+        "map_unit_name": "Canisteo clay loam, Bemis moraine, 0 to 2 percent slopes",
+        "component_name": "Canisteo",
+        "component_pct": 85.0,
+        "taxonomic_class": "Fine-loamy, mixed, superactive, calcareous, mesic Typic Endoaquolls",
+        "drainage_class": "Poorly drained",
+        "hydrologic_group": "C/D",
+        "texture": "CL",
+        "awc_mm_per_m": 176.0,
+        "awc_cross_check_aws0100wta_cm": 17.96,
+        "slope_pct_ssurgo": 0.9,
+        "restrictive_depth_cm": null,
+        "water_table_min_depth_cm": 15.0,
+        "horizons": [
+          {
+            "name": "Ap",
+            "top_cm": 0.0,
+            "bottom_cm": 20.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "CL",
+            "clay_pct": 29.0,
+            "sand_pct": 28.0,
+            "om_pct": 7.0,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "A",
+            "top_cm": 20.0,
+            "bottom_cm": 41.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "CL",
+            "clay_pct": 30.0,
+            "sand_pct": 30.0,
+            "om_pct": 5.0,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "AB",
+            "top_cm": 41.0,
+            "bottom_cm": 51.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "CL",
+            "clay_pct": 30.0,
+            "sand_pct": 30.0,
+            "om_pct": 3.0,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "Bkg",
+            "top_cm": 51.0,
+            "bottom_cm": 91.0,
+            "awc_cm_per_cm": 0.17,
+            "texture": "CL",
+            "clay_pct": 27.0,
+            "sand_pct": 39.0,
+            "om_pct": 1.5,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "Cg",
+            "top_cm": 91.0,
+            "bottom_cm": 200.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "L",
+            "clay_pct": 15.0,
+            "sand_pct": 49.0,
+            "om_pct": 0.25,
+            "ksat_um_s": 9.17
+          }
+        ],
+        "warnings": []
+      },
+      "data_state": "MEASURED",
+      "verified": false,
+      "warnings": []
+    },
+    {
+      "zone_id": "zone_se",
+      "dominant_overlap_fraction": 0.343,
+      "map_units": [
+        {
+          "mukey": "2922031",
+          "fraction": 0.343
+        },
+        {
+          "mukey": "2765537",
+          "fraction": 0.233
+        },
+        {
+          "mukey": "2800480",
+          "fraction": 0.205
+        },
+        {
+          "mukey": "2835194",
+          "fraction": 0.126
+        },
+        {
+          "mukey": "2835021",
+          "fraction": 0.062
+        }
+      ],
+      "profile": {
+        "mukey": "2922031",
+        "musym": "L507",
+        "map_unit_name": "Canisteo clay loam, Bemis moraine, 0 to 2 percent slopes",
+        "component_name": "Canisteo",
+        "component_pct": 85.0,
+        "taxonomic_class": "Fine-loamy, mixed, superactive, calcareous, mesic Typic Endoaquolls",
+        "drainage_class": "Poorly drained",
+        "hydrologic_group": "C/D",
+        "texture": "CL",
+        "awc_mm_per_m": 176.0,
+        "awc_cross_check_aws0100wta_cm": 17.96,
+        "slope_pct_ssurgo": 0.9,
+        "restrictive_depth_cm": null,
+        "water_table_min_depth_cm": 15.0,
+        "horizons": [
+          {
+            "name": "Ap",
+            "top_cm": 0.0,
+            "bottom_cm": 20.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "CL",
+            "clay_pct": 29.0,
+            "sand_pct": 28.0,
+            "om_pct": 7.0,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "A",
+            "top_cm": 20.0,
+            "bottom_cm": 41.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "CL",
+            "clay_pct": 30.0,
+            "sand_pct": 30.0,
+            "om_pct": 5.0,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "AB",
+            "top_cm": 41.0,
+            "bottom_cm": 51.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "CL",
+            "clay_pct": 30.0,
+            "sand_pct": 30.0,
+            "om_pct": 3.0,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "Bkg",
+            "top_cm": 51.0,
+            "bottom_cm": 91.0,
+            "awc_cm_per_cm": 0.17,
+            "texture": "CL",
+            "clay_pct": 27.0,
+            "sand_pct": 39.0,
+            "om_pct": 1.5,
+            "ksat_um_s": 2.82
+          },
+          {
+            "name": "Cg",
+            "top_cm": 91.0,
+            "bottom_cm": 200.0,
+            "awc_cm_per_cm": 0.18,
+            "texture": "L",
+            "clay_pct": 15.0,
+            "sand_pct": 49.0,
+            "om_pct": 0.25,
+            "ksat_um_s": 9.17
+          }
+        ],
+        "warnings": []
+      },
+      "data_state": "MEASURED",
+      "verified": false,
+      "warnings": []
+    }
+  ]
+}

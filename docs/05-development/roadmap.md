@@ -7,6 +7,19 @@
 
 Ventana: ~36 h. Features pequeñas (≤ ~4 h), una rama cada una ([git-workflow](git-workflow.md)). Modelos: [agent-routing](../06-agents/agent-routing.md).
 
+## Estado (2026-11-14, rama `feat/virtual-twin`)
+
+| Fase | Estado | Nota |
+|---|---|---|
+| F0 | hecha | FastAPI + contratos + puertos; frontend Vite+TS (sin Tailwind ni Vitest: CSS con tokens; tests de backend) |
+| F1 | hecha | sintético E2E (`AGROX_DATA_MODE=synthetic`); falta rotaciones (`/api/rotations/recommend`) y análogos |
+| F2 | hecha (parcial) | POWER 2023–2024 real; O-7 (historia desde 1981) pendiente → SPI/anomalías = null |
+| F3 | hecha | SSURGO, catálogo `catalog_v1` (`verified=false`), parcela/zonas CDL |
+| F4 | parcial | comparación de forma NDVI (MODIS, S2 fin de temporada) y SMAP como contexto; sin asimilación → `DIGITAL_SHADOW` |
+| F5 | pendiente | backtest NASS, Copilot LLM, Informe; PRISM/CoCoRaHS como chequeo de lluvia (stretch) |
+
+Arranque: `make setup && make dev` (ver README).
+
 ## Fases
 
 | Fase | Entregable | Criterio de salida | Lidera | Paralelo con |

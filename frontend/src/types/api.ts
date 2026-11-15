@@ -1,0 +1,312 @@
+// ─────────────────────────────────────────
+// Section: Contract types (mirror of backend/app/schemas, hand-written)
+// ─────────────────────────────────────────
+
+export type DataState = "MEASURED" | "DECLARED" | "ESTIMATED" | "SIMULATED" | "SYNTHETIC";
+export type TwinLevel = "DIGITAL_MODEL" | "DIGITAL_SHADOW" | "DIGITAL_TWIN";
+export type PhenoStage = "PRE_PLANTING" | "INITIAL" | "DEVELOPMENT" | "MID_SEASON" | "LATE_SEASON" | "HARVESTED";
+export type IrrigationLevel = "NONE" | "LOW" | "MEDIUM" | "HIGH";
+export type StressClass = "NONE" | "LOW" | "MEDIUM" | "HIGH";
+export type DataMode = "real" | "synthetic";
+
+export interface Provenance {
+  source: string;
+  data_state: DataState;
+  retrieved_at?: string | null;
+  version?: string | null;
+  resolution?: string | null;
+  method?: string | null;
+}
+
+export interface Location {
+  lat: number;
+  lon: number;
+}
+
+export interface Health {
+  status: string;
+  version: string;
+  data_mode: DataMode;
+  data_state: DataState;
+  requested_mode: string;
+  weather_coverage: { start: string; end: string };
+  derived_built_at: string | null;
+  farms: string[];
+  warnings: string[];
+}
+
+export interface PolygonGeometry {
+  type: string;
+  coordinates: number[][][];
+}
+
+export interface SoilProfile {
+  awc_mm_per_m: number;
+  root_depth_max_m: number;
+  texture: string | null;
+  drainage_class: string | null;
+  hydrologic_group: string | null;
+  map_unit_name: string | null;
+  component_name: string | null;
+  provenance: Provenance;
+  verified: boolean;
+  warnings: string[];
+}
+
+export interface TerrainInfo {
+  elevation_mean_m: number | null;
+  slope_mean_pct: number | null;
+  slope_max_pct: number | null;
+  erosion_index: string;
+  data_state: DataState;
+  warnings: string[];
+}
+
+export interface CdlYear {
+  year: number;
+  cdl_code: number;
+  crop_id: string;
+  purity: number;
+}
+
+export interface FarmZone {
+  zone_id: string;
+  name: string;
+  crop_id: string;
+  crop_purity: number | null;
+  area_ha: number;
+  geometry: PolygonGeometry;
+  centroid: Location;
+  soil: SoilProfile;
+  terrain: TerrainInfo;
+  cdl_history: CdlYear[];
+  irrigation_level: IrrigationLevel;
+  data_state: DataState;
+}
+
+export interface Farm {
+  farm_id: string;
+  name: string;
+  area_ha: number;
+  centroid: Location;
+  geometry: PolygonGeometry;
+  zones: FarmZone[];
+  provenance: Record<string, Provenance>;
+  warnings: string[];
+}
+
+export interface FarmAnalyzeResponse {
+  farm: Farm;
+  data_mode: DataMode;
+  catalog_version: string;
+  latest_ndvi: Record<string, number | null>;
+  latest_ndvi_date: string | null;
+  latest_ndvi_source: string | null;
+  warnings: string[];
+}
+
+export interface TwinScenario {
+  precip_factor: number;
+  temp_delta_c: number;
+  irrigation_level: IrrigationLevel | null;
+  preset: string | null;
+}
+
+export interface TwinState {
+  date: string;
+  crop_id: string;
+  stage: PhenoStage;
+  gdd_day: number;
+  gdd_cum: number;
+  kc: number;
+  root_depth_m: number;
+  taw_mm: number;
+  raw_mm: number;
+  root_zone_depletion_mm: number;
+  soil_water_fraction: number;
+  ks: number;
+  et0_mm: number;
+  etc_mm: number;
+  etc_adj_mm: number;
+  precip_mm: number;
+  effective_precip_mm: number;
+  runoff_mm: number;
+  irrigation_mm: number;
+  drainage_mm: number;
+  t_max: number;
+  t_min: number;
+  data_state: DataState;
+}
+
+export interface Discrepancy {
+  date: string;
+  variable: string;
+  observed: number;
+  simulated: number;
+  delta: number;
+}
+
+export interface ComparisonMetrics {
+  variable: string;
+  source_id: string;
+  n_points: number;
+  correlation: number | null;
+  mean_abs_delta: number | null;
+  observed_peak_date: string | null;
+  simulated_peak_date: string | null;
+  lag_days: number | null;
+  note: string;
+  data_state: DataState;
+}
+
+export interface StageDates {
+  planting: string | null;
+  development: string | null;
+  mid_season: string | null;
+  late_season: string | null;
+  maturity: string | null;
+}
+
+export interface ZoneSummary {
+  mean_ks: number;
+  min_ks: number;
+  stress_days: number;
+  stress_class: StressClass;
+  min_soil_water_fraction: number;
+  mean_soil_water_fraction: number;
+  total_precip_mm: number;
+  total_effective_precip_mm: number;
+  total_irrigation_mm: number;
+  total_runoff_mm: number;
+  total_drainage_mm: number;
+  total_et0_mm: number;
+  total_etc_adj_mm: number;
+  gdd_total: number;
+  frost_days: number;
+  hot_days: number;
+  cold_days: number;
+  stage_dates: StageDates;
+  irrigation_events: number;
+}
+
+export interface MonteCarloSummary {
+  n: number;
+  seed: number;
+  perturbed: Record<string, string>;
+  mean_ks_p10: number;
+  mean_ks_p50: number;
+  mean_ks_p90: number;
+  stress_days_p10: number;
+  stress_days_p50: number;
+  stress_days_p90: number;
+  min_soil_water_fraction_p10: number;
+  min_soil_water_fraction_p50: number;
+  min_soil_water_fraction_p90: number;
+  data_state: DataState;
+}
+
+export interface ZoneResult {
+  zone_id: string;
+  name: string;
+  crop_id: string;
+  area_ha: number;
+  planting_date: string;
+  irrigation_level: IrrigationLevel;
+  states: TwinState[];
+  summary: ZoneSummary;
+  ndvi: number | null;
+  ndvi_date: string | null;
+  ndvi_state: DataState;
+  ndvi_source: string | null;
+  discrepancies: Discrepancy[];
+  comparison: ComparisonMetrics[];
+  expected_canopy: { date: string; value: number }[];
+  monte_carlo: MonteCarloSummary | null;
+  data_state: DataState;
+  warnings: string[];
+}
+
+export interface FarmSummary {
+  area_ha: number;
+  mean_ks_area_weighted: number;
+  stress_class: StressClass;
+  mean_soil_water_fraction: number;
+  total_precip_mm: number;
+  total_irrigation_mm: number;
+  note: string;
+}
+
+export interface TwinSimulateResponse {
+  methodology: string;
+  catalog_version: string;
+  data_mode: DataMode;
+  twin_level: TwinLevel;
+  farm_id: string;
+  start: string;
+  end: string;
+  scenario: TwinScenario;
+  scenario_expanded: { precip_factor: number; temp_delta_c: number; irrigation_level: IrrigationLevel | null; preset: string | null };
+  zones: ZoneResult[];
+  farm_summary: FarmSummary;
+  warnings: string[];
+  provenance: Record<string, Provenance>;
+}
+
+export interface TwinSimulateRequest {
+  farm_id: string;
+  start: string;
+  end: string;
+  scenario: Partial<TwinScenario>;
+  fork_date?: string | null;
+  monte_carlo?: { n: number; seed: number } | null;
+  include_states?: boolean;
+  include_comparison?: boolean;
+}
+
+export interface ObservationPoint {
+  date: string;
+  variable: "ndvi" | "soil_moisture";
+  value: number;
+  zone_id: string | null;
+  n_pixels: number | null;
+  qa_flag: string | null;
+}
+
+export interface ObservationSeries {
+  variable: "ndvi" | "soil_moisture";
+  source_id: string;
+  resolution_m: number;
+  points: ObservationPoint[];
+  provenance: Provenance;
+  warnings: string[];
+}
+
+export interface NdviOverlay {
+  farm_id: string;
+  date: string;
+  source: string;
+  resolution_m: number;
+  bounds: { west: number; south: number; east: number; north: number };
+  width_px: number;
+  height_px: number;
+  png_base64: string;
+  data_state: DataState;
+  legend_stops: { value: number; color: string }[];
+  warnings: string[];
+}
+
+export interface TwinConfig {
+  irrigation_levels: Record<IrrigationLevel, { depth_mm: number; trigger_fraction_of_raw: number }>;
+  presets: Record<string, { precip_factor: number; temp_delta_c: number; description: string }>;
+  stress_class_thresholds_mean_ks: { min_ks: number; class: StressClass }[];
+  stress_day_ks: number;
+  default_planting_mmdd: Record<string, string>;
+  note: string;
+}
+
+export interface ClimateMetric {
+  value: number | null;
+  unit: string;
+  data_state: DataState;
+  source: string | null;
+}

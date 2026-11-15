@@ -1,5 +1,20 @@
 # agroX
 
+## Gemelo digital: ejecución local
+
+Requisitos: [uv](https://docs.astral.sh/uv/), Node 20+ y pnpm 10.
+
+```bash
+make setup   # venv Python (uv) + dependencias del frontend (pnpm) + derived/ si falta
+make dev     # backend http://127.0.0.1:8000/api/health  ·  frontend http://127.0.0.1:5173  (Ctrl+C detiene ambos)
+```
+
+- Datos: `backend/app/data/derived/` (versionado, ~170 KB) se genera desde `data/raw/` con `make derived`.
+- Modo sintético: `AGROX_DATA_MODE=synthetic make dev` (la UI muestra el banner "Datos sintéticos").
+- Calidad: `make test` (pytest), `make lint` (ruff, mypy, tsc), `make build` (frontend).
+- Simulación exploratoria: no predice rendimiento; parámetros de cultivo provisionales (`verified=false`). Decisiones en `docs/00-overview/decisions.md` (ADR-012..020).
+
+
 ## Recolector de datos
 
 ### La idea en corto

@@ -1,0 +1,196 @@
+{
+  "artifact_id": "weather_power_daily",
+  "source": "NASA POWER (MERRA-2 / CERES SYN1deg), daily, point request",
+  "source_id": "power",
+  "location": {
+    "lat": 41.995,
+    "lon": -93.49,
+    "elevation_m": 310.22
+  },
+  "resolution": "0.5 x 0.625 degree cell (MERRA-2); not an in-situ station",
+  "period": {
+    "start": "2023-01-01",
+    "end": "2024-12-31",
+    "days": 731
+  },
+  "units": {
+    "t_mean": "C",
+    "t_max": "C",
+    "t_min": "C",
+    "precip": "mm/day",
+    "rh_mean": "%",
+    "solar_rad": "MJ/m2/day",
+    "wind_2m": "m/s",
+    "gwet_root": "index 0-1",
+    "gwet_top": "index 0-1",
+    "frost_days": "days (0/1)"
+  },
+  "data_state": "MEASURED",
+  "method": "Header stripped; -999 -> NaN; QA flags per row (missing, t_outlier vs 15-day rolling median > 12 C, tmax_lt_tmin, precip_extreme > 150 mm, precip_negative).",
+  "qa_summary": {
+    "missing": 0,
+    "t_outlier": 1,
+    "tmax_lt_tmin": 0,
+    "precip_extreme": 0,
+    "precip_negative": 0
+  },
+  "qa_note": "Full-file check 2026-11-14: no -999 and no t_max < t_min; monthly means for May-Aug 2023 (18-25 C) are consistent with central Iowa climatology, so the suspected summer cold artefact was not confirmed. t_outlier is a heuristic flag (|t_mean - 15-day rolling median| > 12 C) and can mark genuine cold snaps; flagged days are kept unchanged and exposed as warnings.",
+  "flagged_days": {
+    "t_outlier": [
+      "2023-02-03"
+    ]
+  },
+  "monthly_summary": {
+    "2023-01": {
+      "t_mean": -5.12,
+      "t_max": -0.99,
+      "t_min": -9.12,
+      "precip": 50.68
+    },
+    "2023-02": {
+      "t_mean": -2.23,
+      "t_max": 3.85,
+      "t_min": -7.7,
+      "precip": 54.74
+    },
+    "2023-03": {
+      "t_mean": 1.51,
+      "t_max": 7.67,
+      "t_min": -3.86,
+      "precip": 36.58
+    },
+    "2023-04": {
+      "t_mean": 9.78,
+      "t_max": 17.09,
+      "t_min": 2.79,
+      "precip": 52.47
+    },
+    "2023-05": {
+      "t_mean": 18.02,
+      "t_max": 24.69,
+      "t_min": 11.2,
+      "precip": 71.95
+    },
+    "2023-06": {
+      "t_mean": 23.25,
+      "t_max": 29.31,
+      "t_min": 16.99,
+      "precip": 84.0
+    },
+    "2023-07": {
+      "t_mean": 24.27,
+      "t_max": 30.48,
+      "t_min": 17.7,
+      "precip": 62.31
+    },
+    "2023-08": {
+      "t_mean": 24.69,
+      "t_max": 30.88,
+      "t_min": 18.61,
+      "precip": 75.0
+    },
+    "2023-09": {
+      "t_mean": 21.25,
+      "t_max": 28.94,
+      "t_min": 14.32,
+      "precip": 40.02
+    },
+    "2023-10": {
+      "t_mean": 12.47,
+      "t_max": 18.92,
+      "t_min": 7.12,
+      "precip": 59.78
+    },
+    "2023-11": {
+      "t_mean": 4.67,
+      "t_max": 11.35,
+      "t_min": -0.47,
+      "precip": 5.03
+    },
+    "2023-12": {
+      "t_mean": 1.25,
+      "t_max": 5.9,
+      "t_min": -2.08,
+      "precip": 35.06
+    },
+    "2024-01": {
+      "t_mean": -6.92,
+      "t_max": -2.66,
+      "t_min": -10.78,
+      "precip": 42.98
+    },
+    "2024-02": {
+      "t_mean": 2.44,
+      "t_max": 9.78,
+      "t_min": -3.23,
+      "precip": 5.04
+    },
+    "2024-03": {
+      "t_mean": 5.35,
+      "t_max": 11.9,
+      "t_min": -0.86,
+      "precip": 68.7
+    },
+    "2024-04": {
+      "t_mean": 11.51,
+      "t_max": 18.42,
+      "t_min": 5.03,
+      "precip": 86.8
+    },
+    "2024-05": {
+      "t_mean": 17.56,
+      "t_max": 23.6,
+      "t_min": 11.07,
+      "precip": 188.62
+    },
+    "2024-06": {
+      "t_mean": 22.86,
+      "t_max": 28.22,
+      "t_min": 17.06,
+      "precip": 113.71
+    },
+    "2024-07": {
+      "t_mean": 23.61,
+      "t_max": 28.68,
+      "t_min": 18.31,
+      "precip": 151.39
+    },
+    "2024-08": {
+      "t_mean": 23.4,
+      "t_max": 29.56,
+      "t_min": 17.67,
+      "precip": 57.96
+    },
+    "2024-09": {
+      "t_mean": 20.68,
+      "t_max": 28.23,
+      "t_min": 13.96,
+      "precip": 26.39
+    },
+    "2024-10": {
+      "t_mean": 14.69,
+      "t_max": 22.66,
+      "t_min": 7.79,
+      "precip": 42.38
+    },
+    "2024-11": {
+      "t_mean": 4.88,
+      "t_max": 10.06,
+      "t_min": 0.47,
+      "precip": 76.83
+    },
+    "2024-12": {
+      "t_mean": -2.33,
+      "t_max": 2.14,
+      "t_min": -5.68,
+      "precip": 34.01
+    }
+  },
+  "raw_header": "-BEGIN HEADER-\nNASA/POWER Source Native Resolution Daily Data \nDates (month/day/year): 01/01/2023 through 12/31/2024 in LST\nLocation: latitude  41.995   longitude -93.49 \nelevation from MERRA-2: Average for 0.5 x 0.625 degree lat/lon region = 310.22 meters\nThe value for missing source data that cannot be computed or is outside of the sources availability range: -999 \nparameter(s): \nT2M                   MERRA-2 Temperature at 2 Meters (C) \nT2M_MAX               MERRA-2 Temperature at 2 Meters Maximum (C) \nT2M_MIN               MERRA-2 Temperature at 2 Meters Minimum (C) \nPRECTOTCORR           MERRA-2 Precipitation Corrected (mm/day) \nRH2M                  MERRA-2 Relative Humidity at 2 Meters (%) \nALLSKY_SFC_SW_DWN     CERES SYN1deg All Sky Surface Shortwave Downward Irradiance (MJ/m^2/day) \nWS2M                  MERRA-2 Wind Speed at 2 Meters (m/s) \nGWETROOT              MERRA-2 Root Zone Soil Wetness (1) \nGWETTOP               MERRA-2 Surface Soil Wetness (1) \nFROST_DAYS            MERRA-2 Frost Days (Days)",
+  "inputs": [
+    {
+      "path": "data/raw/power/power_daily.csv",
+      "sha256": "d476f98548c567b1da968e38b639d263ac268dda01acfa289a9c2fa9cfe8f7be"
+    }
+  ]
+}

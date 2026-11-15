@@ -1,0 +1,52 @@
+# AGROX virtual twin — one-command local setup and run.
+#   make setup   -> Python venv (uv) + frontend deps (pnpm) + derived data (only if missing)
+#   make dev     -> backend :8000 + frontend :5173, Ctrl+C stops both
+# Other targets: derived (force rebuild from data/raw), test, lint, build, clean.
+
+SHELL := /bin/bash
+UV ?= $(shell command -v uv 2>/dev/null || echo $(HOME)/.local/bin/uv)
+PNPM ?= $(shell command -v pnpm 2>/dev/null || echo pnpm)
+PY := backend/.venv/bin/python
+DERIVED_MANIFEST := backend/app/data/derived/manifest.json
+
+.PHONY: setup backend-deps frontend-deps derived derived-if-missing dev test lint build clean
+
+setup: backend-deps frontend-deps derived-if-missing
+	@echo "setup ok -> run: make dev"
+
+backend-deps:
+	@test -x "$(UV)" || { echo "uv not found: install it from https://docs.astral.sh/uv/"; exit 1; }
+	cd backend && "$(UV)" sync --frozen
+
+frontend-deps:
+	@command -v "$(PNPM)" >/dev/null || { echo "pnpm not found: corepack enable && corepack prepare pnpm@10 --activate"; exit 1; }
+	cd frontend && "$(PNPM)" install --frozen-lockfile
+
+# derived/ is versioned, so a fresh clone runs without data/raw; rebuild only when it is missing
+derived-if-missing:
+	@if [ -f "$(DERIVED_MANIFEST)" ]; then \
+		echo "derived/ present (make derived to rebuild from data/raw)"; \
+	elif [ -d data/raw ]; then \
+		$(PY) -m pipeline.build_all; \
+	else \
+		echo "WARNING: no derived/ and no data/raw -> backend will serve SYNTHETIC data"; \
+	fi
+
+derived:
+	$(PY) -m pipeline.build_all
+
+dev:
+	@bash scripts/dev.sh
+
+test:
+	cd backend && .venv/bin/python -m pytest -q -p no:warnings
+
+lint:
+	cd backend && .venv/bin/ruff check app tests ../pipeline && .venv/bin/mypy app
+	cd frontend && "$(PNPM)" exec tsc --noEmit
+
+build:
+	cd frontend && "$(PNPM)" build
+
+clean:
+	rm -rf backend/.venv frontend/node_modules frontend/dist backend/.pytest_cache backend/.mypy_cache backend/.ruff_cache

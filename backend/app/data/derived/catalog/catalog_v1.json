@@ -1,0 +1,153 @@
+{
+  "catalog_version": "catalog_v1",
+  "data_state": "ESTIMATED",
+  "notes": [
+    "Provisional parameters: verified=false on every crop until sources are reviewed.",
+    "gdd thresholds are cumulative degree-days (C-day) from planting at which each stage starts.",
+    "irrigation and runoff rules live in the engine as product configuration, not here."
+  ],
+  "crops": [
+    {
+      "crop_id": "corn",
+      "name_es": "Ma\u00edz",
+      "name_en": "Corn (grain)",
+      "family": "Poaceae",
+      "crop_type": "CASH_CROP",
+      "fixes_nitrogen": false,
+      "cycle_days": 150,
+      "planting_window": {
+        "start_mmdd": "04-20",
+        "end_mmdd": "05-25"
+      },
+      "t_min": 10.0,
+      "t_opt": 25.0,
+      "t_max": 35.0,
+      "t_base_gdd": 10.0,
+      "t_cap_gdd": 30.0,
+      "gdd_stages": {
+        "initial": 0.0,
+        "development": 200.0,
+        "mid": 650.0,
+        "late": 1150.0,
+        "maturity": 1450.0
+      },
+      "stage_lengths_days": {
+        "initial": 30,
+        "development": 40,
+        "mid": 50,
+        "late": 30
+      },
+      "water_need_mm": 550.0,
+      "kc_ini": 0.3,
+      "kc_mid": 1.2,
+      "kc_end": 0.6,
+      "root_depth_min_m": 0.2,
+      "root_depth_max_m": 1.2,
+      "depletion_fraction_p": 0.55,
+      "canopy_ndvi_hint": {
+        "bare": 0.2,
+        "full": 0.85
+      },
+      "sources": [
+        "FAO-56 (Allen et al. 1998) Tables 11/12/22 (to verify against the pilot)",
+        "US Corn Belt extension conventions (to verify, e.g. Iowa State Extension)",
+        "GDD base 10 C / cap 30 C = US modified method (to verify)"
+      ],
+      "verified": false
+    },
+    {
+      "crop_id": "soybean",
+      "name_es": "Soya",
+      "name_en": "Soybean",
+      "family": "Fabaceae",
+      "crop_type": "CASH_CROP",
+      "fixes_nitrogen": true,
+      "cycle_days": 135,
+      "planting_window": {
+        "start_mmdd": "05-01",
+        "end_mmdd": "06-05"
+      },
+      "t_min": 10.0,
+      "t_opt": 26.0,
+      "t_max": 35.0,
+      "t_base_gdd": 10.0,
+      "t_cap_gdd": 30.0,
+      "gdd_stages": {
+        "initial": 0.0,
+        "development": 150.0,
+        "mid": 550.0,
+        "late": 1050.0,
+        "maturity": 1300.0
+      },
+      "stage_lengths_days": {
+        "initial": 20,
+        "development": 30,
+        "mid": 60,
+        "late": 25
+      },
+      "water_need_mm": 500.0,
+      "kc_ini": 0.4,
+      "kc_mid": 1.15,
+      "kc_end": 0.5,
+      "root_depth_min_m": 0.2,
+      "root_depth_max_m": 1.0,
+      "depletion_fraction_p": 0.5,
+      "canopy_ndvi_hint": {
+        "bare": 0.2,
+        "full": 0.85
+      },
+      "sources": [
+        "FAO-56 (Allen et al. 1998) Tables 11/12/22 (to verify against the pilot)",
+        "US Corn Belt extension conventions (to verify, e.g. Iowa State Extension)"
+      ],
+      "verified": false
+    },
+    {
+      "crop_id": "cereal_rye",
+      "name_es": "Centeno (cobertura)",
+      "name_en": "Cereal rye (cover crop)",
+      "family": "Poaceae",
+      "crop_type": "COVER_CROP",
+      "fixes_nitrogen": false,
+      "cycle_days": 210,
+      "planting_window": {
+        "start_mmdd": "09-15",
+        "end_mmdd": "10-31"
+      },
+      "t_min": 0.0,
+      "t_opt": 20.0,
+      "t_max": 32.0,
+      "t_base_gdd": 0.0,
+      "t_cap_gdd": null,
+      "gdd_stages": {
+        "initial": 0.0,
+        "development": 300.0,
+        "mid": 900.0,
+        "late": 1400.0,
+        "maturity": 1700.0
+      },
+      "stage_lengths_days": {
+        "initial": 30,
+        "development": 90,
+        "mid": 60,
+        "late": 30
+      },
+      "water_need_mm": 350.0,
+      "kc_ini": 0.3,
+      "kc_mid": 1.1,
+      "kc_end": 0.3,
+      "root_depth_min_m": 0.15,
+      "root_depth_max_m": 1.0,
+      "depletion_fraction_p": 0.55,
+      "canopy_ndvi_hint": {
+        "bare": 0.2,
+        "full": 0.75
+      },
+      "sources": [
+        "FAO-56 (Allen et al. 1998) Tables 11/12/22 (to verify against the pilot)",
+        "SARE / USDA-NRCS cover crop guides (to verify)"
+      ],
+      "verified": false
+    }
+  ]
+}

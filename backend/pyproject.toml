@@ -1,0 +1,62 @@
+[project]
+name = "agrox-backend"
+version = "0.1.0"
+description = "AGROX digital twin backend (FastAPI) and raw->derived pipeline runtime"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.8",
+    "numpy>=2.0",
+    "pandas>=2.2",
+]
+
+# Pipeline deps are heavier (raster/netCDF readers) and only needed to rebuild derived/
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "httpx>=0.27",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pandas-stubs>=2.2",
+]
+pipeline = [
+    "rasterio>=1.4",
+    "shapely>=2.0",
+    "pyproj>=3.6",
+    "netCDF4>=1.7",
+    "h5py>=3.11",
+    "pillow>=10.4",
+    "scipy>=1.14",
+    "pyshp>=2.3",
+]
+
+[tool.uv]
+default-groups = ["dev", "pipeline"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = [".", ".."]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "W"]
+# Docs mandate Enum(str, Enum) for states; StrEnum would change repr semantics
+ignore = ["UP042"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "tests", "pipeline"]
+
+[tool.ruff.lint.per-file-ignores]
+# docs/04-data/synthetic-data.md fixes the `params as P` alias for generator parameters
+"app/providers/synthetic/*" = ["N812"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

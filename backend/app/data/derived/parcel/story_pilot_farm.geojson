@@ -1,0 +1,337 @@
+{
+  "type": "FeatureCollection",
+  "farm_id": "story_pilot_farm",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -93.497756,
+              42.034454
+            ],
+            [
+              -93.483167,
+              42.034171
+            ],
+            [
+              -93.483553,
+              42.023447
+            ],
+            [
+              -93.49814,
+              42.02373
+            ],
+            [
+              -93.497756,
+              42.034454
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "farm_id": "story_pilot_farm",
+        "name_es": "Granja piloto Story County",
+        "feature_kind": "farm",
+        "area_ha": 144.0,
+        "centroid": {
+          "lat": 42.028951,
+          "lon": -93.490654
+        },
+        "selection": {
+          "method": "40x40 px CDL window maximising min quadrant purity with mixed corn/soy 2024 majorities, inside the bbox margin and on valid NASADEM pixels (tile covers lat >= 42 N only)",
+          "window_px": 40,
+          "min_quadrant_purity": 0.785,
+          "cdl_crs": "EPSG:5070",
+          "window_origin_rc": [
+            26,
+            144
+          ]
+        },
+        "data_state": "DECLARED"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -93.497756,
+              42.034454
+            ],
+            [
+              -93.490461,
+              42.034313
+            ],
+            [
+              -93.490654,
+              42.028951
+            ],
+            [
+              -93.497948,
+              42.029092
+            ],
+            [
+              -93.497756,
+              42.034454
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "zone_id": "zone_nw",
+        "name_es": "Zona Noroeste",
+        "crop_id": "corn",
+        "crop_purity_2024": 0.8,
+        "area_ha": 36.0,
+        "centroid": {
+          "lat": 42.031702,
+          "lon": -93.494205
+        },
+        "cdl_history": [
+          {
+            "year": 2021,
+            "cdl_code": 5,
+            "crop_id": "soybean",
+            "purity": 0.823
+          },
+          {
+            "year": 2022,
+            "cdl_code": 1,
+            "crop_id": "corn",
+            "purity": 0.815
+          },
+          {
+            "year": 2023,
+            "cdl_code": 5,
+            "crop_id": "soybean",
+            "purity": 0.815
+          },
+          {
+            "year": 2024,
+            "cdl_code": 1,
+            "crop_id": "corn",
+            "purity": 0.8
+          }
+        ],
+        "data_state": "MEASURED",
+        "source": "USDA NASS Cropland Data Layer 30 m, county 19169, years 2021-2024",
+        "feature_kind": "zone"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -93.490461,
+              42.034313
+            ],
+            [
+              -93.483167,
+              42.034171
+            ],
+            [
+              -93.48336,
+              42.028809
+            ],
+            [
+              -93.490654,
+              42.028951
+            ],
+            [
+              -93.490461,
+              42.034313
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "zone_id": "zone_ne",
+        "name_es": "Zona Noreste",
+        "crop_id": "soybean",
+        "crop_purity_2024": 0.988,
+        "area_ha": 36.0,
+        "centroid": {
+          "lat": 42.031561,
+          "lon": -93.486911
+        },
+        "cdl_history": [
+          {
+            "year": 2021,
+            "cdl_code": 1,
+            "crop_id": "corn",
+            "purity": 1.0
+          },
+          {
+            "year": 2022,
+            "cdl_code": 5,
+            "crop_id": "soybean",
+            "purity": 1.0
+          },
+          {
+            "year": 2023,
+            "cdl_code": 1,
+            "crop_id": "corn",
+            "purity": 0.998
+          },
+          {
+            "year": 2024,
+            "cdl_code": 5,
+            "crop_id": "soybean",
+            "purity": 0.988
+          }
+        ],
+        "data_state": "MEASURED",
+        "source": "USDA NASS Cropland Data Layer 30 m, county 19169, years 2021-2024",
+        "feature_kind": "zone"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -93.497948,
+              42.029092
+            ],
+            [
+              -93.490654,
+              42.028951
+            ],
+            [
+              -93.490846,
+              42.023589
+            ],
+            [
+              -93.49814,
+              42.02373
+            ],
+            [
+              -93.497948,
+              42.029092
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "zone_id": "zone_sw",
+        "name_es": "Zona Suroeste",
+        "crop_id": "corn",
+        "crop_purity_2024": 0.88,
+        "area_ha": 36.0,
+        "centroid": {
+          "lat": 42.026341,
+          "lon": -93.494397
+        },
+        "cdl_history": [
+          {
+            "year": 2021,
+            "cdl_code": 5,
+            "crop_id": "soybean",
+            "purity": 0.865
+          },
+          {
+            "year": 2022,
+            "cdl_code": 1,
+            "crop_id": "corn",
+            "purity": 0.887
+          },
+          {
+            "year": 2023,
+            "cdl_code": 5,
+            "crop_id": "soybean",
+            "purity": 0.875
+          },
+          {
+            "year": 2024,
+            "cdl_code": 1,
+            "crop_id": "corn",
+            "purity": 0.88
+          }
+        ],
+        "data_state": "MEASURED",
+        "source": "USDA NASS Cropland Data Layer 30 m, county 19169, years 2021-2024",
+        "feature_kind": "zone"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -93.490654,
+              42.028951
+            ],
+            [
+              -93.48336,
+              42.028809
+            ],
+            [
+              -93.483553,
+              42.023447
+            ],
+            [
+              -93.490846,
+              42.023589
+            ],
+            [
+              -93.490654,
+              42.028951
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "zone_id": "zone_se",
+        "name_es": "Zona Sureste",
+        "crop_id": "soybean",
+        "crop_purity_2024": 0.785,
+        "area_ha": 36.0,
+        "centroid": {
+          "lat": 42.026199,
+          "lon": -93.487103
+        },
+        "cdl_history": [
+          {
+            "year": 2021,
+            "cdl_code": 1,
+            "crop_id": "corn",
+            "purity": 0.927
+          },
+          {
+            "year": 2022,
+            "cdl_code": 5,
+            "crop_id": "soybean",
+            "purity": 0.955
+          },
+          {
+            "year": 2023,
+            "cdl_code": 1,
+            "crop_id": "corn",
+            "purity": 0.85
+          },
+          {
+            "year": 2024,
+            "cdl_code": 5,
+            "crop_id": "soybean",
+            "purity": 0.785
+          }
+        ],
+        "data_state": "MEASURED",
+        "source": "USDA NASS Cropland Data Layer 30 m, county 19169, years 2021-2024",
+        "feature_kind": "zone"
+      }
+    }
+  ]
+}
