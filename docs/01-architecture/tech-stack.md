@@ -60,3 +60,7 @@ Dominios Velantex (convención): `agrox.velantex.dev` / `agrox.api.velantex.dev`
 ## Fuera del stack (no añadir sin ADR)
 
 Bases de datos de servidor, colas, microservicios, ML en el motor, autenticación (no hay usuarios en el MVP).
+
+## Visor global (ADR-021, ADR-022)
+
+MapLibre GL JS 6 (proyección `globe`, atmósfera `sky`, controles y teselas raster) para las etapas globo y granja; Three.js/R3F solo para el gemelo. Ambos se cargan por `React.lazy` (chunks separados; el bundle inicial queda en ~280 kB). Teselas: NASA GIBS (dominio público, sin clave) en zoom bajo y Esri World Imagery en zoom alto, configurable por env. No se usa Google Maps ni claves. Pruebas unitarias del frontend con Vitest (`pnpm test`, incluido en `make test`).

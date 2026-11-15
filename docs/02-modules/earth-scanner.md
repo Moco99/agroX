@@ -55,3 +55,7 @@ Overlay renderizado en backend (no en el navegador) porque el ráster recortado 
 - `services/climate_service.py`: obtiene serie del provider, llama indicadores, arma respuesta con provenance.
 - `pipeline/build_ndvi.py` (+ `services/observation_service.py`): recorte y PNG del overlay.
 - Builder: Sonnet para cableado y UI; Opus para SPI, anomalías y QA del overlay (ver [agent-routing](../06-agents/agent-routing.md)).
+
+## Exploración global y consulta por punto (UI)
+
+La pantalla de exploración es un globo MapLibre con zoom continuo hasta escala de campo ([ui-spec](../07-design/ui-spec.md), [digital-farm-3d](digital-farm-3d.md)). Desde cualquier punto, «Consultar este punto» o `⌘K` llaman a `POST /api/points/query` (cobertura, relieve, suelo, clima, vegetación, aptitud) y muestran cada sección con su fuente y `data_state`; los indicadores climáticos de esta página siguen calculándose solo para el piloto. Fuera del piloto no hay parcelas, NDVI por fecha ni gemelo, y la UI lo indica.

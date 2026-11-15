@@ -17,7 +17,7 @@ make dev     # backend http://127.0.0.1:8000/api/health  ·  frontend http://127
 
 ### Recorrido visual y datos remotos
 
-La entrada muestra el globo y acerca la cámara al piloto de Story County, Iowa; después presenta el mapa con NDVI y la parcela 3D. Los enlaces `?stage=globe`, `?stage=map` y `?stage=twin` abren cada etapa directamente. Se puede omitir la introducción; se respeta la preferencia de movimiento reducido.
+La entrada muestra la Tierra completa (globo MapLibre con atmósfera, giro lento hasta que interactúas). Puedes arrastrar y acercarte sin saltos hasta campos individuales en cualquier lugar. Un clic selecciona un punto y «Consultar este punto» (o `⌘K`) lo analiza mediante FastAPI. «Visitar piloto de Iowa» vuela a la granja piloto (polígono, 4 zonas, NDVI por fecha) y desde ahí se abre el gemelo 3D; acercarte manualmente sobre el piloto también entra a la vista de granja. Los enlaces `?stage=globe`, `?stage=map` y `?stage=twin` abren cada vista; se respeta la preferencia de movimiento reducido.
 
 Para leer datos remotos, configura estas variables en `.env` (no versionado):
 
@@ -195,3 +195,28 @@ Notas:
 3. Si es una API, copia `scraper/sites/_plantilla.py` como `scraper/sites/<id>.py`. Si varias fuentes usan la misma API, comparten conector con `"hook"` (como `stac` y `earthdata`).
 
 Pruebas: `python scraper/test_scrape.py`
+
+### Consultar un punto desde la aplicación
+
+La búsqueda por coordenadas consulta fuentes históricas bajo demanda; no son mediciones en tiempo real. Ejecuta `make setup` tras actualizar para instalar `requests`, y `make dev` para levantar ambos servicios.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/points/query \
+  -H 'Content-Type: application/json' \
+  -d '{"lat":30.8,"lon":75.55,"start":"2023-01-01","end":"2024-12-31","refresh":false}'
+```
+
+Cada sección identifica su fuente, estado y errores independientes. Una fuente caída no sustituye datos con cifras inventadas. El primer resultado puede tardar alrededor de 90 segundos más la finalización de solicitudes pendientes; repetir una consulta completa usa la caché local durante 24 horas. Los intervalos admiten un máximo de 730 días de diferencia.
+
+### Globo y zoom satelital
+
+MapLibre carga imágenes por teselas al acercarse: NASA Blue Marble (GIBS, dominio público) en zoom bajo y Esri World Imagery en zoom alto (fundido cruzado entre zoom 4.5 y 6.5, máx. 19). Rueda, doble clic y gestos táctiles permiten explorar; un clic selecciona coordenadas para analizarlas. El detalle de campos depende de la imagen disponible y no incluye polígonos de parcelas globales. La imagen base no representa necesariamente la fecha del análisis NDVI.
+
+Las teselas requieren conexión; sin red aparece un aviso, un mosaico Blue Marble reducido incluido en la app y, en el piloto, la ortofoto NAIP del backend. Créditos y pendiente de términos de Esri: `docs/07-design/credits.md`. Para cambiar la fuente de zoom alto Para otra fuente compatible configura `frontend/.env.local` y reinicia Vite:
+
+```dotenv
+VITE_SATELLITE_TILE_URL=https://your-provider.example/tiles/{z}/{x}/{y}.jpg
+VITE_SATELLITE_ATTRIBUTION=Your imagery provider
+```
+
+Las variables `VITE_*` son públicas en el navegador: no introducir secretos de AWS. Conserva la atribución exigida por tu proveedor.

@@ -60,3 +60,9 @@ Un store (Zustand o Context, O-10) con: parcela seleccionada, ciclo activo, rota
 - Si el modo es mixto (p. ej. clima real + suelo sintético), la respuesta lo dice por campo y la UI muestra el aviso.
 
 Detalle de módulos: [02-modules](../02-modules/). Estructura de carpetas: [repo-structure](repo-structure.md).
+
+## Consultas globales por punto
+
+`POST /api/points/query` conecta la interfaz a las seis consultas de `scraper/punto.py` mediante router → servicio → proveedor. Valida coordenadas y periodo antes de realizar llamadas externas. Cada fuente devuelve su propio estado, procedencia y error parcial; una fuente caída no invalida los demás resultados.
+
+Estas consultas representan un punto y su periodo, no una nueva parcela delimitada ni una simulación del piloto. El frontend presenta los resultados en un panel separado; volver al gemelo conserva la identidad de Story County. La red se usa solo en esta consulta explícita y en el modo climático `live`; la demo con derivados mantiene funcionamiento offline.

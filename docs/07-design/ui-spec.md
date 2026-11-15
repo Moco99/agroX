@@ -96,3 +96,21 @@ Cada KPI muestra insignia `data_state` (MEASURED/ESTIMATED/SIMULATED/SYNTHETIC) 
 ## Exploración cinematográfica
 
 Las tres referencias se recorren como globo → mapa de parcela → gemelo. Se mantiene la carcasa oscura con acentos verdes y panel de indicadores a la derecha; en pantallas pequeñas el panel fluye debajo del visor. La ubicación es el piloto disponible en Iowa: los nombres, superficies, métricas y fechas de los mockups no se usan como datos. La ortofoto y el overlay NDVI comparten bounds, y las fechas seleccionadas se solicitan a la API.
+
+## Consulta global por coordenadas
+
+La búsqueda superior (`⌘K` / `Ctrl K`) abre un formulario de latitud, longitud y fechas (hasta 730 días), precargado con el punto elegido en el globo. Envía `POST /api/points/query`. El resultado se muestra como **capa superpuesta** sobre la etapa (el mapa sigue montado debajo y conserva cámara y teselas); `Esc` o «← Volver al mapa» la cierran y abortan la petición. Durante la consulta (~20 s la primera vez) hay estado de carga con cancelar; un reintento fuerza actualización. Los seis bloques muestran fuente y `data_state`; un error de una fuente no oculta las demás. Una nota indica si el punto está dentro del piloto (parcelas, NDVI por fecha y gemelo disponibles) o fuera (solo imagen satelital y consulta por punto).
+
+## Globo y zoom continuo hasta escala de campo
+
+**Etapa 1 · globo (`?stage=globe`, pantalla inicial).** Tierra completa en proyección globo (MapLibre) con atmósfera y fondo estelar; gira lentamente hasta la primera interacción (sin giro con `prefers-reduced-motion`). Rueda, pellizco o arrastre acercan sin saltos hasta campos individuales en cualquier lugar (zoom máx. 19). Imágenes por rango de zoom con fundido cruzado: NASA Blue Marble (GIBS) en zoom bajo → Esri World Imagery desde zoom 4.5–6.5 ([credits](credits.md)). Un chip muestra zoom, metros por píxel y fuente; la atribución y la escala están siempre visibles. Un pin «Piloto Iowa» marca la única zona con datos de parcela.
+
+Panel derecho: punto seleccionado (clic en el globo → marcador, coordenadas, nota de cobertura, botón «Consultar este punto»), granja piloto («Visitar piloto de Iowa», «Abrir gemelo 3D»), «Explorar otros lugares» (Pampa húmeda, caña en Veracruz, Ciudad de México: solo imagen) e indicadores de temporada del piloto con `data_state`. Barra inferior: capas del piloto (NDVI, límites) y reproductor de escenas NDVI.
+
+**Etapa 2 · granja (`?stage=map`).** «Visitar piloto de Iowa» (o el pin) vuela con `flyTo` ~4.6 s del globo a la granja; también se entra al acercarse manualmente sobre el piloto (zoom ≥ 12.5) y se sale al alejarse (zoom < 9 o a más de 25 km), sin cambiar de visor. Aparecen el polígono de la granja y las 4 zonas, el NDVI de la fecha elegida (`/api/imagery/ndvi`) con leyenda, el selector «Imagen satelital / NDVI», el stepper «1. Ubicación → 2. Granja → 3. Análisis», «← Volver al globo» y el CTA «Ver gemelo digital 3D». Panel: NDVI más reciente por zona (con fecha y `data_state`), condiciones de la temporada y nota de cobertura.
+
+**Etapa 3 · gemelo (`?stage=twin`).** Fundido (450 ms + 700 ms) hacia la escena R3F; «← Volver al mapa de la granja» y el menú lateral regresan (el menú «Exploración» vuela de vuelta al globo).
+
+**Sin conexión.** Si fallan las teselas (o el navegador reporta `offline`), aviso «Sin conexión: imágenes globales no disponibles» con reintento; queda un mosaico Blue Marble reducido incluido en la app y, en el piloto, la ortofoto NAIP servida por el backend. Nunca una pantalla vacía. Sin WebGL: aviso y la búsqueda por coordenadas sigue disponible.
+
+Clima, Rotaciones e Informes siguen marcados «próximamente» (deshabilitados).
