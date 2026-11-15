@@ -534,6 +534,11 @@ input[type="range"] {
 
 .badge {
   display: inline-block;
+  flex: 0 0 auto;
+  align-self: center;
+  /* Grid cells would otherwise stretch the pill to the full column */
+  width: fit-content;
+  white-space: nowrap;
   border: 1px solid;
   border-radius: 999px;
   font-weight: 600;
@@ -1055,3 +1060,30 @@ input[type="range"] {
 .glossary-list dd { margin:2px 0 0; }
 @media print { .how, .term-mark, .term-tip, .guide-scrim { display:none !important; } .term-label { border:0; } }
 .rotation-score .reading { margin-left:8px; vertical-align:middle; }
+
+/* Top bar chips: one row, icon and text spaced, nothing spills under the next chip */
+.search { display:inline-flex; align-items:center; gap:8px; min-width:min(320px, 26vw); }
+.search-placeholder { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.search kbd { margin-left:auto; font-size:11px; color:var(--text-2); }
+.top-bar-right { min-width:0; gap:10px; }
+.chip-button { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); padding:6px 10px; color:var(--text-2); }
+.date-range { display:inline-flex; align-items:center; gap:8px; white-space:nowrap; min-width:0; }
+.date-range > span:nth-child(2) { overflow:hidden; text-overflow:ellipsis; }
+.icon-round { position:relative; display:inline-grid; place-items:center; flex:0 0 auto; width:32px; height:32px; padding:0; border-radius:999px; background:var(--bg-card); border:1px solid var(--border); color:var(--text-2); }
+.icon-round.is-active { border-color:var(--accent); color:var(--accent); }
+.icon-round .dot { position:absolute; top:5px; right:5px; width:7px; height:7px; border-radius:50%; background:var(--accent); }
+.avatar { display:inline-grid; place-items:center; flex:0 0 auto; width:32px; height:32px; border-radius:50%; background:var(--accent-muted); color:var(--text); font-weight:600; }
+
+/* Hidden glossary tooltips still have a box: keep them from adding a horizontal scrollbar to the panel */
+.panel { overflow-x:hidden; }
+.zone-ndvi-list li > span:last-child { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:4px; text-align:right; }
+.zone-ndvi-list small { white-space:nowrap; }
+
+/* Twin: crop and planting per zone */
+.crop-plan-list { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:10px; font-size:13px; }
+.crop-plan-list li { display:grid; gap:6px; padding-bottom:10px; border-bottom:1px solid #ffffff0d; }
+.crop-plan-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.crop-plan-list select { width:100%; }
+.crop-plan-date { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:8px; color:var(--text-2); }
+.simulation-period form { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.simulation-period form > :is(p, button, label:nth-of-type(3)) { grid-column:1 / -1; }

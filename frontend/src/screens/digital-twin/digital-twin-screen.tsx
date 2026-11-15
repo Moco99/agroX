@@ -13,6 +13,7 @@ import { ModelNote } from "../../components/explain/model-note";
 import { Term } from "../../components/explain/term";
 import { useParcelStore } from "../../store/parcel-store";
 import { hasWebGL } from "../../lib/webgl";
+import { SimulationPeriod } from "./simulation-period";
 import { FarmDiorama } from "../../scene/farm-diorama";
 import { useTwinStore } from "../../store/twin-store";
 import { cropLabel, fallbackNote, ndviMissingText, stageStatusOf } from "../../lib/farm-labels";
@@ -67,9 +68,12 @@ export function DigitalTwinScreen() {
   }
 
   const projector = useMemo(() => (farm ? makeProjector(farm.farm) : null), [farm]);
+  const referenceYear = useTwinStore((s) => s.referenceYear);
+  // Observations belong to the real parcel and dates: never pair them with a reference-year or hypothetical-crop run
+  const hideObserved = referenceYear !== null || rotation !== null;
   const views = useMemo(
-    () => zoneViews(baseline, scenario, dayIndex, [sentinel2, modis]),
-    [baseline, scenario, dayIndex, sentinel2, modis],
+    () => zoneViews(baseline, scenario, dayIndex, hideObserved ? [] : [sentinel2, modis]),
+    [baseline, scenario, dayIndex, sentinel2, modis, hideObserved],
   );
   if (!farm || !baseline || !projector) return null;
 
@@ -80,7 +84,7 @@ export function DigitalTwinScreen() {
   const pFraction = selected?.state && selected.state.taw_mm > 0 ? selected.state.raw_mm / selected.state.taw_mm : null;
   // Declared before zoneStyles: Object.fromEntries runs its callback eagerly (TDZ otherwise crashes the screen)
   const pilotFarm = isPilotFarm(farm.farm.farm_id);
-  const ndviMissing = pilotFarm ? undefined : ndviMissingText(stageStatusOf(farm, "ndvi"));
+  const ndviMissing = hideObserved ? es.ndviNotObserved : pilotFarm ? undefined : ndviMissingText(stageStatusOf(farm, "ndvi"));
   const zoneStyles = Object.fromEntries(
     views.map((v) => [v.zone.zone_id, { fill: layerColor(v, layer), label: layerLabel(v, layer, ndviMissing) }]),
   );
@@ -169,44 +173,63 @@ export function DigitalTwinScreen() {
             </button>
           </section>
         )}
-        {!rotation && !isPilotFarm(farm.farm.farm_id) && (
+        {!rotation && (
           <section className="card declared-summary" data-testid="declared-summary">
             <div className="card-head">
               <h3>{es.openParcel.declTitle}</h3>
               <DataStateBadge state="DECLARED" compact />
             </div>
-            <p className="muted">{es.assumedCropNote}</p>
-            <ul className="zone-ndvi-list">
+            <p className="muted">{es.weatherReference.cropHint}</p>
+            {!pilotFarm && farm.farm.zones.some((z) => !declaration.crops[z.zone_id]) && <p className="muted">{es.assumedCropNote}</p>}
+            <ul className="crop-plan-list">
               {farm.farm.zones.map((z) => {
-                const crop = plan?.zoneCrops[z.zone_id] ?? z.crop_id;
-                const planting = plan?.plantingDates[crop];
-                const declaredDate = declaration.planting[crop] !== undefined;
+                // What the last run actually used for this zone (crop, planting and their data states)
+                const used = baseline.zones.find((r) => r.zone_id === z.zone_id);
+                const crop = used?.crop_id ?? plan?.zoneCrops[z.zone_id] ?? z.crop_id;
+                const declaredCrop = pilotFarm || Boolean(declaration.crops[z.zone_id]);
                 return (
                   <li key={z.zone_id}>
-                    <label>
-                      {z.name} ·{" "}
-                      <select
-                        aria-label={`${es.openParcel.declZone}: ${z.name}`}
-                        disabled={simulating}
-                        value={crop}
-                        onChange={(e) => {
-                          // Same contract as the farm map: the declaration feeds crop_overrides on the next run
-                          setDeclaration({ ...declaration, crops: { ...declaration.crops, [z.zone_id]: e.target.value } });
-                          void applyDeclaration();
-                        }}
-                      >
-                        {!declaration.crops[z.zone_id] && !catalog?.crops.some((c) => c.crop_id === crop) && (
-                          <option value={crop}>{cropLabel(crop, false).text}</option>
-                        )}
-                        {(catalog?.crops ?? []).map((c) => (
-                          <option key={c.crop_id} value={c.crop_id}>{c.name_es}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <DataStateBadge state={cropLabel(crop, Boolean(declaration.crops[z.zone_id])).state} compact />
-                    <span>
-                      {planting ? fmtDate(planting) : "—"} <DataStateBadge state={declaredDate ? "DECLARED" : "ESTIMATED"} compact />
-                    </span>
+                    <div className="crop-plan-head">
+                      <strong>{z.name}</strong>
+                      <DataStateBadge state={declaredCrop ? (used?.crop_state ?? "DECLARED") : cropLabel(crop, false).state} compact />
+                    </div>
+                    <select
+                      aria-label={`${es.openParcel.declZone}: ${z.name}`}
+                      disabled={simulating}
+                      value={declaration.crops[z.zone_id] ?? (pilotFarm ? crop : "")}
+                      onChange={(e) => {
+                        // Same contract as the farm map: the declaration feeds crop_overrides on the next run
+                        setDeclaration({ ...declaration, crops: { ...declaration.crops, [z.zone_id]: e.target.value } });
+                        void applyDeclaration();
+                      }}
+                    >
+                      <option value="" disabled>{cropLabel(crop, false).text}</option>
+                      {(catalog?.crops ?? []).map((c) => (
+                        <option key={c.crop_id} value={c.crop_id}>{c.name_es}</option>
+                      ))}
+                    </select>
+                    <div className="crop-plan-date">
+                      <span>
+                        {es.weatherReference.plantingUsed}: {used ? fmtDate(used.planting_date) : "—"}{" "}
+                        <DataStateBadge state={used?.planting_state ?? "ESTIMATED"} compact />
+                      </span>
+                      <label className="field">
+                        <span>{es.weatherReference.plantingDate}</span>
+                        <input
+                          type="date"
+                          aria-label={`${es.weatherReference.plantingDate}: ${z.name}`}
+                          disabled={simulating || !declaredCrop}
+                          value={declaration.planting[crop] ?? ""}
+                          onChange={(e) => {
+                            const plantingDates = { ...declaration.planting };
+                            if (e.target.value) plantingDates[crop] = e.target.value;
+                            else delete plantingDates[crop];
+                            setDeclaration({ ...declaration, planting: plantingDates });
+                            void applyDeclaration();
+                          }}
+                        />
+                      </label>
+                    </div>
                   </li>
                 );
               })}
@@ -216,6 +239,7 @@ export function DigitalTwinScreen() {
             </button>
           </section>
         )}
+        <SimulationPeriod />
         <SimulationPanel />
         <section className="card">
           <div className="card-head">

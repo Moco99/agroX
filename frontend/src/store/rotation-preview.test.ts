@@ -68,3 +68,27 @@ describe("rotation preview", () => {
     expect(useTwinStore.getState().simulating).toBe(false);
   });
 });
+
+describe("historical weather as a future scenario", () => {
+  it("uses the chosen reference year for the new window and later scenario edits without changing declarations", async () => {
+    const declaration = useParcelStore.getState().declaration;
+    const future = { start: "2026-12-01", end: "2027-02-28" };
+    await useTwinStore.getState().simulateWindow(future, 2024);
+    expect(vi.mocked(api.simulate).mock.calls[0]?.[0]).toMatchObject({ ...future, reference_year: 2024 });
+    expect(useTwinStore.getState().span).toEqual(future);
+    expect(useTwinStore.getState().referenceYear).toBe(2024);
+    expect(useParcelStore.getState().declaration).toBe(declaration);
+    useTwinStore.setState({ controls: { ...DEFAULT_CONTROLS, precipPct: -20 } });
+    await useTwinStore.getState().runScenario();
+    expect(vi.mocked(api.simulate).mock.calls.at(-1)?.[0]).toMatchObject({ ...future, reference_year: 2024, scenario: { precip_factor: 0.8 } });
+  });
+
+  it("carries the shifted historical year when previewing a later rotation cycle", async () => {
+    const later = { start: "2027-04-01", end: "2027-10-31" };
+    const futurePreview: RotationPreview = { ...preview, index: 0, referenceYear: 2024, referenceStartYear: 2026,
+      cycles: [{ cropId: "corn", name: "Maíz", span: later, supported: true }] };
+    await useTwinStore.getState().previewRotation(futurePreview);
+    expect(vi.mocked(api.simulate).mock.calls[0]?.[0]).toMatchObject({ ...later, reference_year: 2025 });
+    expect(useTwinStore.getState().referenceYear).toBe(2025);
+  });
+});

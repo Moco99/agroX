@@ -16,6 +16,7 @@ from app.schemas.rotations import RotationRecommendRequest
 from app.schemas.weather import WeatherDay
 from app.services.errors import InvalidRequestError
 from app.services.farm_load_service import ensure_supported
+from app.services.weather_reference import analogue_weather
 
 
 @lru_cache(maxsize=1)
@@ -39,9 +40,13 @@ def summarize_climate(
         day.date != start + timedelta(days=index) or not isfinite(day.t_mean) or not isfinite(day.precip)
         for index, day in enumerate(days)
     ):
+        complete = {day.date for day in days if isfinite(day.t_mean) and isfinite(day.precip)}
+        wanted = (start + timedelta(days=i) for i in range(expected))
+        first_gap = next((day for day in wanted if day not in complete), None)
         raise InvalidRequestError(
-            f"Datos climáticos incompletos para {start} a {end}. "
-            "Elige un periodo con temperatura y lluvia diarias disponibles."
+            f"Datos climáticos incompletos para {start} a {end}"
+            + (f" (falta {first_gap})" if first_gap else "")
+            + ". Elige un periodo con temperatura y lluvia diarias disponibles."
         )
     return {
         "start": start.isoformat(),
@@ -65,7 +70,12 @@ def daily_series(
 
 def recommend(p: Providers, request: RotationRecommendRequest) -> dict[str, Any]:
     ensure_supported(p, request.farm_id)
-    weather = weather_for(p, request.farm_id).get_daily(request.start, request.end)
+    provider = weather_for(p, request.farm_id)
+    weather = (
+        analogue_weather(provider, request.start, request.end, request.reference_year)
+        if request.reference_year is not None
+        else provider.get_daily(request.start, request.end)
+    )
     windows = request.cycle_windows
     if windows is None:
         reference = summarize_climate(weather.days, request.start, request.end, request)
@@ -209,7 +219,9 @@ def recommend(p: Providers, request: RotationRecommendRequest) -> dict[str, Any]
             for cycle in item["cycles"]:
                 cycle["ph_fit"] = None
         item["explanation"] = explain(item)
-    simulated = request.scenario.temp_delta_c != 0 or request.scenario.precip_factor != 1
+    simulated = (
+        request.reference_year is not None or request.scenario.temp_delta_c != 0 or request.scenario.precip_factor != 1
+    )
     state = (
         "SYNTHETIC"
         if weather.provenance.data_state == DataState.SYNTHETIC
@@ -223,6 +235,7 @@ def recommend(p: Providers, request: RotationRecommendRequest) -> dict[str, Any]
         "data_state": state,
         "inputs": {
             "farm_id": request.farm_id,
+            "reference_year": request.reference_year,
             **reference,
             "t_mean": round(reference["t_mean"], 2),
             "rain_mm": round(reference["rain_mm"], 2),

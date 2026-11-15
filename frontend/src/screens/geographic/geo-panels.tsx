@@ -34,6 +34,8 @@ function DrawParcelCard() {
   const [sending, setSending] = useState(false);
   const [locating, setLocating] = useState(false);
   const [geoNote, setGeoNote] = useState<string | null>(null);
+  const [coordinateFallback, setCoordinateFallback] = useState(false);
+  const [geoFailed, setGeoFailed] = useState(false);
   const total = draw.polygons.reduce((s, p) => s + areaHa(p), 0);
   const confirm = async () => {
     setSending(true);
@@ -51,6 +53,7 @@ function DrawParcelCard() {
   const locate = () => {
     setLocating(true);
     setGeoNote(null);
+    setGeoFailed(false);
     locateMe().then(
       (point) => {
         setLocating(false);
@@ -61,6 +64,7 @@ function DrawParcelCard() {
       },
       (code: LocateError) => {
         setLocating(false);
+        setGeoFailed(true);
         setGeoNote(
           code === "unsupported"
             ? es.drawParcel.geoUnsupported
@@ -80,7 +84,12 @@ function DrawParcelCard() {
       <button type="button" className="ghost-button wide-button" onClick={locate} disabled={locating}>
         {locating ? es.drawParcel.locating : es.drawParcel.locate}
       </button>
-      {geoNote && <p className="coverage-note" role="status" data-testid="geo-note">{geoNote}</p>}
+      {geoNote && <div className="coverage-note" role="status" data-testid="geo-note">
+        <p>{geoNote}</p>
+        {geoFailed && <button type="button" className="ghost-button" onClick={() => setCoordinateFallback((open) => !open)}
+          aria-expanded={coordinateFallback}>{es.drawParcel.enterCoordinates}</button>}
+        {geoFailed && coordinateFallback && <PointSearch onSubmit={() => setCoordinateFallback(false)} />}
+      </div>}
       <button type="button" className="ghost-button wide-button" aria-pressed={draw.active}
         onClick={() => draw.setActive(!draw.active)}>
         {draw.active ? es.drawParcel.stop : es.drawParcel.start}

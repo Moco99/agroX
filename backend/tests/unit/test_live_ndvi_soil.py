@@ -92,3 +92,38 @@ def test_live_ndvi_series_and_fallback(tmp_path: Path) -> None:
     fallback = LiveObservationProvider(DERIVED, tmp_path / "x", search=boom, today=TODAY).ndvi_series(FARM, "sentinel2")
     assert any("Sentinel-2 API failed" in w for w in fallback.warnings)
     assert fallback.points
+
+@needs_derived
+def test_ndvi_scene_failures_are_not_cached_and_can_retry(tmp_path: Path) -> None:
+    scenes = [{"id": "s", "date": "2024-07-01", "baseline": "05.11"}]
+    calls = 0
+
+    def crop(_item: str, _bbox: list[float], width: int, height: int) -> np.ndarray:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise TimeoutError("upstream unavailable")
+        return _scene_array(2000, 4000, 4, height, width)
+
+    live = LiveObservationProvider(DERIVED, tmp_path, search=lambda *_: scenes, crop=crop, today=TODAY)
+    with pytest.raises(RuntimeError, match="scene reads failed"):
+        live._live_points(FARM)
+    assert live.cached_rows(FARM) is None
+    assert live._live_points(FARM)
+    assert calls == 2
+
+
+@needs_derived
+def test_ndvi_samples_scenes_across_history(tmp_path: Path) -> None:
+    scenes = [{"id": str(i), "date": f"{2020 + i // 12:04d}-{i % 12 + 1:02d}-01", "baseline": "05.11"}
+              for i in range(100)]
+    seen: list[str] = []
+
+    def crop(item: str, _bbox: list[float], width: int, height: int) -> np.ndarray:
+        seen.append(item)
+        return _scene_array(2000, 4000, 4, height, width)
+
+    live = LiveObservationProvider(DERIVED, tmp_path, search=lambda *_: scenes, crop=crop, today=TODAY)
+    live._live_points(FARM)
+    assert len(seen) == 72
+    assert "0" in seen and "99" in seen
