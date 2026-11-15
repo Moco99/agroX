@@ -31,6 +31,7 @@ interface FarmDioramaProps {
 
 export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneId, onSelect }: FarmDioramaProps) {
   const cover = useTwinStore((s) => s.farm?.land_cover);
+  const previewingRotation = useTwinStore((s) => s.rotationPreview !== null);
   const declaredCrops = useParcelStore((s) => s.declaration.crops);
   const pilot = isPilotFarm(farm.farm_id);
   const surface = cover?.worldcover_2021 === "suelo desnudo" ? "#b9a77e" : cover?.worldcover_2021 === "bosque" ? "#384f35" : "#777568";
@@ -84,7 +85,7 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
               canopy={canopyFactor(v.zone, date)}
               selected={selectedZoneId === v.zone.zone_id}
               onSelect={onSelect}
-              showPlants={pilot || Boolean(declaredCrops[v.zone.zone_id])}
+              showPlants={pilot || previewingRotation || Boolean(declaredCrops[v.zone.zone_id])}
             />
             {v.zone.irrigation_level !== "NONE" && (
               <Sprinkler position={[sx, 0, sz]} active={(v.state?.irrigation_mm ?? 0) > 0 || layer === "irrigation"} />
@@ -97,7 +98,7 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
               >
                 <strong>{v.zone.name}</strong>
                 <span>
-                  {pilot || declaredCrops[v.zone.zone_id] ? (es.crops[v.zone.crop_id] ?? v.zone.crop_id) : es.unconfirmedCrop} · {v.zone.area_ha.toFixed(0)} ha
+                  {pilot || previewingRotation || declaredCrops[v.zone.zone_id] ? (es.crops[v.zone.crop_id] ?? v.zone.crop_id) : es.unconfirmedCrop} · {v.zone.area_ha.toFixed(0)} ha
                 </span>
                 <span className="zone-label-value">
                   {es.layers[layer]}: {layerLabel(v, layer)} <DataStateBadge state={layerState(v, layer)} compact />

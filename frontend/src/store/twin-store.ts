@@ -76,6 +76,14 @@ export function isNeutral(c: ScenarioControls): boolean {
   return c.precipPct === 0 && c.tempDelta === 0 && c.irrigation === "NONE" && !c.monteCarlo;
 }
 
+export interface RotationPreview {
+  farmId: string;
+  cycles: Array<{ cropId: string; name: string; span: SeasonSpan; supported: boolean }>;
+  index: number;
+  precipPct: number;
+  tempDelta: number;
+}
+
 interface TwinStore {
   screen: Screen;
   canvasTab: CanvasTab;
@@ -84,6 +92,7 @@ interface TwinStore {
   // Simulation window actually requested: the pilot's season, or the span around the declared planting date
   span: SeasonSpan;
   plan: RunPlan | null;
+  rotationPreview: RotationPreview | null;
   dayIndex: number;
   playing: boolean;
   selectedZoneId: string | null;
@@ -135,6 +144,8 @@ interface TwinStore {
   // Re-requests the farm only (soil provisional -> real) and refreshes the simulation
   refreshFarm: () => Promise<void>;
   runScenario: () => Promise<void>;
+  previewRotation: (preview: RotationPreview) => Promise<void>;
+  clearRotationPreview: () => Promise<void>;
 }
 
 // ─────────────────────────────────────────
@@ -274,6 +285,7 @@ const PARCEL_RESET = {
   dayIndex: 0,
   playing: false,
   plan: null,
+  rotationPreview: null,
   simulating: false,
 };
 
@@ -373,6 +385,7 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
   layer: "ndvi",
   year: 2024,
   span: seasonRange(2024),
+  rotationPreview: null,
   plan: null,
   dayIndex: 0,
   playing: false,
@@ -511,7 +524,7 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
 
   applyDeclaration: async () => {
     const { farm, health } = get();
-    if (!farm || isPilotFarm(farm.farm.farm_id)) return;
+    if (!farm || isPilotFarm(farm.farm.farm_id) || get().rotationPreview) return;
     const plan = planFor(farm, health);
     const span = plan?.span ?? get().span;
     simulateAbort?.abort();
@@ -547,24 +560,92 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
     }
   },
 
+  previewRotation: async (preview) => {
+    const { farm, loading, baseline, simulating, health } = get();
+    const cycle = preview.cycles[preview.index];
+    if (!farm || !baseline || loading || simulating || farm.farm.farm_id !== preview.farmId ||
+        useParcelStore.getState().farmId !== preview.farmId) {
+      throw new Error("Espera a que termine de cargar la simulación de esta parcela.");
+    }
+    if (!cycle?.supported) throw new Error("Este cultivo no tiene parámetros en el catálogo del gemelo.");
+    const { span, cropId } = cycle;
+    if (health?.weather_coverage && isPilotFarm(preview.farmId) &&
+        (span.start < health.weather_coverage.start || span.end > health.weather_coverage.end)) {
+      throw new Error("El periodo está fuera de las fechas climáticas del gemelo.");
+    }
+    const days = (Date.parse(span.end) - Date.parse(span.start)) / 86_400_000 + 1;
+    if (!Number.isFinite(days) || days < 1 || days > 366) {
+      throw new Error("El gemelo simula una temporada de hasta 366 días. Elige una ventana por ciclo.");
+    }
+
+    if (simulateTimer) clearTimeout(simulateTimer);
+    simulateAbort?.abort();
+    const controller = new AbortController();
+    simulateAbort = controller;
+    const { signal } = controller;
+    const controls = {
+      ...DEFAULT_CONTROLS,
+      precipPct: preview.precipPct,
+      tempDelta: preview.tempDelta,
+      preset: preview.precipPct || preview.tempDelta ? "custom" : DEFAULT_CONTROLS.preset,
+    };
+    const year = Number(span.start.slice(0, 4));
+    const cropOverrides = Object.fromEntries(farm.farm.zones.map((zone) => [zone.zone_id, cropId]));
+    // Keep this plan local to the preview. The farmer's saved declarations and historical run are separate.
+    const plan: RunPlan = { span, plantingDates: {}, declaredPlanting: [], zoneCrops: cropOverrides, cropOverrides };
+    set({ simulating: true, error: null, playing: false });
+    try {
+      const [nextBaseline, scenario] = await Promise.all([
+        api.simulate(baselineRequest(preview.farmId, span, plan), signal),
+        isNeutral(controls) ? Promise.resolve(null) : api.simulate(
+          scenarioRequest(preview.farmId, span, plan, controls, null), signal,
+        ),
+      ]);
+      if (signal.aborted || useParcelStore.getState().farmId !== preview.farmId) {
+        throw new DOMException("La parcela cambió", "AbortError");
+      }
+      const active = scenario ?? nextBaseline;
+      // A misleading bare-soil preview is worse than a clear calendar error.
+      if (active.zones.some((zone) => zone.planting_date < span.start || zone.planting_date > span.end)) {
+        throw new Error("La ventana no incluye la fecha de siembra estimada para este cultivo.");
+      }
+      set({
+        rotationPreview: preview, span, plan, baseline: nextBaseline, scenario, controls, simulating: false,
+        dayIndex: openingDay(active, isPilotFarm(preview.farmId), year),
+        canvasTab: "twin", layer: "stress",
+      });
+    } catch (error) {
+      if (!signal.aborted) {
+        controller.abort();
+        set({ simulating: false });
+      }
+      throw error;
+    }
+  },
+
+  clearRotationPreview: async () => {
+    await get().init();
+  },
+
   runScenario: async () => {
     const { controls, span, plan, baseline, dayIndex, farm } = get();
+    simulateAbort?.abort();
     if (isNeutral(controls) || !farm) {
       set({ scenario: null, simulating: false });
       return;
     }
-    simulateAbort?.abort();
     simulateAbort = new AbortController();
+    const { signal } = simulateAbort;
     const forkDate = controls.forkFromCurrent ? (baseline?.zones[0]?.states[dayIndex]?.date ?? null) : null;
     set({ simulating: true });
     try {
       const scenario = await api.simulate(
         scenarioRequest(farm.farm.farm_id, span, plan, controls, forkDate),
-        simulateAbort.signal,
+        signal,
       );
-      set({ scenario, simulating: false, error: null });
+      if (!signal.aborted) set({ scenario, simulating: false, error: null });
     } catch (e) {
-      if (isAbort(e)) return;
+      if (signal.aborted || isAbort(e)) return;
       set({ error: errorMessage(e), simulating: false });
     }
   },

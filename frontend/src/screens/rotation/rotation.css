@@ -38,3 +38,7 @@
 .rotation-inputs small { color: var(--text-muted); }
 .rotation-empty { padding: 28px; color: var(--text-2); }
 @media (max-width: 900px) { .rotation-layout { grid-template-columns: 1fr; } .rotation-header { flex-wrap: wrap; } }
+
+.rotation-window { margin: 12px 0 0; border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+.rotation-window .rotation-grid label:last-child { grid-column: auto; }
+.rotation-preview { margin-top: 6px; }

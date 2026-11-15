@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useParcelStore } from "../../store/parcel-store";
-import { useTwinStore } from "../../store/twin-store";
+import { useTwinStore, type RotationPreview } from "../../store/twin-store";
 import { useStageStore } from "../../store/stage-store";
 import { useRotationView } from "../../store/rotation-store";
-import { recommendRotation, type RotationRequest, type RotationResponse } from "./rotation-api";
+import { recommendRotation, type RotationRecommendation, type RotationRequest, type RotationResponse, type RotationWindow } from "./rotation-api";
 import { isRecord } from "../../types/guards";
 import "./rotation.css";
 
@@ -27,18 +27,40 @@ function InputDetails({ inputs }: { inputs: Record<string, unknown> }) {
   })}</dl>;
 }
 
-function Ranking({ result, title }: { result: RotationResponse; title: string }) {
+interface RankingProps {
+  result: RotationResponse;
+  title: string;
+  canPreview: boolean;
+  onPreview: (item: RotationRecommendation, index: number) => void;
+}
+
+function Ranking({ result, title, canPreview, onPreview }: RankingProps) {
+  const indexOf = (item: RotationRecommendation) => item.score ?? item.overall_score;
+  const frequencies = new Map<number, number>();
+  for (const item of result.recommendations) {
+    const score = indexOf(item);
+    frequencies.set(score, (frequencies.get(score) ?? 0) + 1);
+  }
   return <section className="rotation-ranking"><h2>{title}</h2>
-    {result.recommendations.some((item, i, list) => list.some((other, j) => j !== i && other.overall_score === item.overall_score)) && <p className="muted">Hay índices empatados. El orden entre ellos es determinista y no demuestra que una secuencia sea agronómicamente superior.</p>}
+    {[...frequencies.values()].some((count) => count > 1) && <p className="muted">En los empates se priorizan menos repeticiones de familia botánica.</p>}
     {result.recommendations.length === 0 ? <p>No hay secuencias con los filtros elegidos.</p> :
       result.recommendations.map((item, i) => <article className="rotation-card" key={`${item.sequence.join("-")}-${i}`}>
-        <header><div><span className="eyebrow">OPCIÓN {i + 1}{result.recommendations.some((other, j) => j !== i && other.overall_score === item.overall_score) ? " · ÍNDICE EMPATADO" : ""}</span><h3>{item.cycles.map((c) => c.name).join(" → ")}</h3></div>
+        <header><div><span className="eyebrow">OPCIÓN {i + 1}{(frequencies.get(indexOf(item)) ?? 0) > 1 ? " · ÍNDICE EMPATADO" : ""}</span><h3>{item.cycles.map((c) => c.name).join(" → ")}</h3></div>
           <div className="rotation-score"><strong>{item.overall_score.toFixed(1)}</strong><small> / 100 · índice</small></div></header>
         <div className="rotation-indicators">{([
           ["Compatibilidad lluvia", item.indicators.water], ["Compatibilidad pH", item.indicators.soil], ["Compatibilidad temperatura", item.indicators.climate],
         ] as const).map(([label, value]) => <div key={label}><small>{label}</small><strong>{fmt(value)}</strong><div className="rotation-track"><i style={{ width: `${Math.max(0, Math.min(100, value ?? 0))}%` }} /></div></div>)}</div>
         <p className="muted">Pesos efectivos: lluvia {(item.weights.water * 100).toFixed(0)} % · pH {(item.weights.soil * 100).toFixed(0)} % · temperatura {(item.weights.climate * 100).toFixed(0)} %</p>
-        <ol className="rotation-cycles">{item.cycles.map((cycle) => <li key={`${cycle.cycle}-${cycle.crop_id}`}><strong>Ciclo {cycle.cycle}: {cycle.name}</strong><span>{cycle.family} · Lluvia {cycle.rainfall_fit.toFixed(1)} · Temperatura {cycle.temperature_fit.toFixed(1)}{cycle.ph_fit !== null ? ` · pH ${cycle.ph_fit.toFixed(1)}` : " · pH sin declarar"}</span></li>)}</ol>
+        {item.family_repeats !== undefined && <p className="muted">Repeticiones consecutivas de familia: {item.family_repeats}</p>}
+        <ol className="rotation-cycles">{item.cycles.map((cycle) => <li key={`${cycle.cycle}-${cycle.crop_id}`}><strong>Ciclo {cycle.cycle}: {cycle.name}</strong><span>{cycle.family} · Lluvia {cycle.rainfall_fit.toFixed(1)} · Temperatura {cycle.temperature_fit.toFixed(1)}{cycle.ph_fit !== null ? ` · pH ${cycle.ph_fit.toFixed(1)}` : " · pH sin declarar"}</span>
+          {cycle.window && <span>{cycle.window.start} a {cycle.window.end}</span>}
+          {cycle.warnings.filter((warning) => warning.startsWith("La ventana")).map((warning) => <span key={warning}>{warning}</span>)}
+          {cycle.twin_supported ? (
+            <button className="ghost-button rotation-preview" type="button" disabled={!canPreview} onClick={() => onPreview(item, cycle.cycle - 1)}>
+              Simular ciclo {cycle.cycle} en 3D
+            </button>
+          ) : <span>Sin parámetros para el gemelo 3D.</span>}
+        </li>)}</ol>
         {item.warnings.length > 0 && <details><summary>Supuestos y limitaciones ({item.warnings.length})</summary><ul>{item.warnings.map((warning, n) => <li key={`${warning}-${n}`}>{warning}</li>)}</ul></details>}
       </article>)}
     {result.warnings.length > 0 && <div className="rotation-warning"><strong>Avisos</strong><ul>{result.warnings.map((w, i) => <li key={`${w}-${i}`}>{w}</li>)}</ul></div>}
@@ -49,11 +71,16 @@ export default function RotationScreen() {
   const farmId = useParcelStore((s) => s.farmId);
   const farm = useTwinStore((s) => s.farm);
   const span = useTwinStore((s) => s.span);
-  const twinReady = useTwinStore((s) => s.baseline !== null && !s.loading);
+  const twinReady = useTwinStore((s) => s.baseline?.farm_id === farmId && !s.loading && !s.simulating);
+  const previewRotation = useTwinStore((s) => s.previewRotation);
   const close = useRotationView((s) => s.close);
   const [start, setStart] = useState(span.start);
   const [end, setEnd] = useState(span.end);
   const [cycles, setCycles] = useState(3);
+  const [twinOnly, setTwinOnly] = useState(true);
+  const [useWindows, setUseWindows] = useState(false);
+  const [windows, setWindows] = useState<RotationWindow[]>(Array.from({ length: 4 }, () => ({ start: "", end: "" })));
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [previous, setPrevious] = useState("");
   const [sameFamily, setSameFamily] = useState(false);
   const [ph, setPh] = useState("");
@@ -66,22 +93,52 @@ export default function RotationScreen() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
-  useEffect(() => () => abort.current?.abort(), []);
-  useEffect(() => { abort.current?.abort(); setLoading(false); setError(null); setStart(span.start); setEnd(span.end); setBaseline(null); setScenario(null); setSubmitted(null); }, [farmId, span.start, span.end]);
+  const mounted = useRef(false);
+  const initialSpan = useRef(span);
+  initialSpan.current = span;
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; abort.current?.abort(); };
+  }, []);
+  useEffect(() => {
+    abort.current?.abort();
+    setLoading(false); setError(null); setPreviewError(null);
+    setStart(initialSpan.current.start); setEnd(initialSpan.current.end);
+    setBaseline(null); setScenario(null); setSubmitted(null);
+    setPrevious(""); setPh(""); setUseWindows(false);
+    setWindows(Array.from({ length: 4 }, () => ({ start: "", end: "" })));
+  }, [farmId]);
 
   function invalidate() {
     abort.current?.abort();
-    setLoading(false); setError(null); setBaseline(null); setScenario(null); setSubmitted(null);
+    setLoading(false); setError(null); setPreviewError(null); setBaseline(null); setScenario(null); setSubmitted(null);
   }
 
   async function run(e: React.FormEvent) {
     e.preventDefault();
-    if (start > end || (Date.parse(end) - Date.parse(start)) / 86400000 > 730 || Object.values(weights).every((v) => v === 0)) { setError("El periodo debe ser de hasta 730 días y al menos una prioridad debe ser mayor que cero."); return; }
+    const cycleWindows = useWindows ? windows.slice(0, cycles) : undefined;
+    const from = cycleWindows?.[0]?.start ?? start;
+    const to = cycleWindows?.at(-1)?.end ?? end;
+    if (from > to || (Date.parse(to) - Date.parse(from)) / 86_400_000 >= 731) {
+      setError("El periodo de referencia admite hasta 731 días.");
+      return;
+    }
+    if (cycleWindows?.some((w, i) => !w.start || !w.end || w.start > w.end ||
+      (Date.parse(w.end) - Date.parse(w.start)) / 86_400_000 >= 366 ||
+      (i > 0 && cycleWindows[i - 1]!.end >= w.start))) {
+      setError("Usa ventanas de hasta 366 días, ordenadas y sin solaparse.");
+      return;
+    }
+    if (weights.water + weights.climate + (ph.trim() ? weights.soil : 0) === 0) {
+      setError("Da prioridad a lluvia o temperatura, o declara el pH para priorizar suelo.");
+      return;
+    }
     abort.current?.abort();
     const controller = new AbortController(); abort.current = controller;
     setLoading(true); setError(null); setBaseline(null); setScenario(null);
     const body: RotationRequest = {
-      farm_id: farmId, start, end, cycles, top_k: 3, exclude_same_family: sameFamily, weights,
+      farm_id: farmId, start: from, end: to, cycles, top_k: 3, exclude_same_family: sameFamily, weights,
+      twin_only: twinOnly, ...(cycleWindows ? { cycle_windows: cycleWindows } : {}),
       scenario: { temp_delta_c: 0, precip_factor: 1 },
       ...(previous ? { previous_crop: previous } : {}), ...(ph.trim() ? { soil_ph: Number(ph) } : {}),
     };
@@ -96,6 +153,32 @@ export default function RotationScreen() {
     } finally { if (!controller.signal.aborted) setLoading(false); }
   }
 
+  async function openPreview(item: RotationRecommendation, index: number, hypothetical: boolean) {
+    setPreviewError(null);
+    const preview: RotationPreview = {
+      farmId,
+      index,
+      cycles: item.cycles.map((cycle) => ({
+        cropId: cycle.crop_id, name: cycle.name,
+        span: cycle.window ?? { start, end },
+        supported: Boolean(cycle.twin_supported),
+      })),
+      precipPct: hypothetical ? rain : 0,
+      tempDelta: hypothetical ? temperature : 0,
+    };
+    try {
+      await previewRotation(preview);
+      if (mounted.current) {
+        useStageStore.getState().goTo("twin");
+        close();
+      }
+    } catch (err) {
+      if (mounted.current && !(err instanceof DOMException && err.name === "AbortError")) {
+        setPreviewError(err instanceof Error ? err.message : "No se pudo simular el ciclo.");
+      }
+    }
+  }
+
   return <section className="rotation-screen" aria-labelledby="rotation-title">
     <div className="rotation-header"><div><span className="eyebrow">AGROX · ECOCROP</span><h1 id="rotation-title">Rotaciones de cultivo</h1>
       <p>{farm?.farm.name ?? farmId} · compara secuencias para las condiciones disponibles.</p></div>
@@ -103,12 +186,31 @@ export default function RotationScreen() {
     <div className="rotation-disclaimer">Índices comparativos exploratorios, no probabilidades ni pronósticos de rendimiento. Las reglas y el modelo requieren validación en campo.</div>
     <div className="rotation-layout"><form className="rotation-form" onChange={invalidate} onSubmit={(e) => void run(e)}>
       <section className="card"><h2>Datos de la parcela</h2><p className="muted">Se usa el clima disponible para esta ubicación y periodo; la compatibilidad con suelo requiere pH declarado.</p>
-        <div className="rotation-grid"><label>Desde<input type="date" required value={start} max={end} onChange={(e) => setStart(e.target.value)} /></label>
+        <div className="rotation-grid">{!useWindows && <>
+          <label>Desde<input type="date" required value={start} max={end} onChange={(e) => setStart(e.target.value)} /></label>
           <label>Hasta<input type="date" required value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></label>
+        </>}
           <label>Ciclos<select value={cycles} onChange={(e) => setCycles(Number(e.target.value))}><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option></select></label>
           <label>pH declarado (opcional)<input type="number" min={0} max={14} step="0.1" placeholder="Sin declarar" value={ph} onChange={(e) => setPh(e.target.value)} /></label>
           <label>Cultivo anterior<select value={previous} onChange={(e) => setPrevious(e.target.value)}><option value="">No declarado</option>{crops.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label></div>
         <label className="rotation-checkbox"><input type="checkbox" checked={sameFamily} onChange={(e) => setSameFamily(e.target.checked)} /> Evitar familia botánica consecutiva</label><p className="muted">Filtro opcional; su aplicación depende del cultivo y del manejo local.</p>
+        <label className="rotation-checkbox"><input type="checkbox" checked={twinOnly} onChange={(e) => setTwinOnly(e.target.checked)} /> Solo cultivos que se pueden simular en el gemelo</label>
+        <label className="rotation-checkbox"><input type="checkbox" checked={useWindows} onChange={(e) => setUseWindows(e.target.checked)} /> Usar fechas distintas por ciclo</label>
+        {useWindows && windows.slice(0, cycles).map((window, index) => (
+          <fieldset key={index} className="rotation-window">
+            <legend>Ciclo {index + 1}</legend>
+            <div className="rotation-grid">
+              {(["start", "end"] as const).map((key) => (
+                <label key={key}>{key === "start" ? "Desde" : "Hasta"}
+                  <input type="date" required value={window[key]} onChange={(e) => {
+                    const value = e.target.value;
+                    setWindows((current) => current.map((w, i) => i === index ? { ...w, [key]: value } : w));
+                  }} />
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ))}
       </section>
       <section className="card"><h2>Prioridades</h2><p className="muted">Los pesos se normalizan al comparar alternativas.</p>
         {([ ["water", "Agua"], ["soil", "Suelo"], ["climate", "Clima"] ] as const).map(([key, label]) => <label className="rotation-slider" key={key}>{label} <strong>{weights[key]}</strong><input type="range" min={0} max={10} value={weights[key]} onChange={(e) => setWeights((w) => ({ ...w, [key]: Number(e.target.value) }))} /></label>)}
@@ -122,13 +224,18 @@ export default function RotationScreen() {
     </form><div className="rotation-results">
       {!baseline && !loading && <div className="card rotation-empty"><h2>Compara tres alternativas</h2><p>Elige el periodo y tus prioridades. Se mostrará el índice y el desglose disponible para cada secuencia.</p></div>}
       {loading && <div className="card" role="status">Consultando datos y calculando secuencias…</div>}
-      {baseline && <><div className="card"><h2>Datos utilizados</h2><InputDetails inputs={baseline.inputs} /><p className="muted">{baseline.methodology} · Clima: {String(baseline.inputs.climate_source ?? "—")} · {baseline.inputs.climate_data_state === "SYNTHETIC" ? "Sintético" : baseline.inputs.climate_data_state === "MEASURED" ? "Medido" : String(baseline.inputs.climate_data_state ?? "—")} · Índice: {baseline.data_state === "SYNTHETIC" ? "Sintético" : "Estimado"}</p><p className="muted">Las secuencias se comparan aquí; aún no modifican la escena 3D.</p></div><Ranking result={baseline} title="Clima de referencia" /></>}
-      {scenario && <><div className="rotation-disclaimer">Escenario simulado: {submitted}. El gemelo aplica estos cambios a su ventana {span.start} — {span.end}; la rotación no cambia automáticamente el cultivo ni simula varios años.
-        <div><button type="button" className="ghost-button" disabled={!twinReady} onClick={() => {
-          useTwinStore.getState().setControls({ precipPct: rain, tempDelta: temperature, irrigation: "NONE", forkFromCurrent: false, monteCarlo: false });
-          useStageStore.getState().goTo("twin"); close();
-        }}>Aplicar escenario al gemelo</button>{!twinReady && <small> Carga primero los datos de la parcela.</small>}</div>
-      </div><Ranking result={scenario} title="Escenario climático" /></>}
+      {previewError && <div className="error-box" role="alert">{previewError}</div>}
+      {baseline && !twinReady && <p className="muted" role="status">El gemelo está preparando la simulación de la parcela.</p>}
+      {baseline && <>
+        <div className="card"><h2>Datos utilizados</h2><InputDetails inputs={baseline.inputs} />
+          <p className="muted">{baseline.methodology} · Clima: {String(baseline.inputs.climate_source ?? "—")} · {baseline.inputs.climate_data_state === "SYNTHETIC" ? "Sintético" : baseline.inputs.climate_data_state === "MEASURED" ? "Medido" : String(baseline.inputs.climate_data_state ?? "—")}</p>
+        </div>
+        <Ranking result={baseline} title="Clima de referencia" canPreview={twinReady} onPreview={(item, index) => void openPreview(item, index, false)} />
+      </>}
+      {scenario && <>
+        <div className="rotation-disclaimer">Escenario simulado: {submitted}.</div>
+        <Ranking result={scenario} title="Escenario climático" canPreview={twinReady} onPreview={(item, index) => void openPreview(item, index, true)} />
+      </>}
     </div></div>
   </section>;
 }

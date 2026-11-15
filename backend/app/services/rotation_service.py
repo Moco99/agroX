@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from functools import lru_cache
+from math import isfinite
 from statistics import mean
 from typing import Any
 
@@ -11,6 +13,7 @@ from app.engine.rotation import rank_rotations
 from app.providers.factory import Providers, weather_for
 from app.schemas.common import DataState
 from app.schemas.rotations import RotationRecommendRequest
+from app.schemas.weather import WeatherDay
 from app.services.errors import InvalidRequestError
 from app.services.farm_load_service import ensure_supported
 
@@ -25,27 +28,64 @@ def search(query: str, limit: int) -> list[dict[str, Any]]:
     return engine().ecocrop.find_crops(query, limit)
 
 
+def summarize_climate(
+    days: list[WeatherDay], start: date, end: date, request: RotationRecommendRequest,
+) -> dict[str, Any]:
+    expected = (end - start).days + 1
+    if len(days) != expected or any(
+        day.date != start + timedelta(days=index)
+        or not isfinite(day.t_mean)
+        or not isfinite(day.precip)
+        for index, day in enumerate(days)
+    ):
+        raise InvalidRequestError(
+            f"Datos climáticos incompletos para {start} a {end}. "
+            "Elige un periodo con temperatura y lluvia diarias disponibles."
+        )
+    return {
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "days": len(days),
+        "t_mean": mean(day.t_mean for day in days) + request.scenario.temp_delta_c,
+        "rain_mm": sum(day.precip for day in days) * request.scenario.precip_factor,
+    }
+
+
 def recommend(p: Providers, request: RotationRecommendRequest) -> dict[str, Any]:
     ensure_supported(p, request.farm_id)
     weather = weather_for(p, request.farm_id).get_daily(request.start, request.end)
-    if not weather.days:
-        raise InvalidRequestError("No hay datos climáticos para el periodo seleccionado")
-    temp = mean(day.t_mean for day in weather.days) + request.scenario.temp_delta_c
-    rain = sum(day.precip for day in weather.days) * request.scenario.precip_factor
+    windows = request.cycle_windows
+    if windows is None:
+        reference = summarize_climate(weather.days, request.start, request.end, request)
+        cycle_inputs = [reference] * request.cycles
+    else:
+        cycle_inputs = [
+            summarize_climate(
+                [day for day in weather.days if window.start <= day.date <= window.end],
+                window.start, window.end, request,
+            )
+            for window in windows
+        ]
+        included = [
+            day for day in weather.days if any(window.start <= day.date <= window.end for window in windows)
+        ]
+        reference = {
+            "start": windows[0].start.isoformat(),
+            "end": windows[-1].end.isoformat(),
+            "days": len(included),
+            "t_mean": mean(day.t_mean for day in included) + request.scenario.temp_delta_c,
+            "rain_mm": sum(day.precip for day in included) * request.scenario.precip_factor,
+        }
     warnings = list(p.warnings) + list(weather.warnings)
-    actual_start, actual_end = weather.days[0].date, weather.days[-1].date
-    if (
-        actual_start != request.start
-        or actual_end != request.end
-        or len(weather.days) != (request.end - request.start).days + 1
-    ):
-        warnings.append("Periodo climático incompleto: se utilizan únicamente los días disponibles.")
+    twin_crops = {crop.crop_id: crop for crop in p.catalog.get_catalog().crops}
     warnings.extend(
         [
             "Índice comparativo exploratorio, no probabilidad, rendimiento ni recomendación agronómica validada.",
             "La precipitación del periodo se compara con umbrales EcoCrop cuya escala temporal requiere verificación.",
             "Los indicadores aproximan lluvia, pH y temperatura; no miden balance hídrico ni salud del suelo.",
-            "El clima se aplica a todos los ciclos; el catálogo contiene siete cultivos candidatos.",
+            "Cada ciclo usa su propio periodo declarado." if windows
+            else "El mismo clima de referencia se usa en todos los ciclos.",
+            "En caso de empate, se priorizan menos repeticiones consecutivas de familia botánica.",
             "El modelo de riesgo se entrenó con datos sintéticos; su salida se omite de la recomendación.",
             "El historial restringe familias solo si se solicita; los bonos heurísticos no afectan el ranking.",
         ]
@@ -63,8 +103,8 @@ def recommend(p: Providers, request: RotationRecommendRequest) -> dict[str, Any]
     model = engine()
     try:
         all_recs = model.recommend_top_rotations(
-            temp,
-            rain,
+            reference["t_mean"],
+            reference["rain_mm"],
             soil_ph=ph,
             soil_awc=140,
             t_extreme_days=0,
@@ -72,6 +112,8 @@ def recommend(p: Providers, request: RotationRecommendRequest) -> dict[str, Any]
             top_k=2401,
             previous_crop=request.previous_crop,
             exclude_same_family=request.exclude_same_family,
+            allowed_crops=set(twin_crops) if request.twin_only else None,
+            cycle_climates=[(item["t_mean"], item["rain_mm"]) for item in cycle_inputs] if windows else None,
         )
     except ValueError as exc:
         raise InvalidRequestError(str(exc)) from exc
@@ -101,10 +143,23 @@ def recommend(p: Providers, request: RotationRecommendRequest) -> dict[str, Any]
             }
             for c in cycles
         ]
-        enriched.append({**rec, "cycles": safe_cycles, "indicators": indicators})
+        for cycle, climate in zip(safe_cycles, cycle_inputs, strict=True):
+            cycle["window"] = {"start": climate["start"], "end": climate["end"]}
+            params = twin_crops.get(cycle["crop_id"])
+            cycle["twin_supported"] = params is not None
+            if windows is not None and params and climate["days"] < params.cycle_days:
+                cycle["warnings"].append(
+                    f"La ventana tiene {climate['days']} días y el catálogo estima "
+                    f"{params.cycle_days} días para este cultivo."
+                )
+        enriched.append({
+            **rec, "cycles": safe_cycles, "indicators": indicators,
+            "family_repeats": sum(cycle["same_family"] for cycle in cycles),
+        })
     if not enriched:
         warnings.append("No hay candidatos con umbrales EcoCrop completos para los indicadores solicitados.")
     ranked = rank_rotations(enriched, weights)
+    ranked.sort(key=lambda item: (-item["score"], item["family_repeats"]))
     for item in ranked:
         item["overall_score"] = round(item["score"], 1)
         item["status"] = "ÍNDICE COMPARATIVO"
@@ -126,11 +181,11 @@ def recommend(p: Providers, request: RotationRecommendRequest) -> dict[str, Any]
         "data_state": state,
         "inputs": {
             "farm_id": request.farm_id,
-            "start": actual_start.isoformat(),
-            "end": actual_end.isoformat(),
-            "days": len(weather.days),
-            "t_mean": round(temp, 2),
-            "rain_mm": round(rain, 2),
+            **reference,
+            "t_mean": round(reference["t_mean"], 2),
+            "rain_mm": round(reference["rain_mm"], 2),
+            "cycle_windows": cycle_inputs if windows else None,
+            "twin_only": request.twin_only,
             "soil_ph": request.soil_ph,
             "climate_source": weather.provenance.source,
             "climate_data_state": weather.provenance.data_state.value,

@@ -230,7 +230,7 @@ Las variables `VITE_*` son públicas en el navegador: no introducir secretos de 
 
 ### Rotaciones y escenarios
 
-La pantalla Rotaciones usa `POST /api/rotations/recommend` con la parcela activa, un periodo climático y el parquet EcoCrop de la raíz. Los índices de temperatura, lluvia y pH son comparativos y exploratorios; no predicen cosechas ni sustituyen validación agronómica. Si no hay pH declarado, suelo se excluye y los pesos restantes se normalizan. La comparación hipotética aplica cambios de temperatura y precipitación a los mismos datos históricos. El clasificador de riesgo sintético no se usa para el ranking.
+La pantalla Rotaciones usa `POST /api/rotations/recommend` con la parcela activa, un periodo climático y el parquet EcoCrop de la raíz. Los índices de temperatura, lluvia y pH son comparativos y exploratorios; no predicen cosechas ni sustituyen validación agronómica. Si no hay pH declarado, suelo se excluye y los pesos restantes se normalizan. La comparación hipotética aplica cambios de temperatura y precipitación a los mismos datos históricos. El clasificador de riesgo sintético no se usa para el ranking. En «Rotaciones», elige un ciclo compatible y pulsa «Simular ciclo en 3D» para ensayarlo con las fechas y el escenario elegidos. Para comparar temporadas históricas distintas, activa «Usar fechas distintas por ciclo».
 
 Ejemplo para clientes de la API (el contrato anterior con cuerpo vacío o valores climáticos por defecto dejó de ser compatible):
 

@@ -112,7 +112,7 @@ docs:
   - id: rotation-engine
     path: 02-modules/rotation-engine.md
     title: Rotation Engine
-    summary: Rotaciones EcoCrop por parcela con proxies de lluvia, temperatura y pH, pesos y escenarios; límites científicos.
+    summary: Rotaciones EcoCrop por parcela con ventanas por ciclo, índices comparativos y ensayo de cultivos en el gemelo.
     depends_on: [data-contracts, crop-catalog, model-specs]
     read_when: Implementar o revisar recomendaciones de rotación.
     audience: [builder, reviewer]

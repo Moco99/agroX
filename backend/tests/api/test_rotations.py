@@ -88,3 +88,67 @@ def test_reweighting_changes_comparisons_and_breakdown() -> None:
     assert abs(climate["score"] - climate["indicators"]["climate"]) < 1e-6
     assert abs(sum(water["breakdown"].values()) - water["score"]) < 1e-6
     assert water["sequence"] != climate["sequence"] or water["score"] != climate["score"]
+
+
+def test_twin_candidates_and_distinct_cycle_weather() -> None:
+    client = TestClient(create_app())
+    windows = [
+        {"start": "2023-04-01", "end": "2023-10-31"},
+        {"start": "2024-04-01", "end": "2024-10-31"},
+    ]
+    response = client.post(
+        "/api/rotations/recommend",
+        json={**BASE, "start": windows[0]["start"], "cycles": 2, "cycle_windows": windows, "twin_only": True},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    climates = body["inputs"]["cycle_windows"]
+    assert [item["days"] for item in climates] == [214, 214]
+    assert climates[0]["rain_mm"] != climates[1]["rain_mm"]
+    assert body["recommendations"]
+    for item in body["recommendations"]:
+        assert set(item["sequence"]) <= {"corn", "soybean"}
+        assert [cycle["window"] for cycle in item["cycles"]] == windows
+        assert all(cycle["twin_supported"] for cycle in item["cycles"])
+    repeated = next(item for item in body["recommendations"] if len(set(item["sequence"])) == 1)
+    assert repeated["cycles"][0]["rainfall_fit"] != repeated["cycles"][1]["rainfall_fit"]
+
+
+def test_incomplete_climate_and_overlapping_windows_are_rejected() -> None:
+    client = TestClient(create_app())
+    partial = client.post("/api/rotations/recommend", json={**BASE, "start": "2022-12-10", "end": "2023-01-10"})
+    assert partial.status_code == 422
+    assert "Datos climáticos incompletos" in partial.json()["detail"]
+    overlapping = client.post(
+        "/api/rotations/recommend",
+        json={**BASE, "cycles": 2, "cycle_windows": [
+            {"start": "2024-04-01", "end": "2024-08-01"},
+            {"start": "2024-08-01", "end": "2024-10-31"},
+        ]},
+    )
+    assert overlapping.status_code == 422
+    assert "no solaparse" in overlapping.json()["detail"][0]["msg"]
+
+
+def test_equal_indices_prefer_fewer_consecutive_family_repetitions(monkeypatch) -> None:
+    from app.services.rotation_service import engine
+
+    crop_engine = engine().ecocrop
+    original = crop_engine.score_crop
+
+    def equal_fit(scientific_name: str, *args: float, **kwargs: float) -> dict:
+        return {
+            **original(scientific_name, *args, **kwargs),
+            "score_temperature": 100.0,
+            "score_rain": 100.0,
+        }
+
+    monkeypatch.setattr(crop_engine, "score_crop", equal_fit)
+    client = TestClient(create_app())
+    response = client.post("/api/rotations/recommend", json={**BASE, "twin_only": True, "top_k": 8})
+    assert response.status_code == 200
+    ranked = response.json()["recommendations"]
+    assert ranked[0]["family_repeats"] == 0
+    assert [(-item["score"], item["family_repeats"]) for item in ranked] == sorted(
+        (-item["score"], item["family_repeats"]) for item in ranked
+    )
