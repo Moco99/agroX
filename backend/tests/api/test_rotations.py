@@ -128,6 +128,7 @@ def test_incomplete_climate_and_overlapping_windows_are_rejected() -> None:
     partial = client.post("/api/rotations/recommend", json={**BASE, "start": "2022-12-10", "end": "2023-01-10"})
     assert partial.status_code == 422
     assert "Datos climáticos incompletos" in partial.json()["detail"]
+    assert "falta 2022-12-10" in partial.json()["detail"]
     overlapping = client.post(
         "/api/rotations/recommend",
         json={

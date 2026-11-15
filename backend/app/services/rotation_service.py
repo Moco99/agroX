@@ -40,9 +40,13 @@ def summarize_climate(
         day.date != start + timedelta(days=index) or not isfinite(day.t_mean) or not isfinite(day.precip)
         for index, day in enumerate(days)
     ):
+        complete = {day.date for day in days if isfinite(day.t_mean) and isfinite(day.precip)}
+        wanted = (start + timedelta(days=i) for i in range(expected))
+        first_gap = next((day for day in wanted if day not in complete), None)
         raise InvalidRequestError(
-            f"Datos climáticos incompletos para {start} a {end}. "
-            "Elige un periodo con temperatura y lluvia diarias disponibles."
+            f"Datos climáticos incompletos para {start} a {end}"
+            + (f" (falta {first_gap})" if first_gap else "")
+            + ". Elige un periodo con temperatura y lluvia diarias disponibles."
         )
     return {
         "start": start.isoformat(),
