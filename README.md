@@ -38,6 +38,8 @@ AGROX_DATA_SOURCE=auto
 El relieve y las imágenes conservan su procedencia. Los cultivos y elementos decorativos del 3D son ilustrativos; las simulaciones no predicen rendimiento.
 
 
+> **¿Vas a usar los datos?** Empieza por [docs/04-data/data-guide.md](docs/04-data/data-guide.md).
+
 ## App global: datos de cualquier punto del mundo
 
 La app funciona así: el usuario hace clic en cualquier lugar del mapa y en ~10 segundos tiene
