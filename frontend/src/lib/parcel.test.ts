@@ -49,6 +49,8 @@ describe("parseParcelId / deep link", () => {
     expect(parseParcelId("pt_-33.9_-60.6")).toEqual({ lat: -33.9, lon: -60.6 });
     expect(parseParcelId("pt_80_0")).toBeNull();
     expect(parseParcelId("pt_a_b")).toBeNull();
+    expect(parseParcelId("poly_18.8300_-96.7800_0123456789ab")).toEqual({ lat: 18.83, lon: -96.78 });
+    expect(parseParcelId("poly_18.83_-96.78_xyz")).toBeNull();
     expect(parseParcelId("../etc")).toBeNull();
   });
 

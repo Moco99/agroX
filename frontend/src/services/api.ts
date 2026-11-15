@@ -13,7 +13,7 @@ import type {
   TwinSimulateRequest,
   TwinSimulateResponse,
 } from "../types/api";
-import type { CropCatalogLite } from "../types/parcel";
+import type { CropCatalogLite, LatLon } from "../types/parcel";
 import {
   isClimateResponse,
   isCropCatalog,
@@ -88,6 +88,15 @@ export const api = {
   // GET /api/farms/{id} opens (and on first call builds) any pt_<lat>_<lon> parcel as well as the pilot
   farm: (farmId: string, signal?: AbortSignal) =>
     request<FarmAnalyzeResponse>(`/api/farms/${enc(farmId)}`, isFarmAnalyzeResponse, undefined, signal),
+  // Registers drawn polygons (one zone each); the returned poly_ id then opens like any pt_ id
+  registerPolygonFarm: (polygons: LatLon[][], signal?: AbortSignal) =>
+    request<{ farm_id: string; area_ha: number }>(
+      "/api/farms/polygon",
+      (v): v is { farm_id: string; area_ha: number } =>
+        isRecord(v) && typeof v.farm_id === "string" && typeof v.area_ha === "number",
+      { method: "POST", body: JSON.stringify({ polygons }) },
+      signal,
+    ),
   // POST starts the background load (202); GET reports per-source progress
   prepare: (farmId: string, signal?: AbortSignal) =>
     request<FarmLoadStatus>(`/api/farms/${enc(farmId)}/prepare`, isFarmLoadStatus, { method: "POST" }, signal),

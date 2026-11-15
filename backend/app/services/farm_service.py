@@ -6,16 +6,32 @@ from datetime import date
 
 from app.engine.calendar import hemisphere, is_tropical, suggested_planting, suggested_season
 from app.providers.factory import Providers
-from app.providers.live.parcel import point_farm
+from app.providers.live.parcel import point_farm, polygon_zone_rings, register_polygon_farm, ring_area_ha
 from app.providers.ports import DataNotFoundError
 from app.schemas.common import DataState
 from app.schemas.crops import CropCatalog
-from app.schemas.farm import CropOption, DeclaredInputs, Farm, FarmAnalyzeResponse, LandCover, SeasonWindow
+from app.schemas.farm import (
+    CropOption,
+    DeclaredInputs,
+    Farm,
+    FarmAnalyzeResponse,
+    LandCover,
+    PolygonFarmRequest,
+    PolygonFarmResponse,
+    SeasonWindow,
+)
 from app.schemas.observations import NdviOverlay, ObservationPoint, ObservationSeries
 from app.services import farm_load_service, imagery_service
 
 # The point-farm NDVI series takes ~60 s the first time: responses never wait for it (ADR-024)
 NDVI_LOADING_WARNING = "Sentinel-2 NDVI series still loading in the background: poll /api/farms/{farm_id}/status"
+
+
+def register_polygon(body: PolygonFarmRequest) -> PolygonFarmResponse:
+    """Register a drawn farm and return its id; the farm then opens through GET /api/farms/{id} like pt_ ids."""
+    farm_id = register_polygon_farm([[(v.lat, v.lon) for v in poly] for poly in body.polygons])
+    areas = [round(ring_area_ha(r), 2) for r in polygon_zone_rings(farm_id).values()]
+    return PolygonFarmResponse(farm_id=farm_id, zone_count=len(areas), zone_area_ha=areas, area_ha=round(sum(areas), 2))
 
 
 def ndvi_ready(p: Providers, farm_id: str) -> bool:
@@ -119,8 +135,11 @@ def declared_inputs(farm: Farm, catalog: CropCatalog, is_point: bool, today: dat
         note=(
             "suggestion, verify: US Midwest pilot calendar, shifted 6 months in the southern hemisphere "
             "(product configuration, not a local agronomic calendar nor a measurement)"
-            + ("; between the tropics planting follows the rainy season: declare the real date" if is_tropical(lat)
-               else "")
+            + (
+                "; between the tropics planting follows the rainy season: declare the real date"
+                if is_tropical(lat)
+                else ""
+            )
         ),
         unsupported_crop_note=(
             f"only crops in {catalog.catalog_version} can be simulated ({crops}); "

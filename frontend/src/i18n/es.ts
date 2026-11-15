@@ -472,6 +472,21 @@ export const es = {
     coverageNote:
       "Sentinel-2 solo cubre el final de temporada (31 ago–30 sep 2024).",
   },
+  drawParcel: {
+    title: "Dibujar mi parcela",
+    hint: "Dibuja uno o varios polígonos sobre el mapa; cada polígono es una zona de tu parcela.",
+    activeHint: "Haz clic en el mapa para poner vértices. Cierra el polígono haciendo clic en el primer vértice o con «Terminar polígono».",
+    start: "Dibujar parcela",
+    stop: "Dejar de dibujar",
+    undo: "Deshacer vértice",
+    finish: "Terminar polígono",
+    clear: "Borrar todo",
+    confirm: "Confirmar",
+    sending: "Registrando…",
+    summary: (n: number, ha: number, open: number) =>
+      `${n} polígono${n === 1 ? "" : "s"} · ≈${ha.toFixed(1)} ha (aprox.)${open > 0 ? ` · ${open} vértice${open === 1 ? "" : "s"} en curso` : ""}`,
+    failed: (msg: string) => `No se pudo registrar la parcela: ${msg}`,
+  },
   openParcel: {
     open: "Abrir parcela aquí",
     openHint: "Crea una parcela de 36 ha con 4 zonas de 9 ha centrada en este punto. La primera carga tarda entre 30 y 90 s.",

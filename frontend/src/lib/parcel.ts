@@ -36,13 +36,14 @@ export function parcelIdFromPoint(point: LatLon): string | null {
   return `pt_${fixed2(point.lat)}_${fixed2(wrapLon(point.lon))}`;
 }
 
-const PARCEL_RE = /^pt_(-?\d+(?:\.\d+)?)_(-?\d+(?:\.\d+)?)$/;
+// pt_<lat>_<lon> (default square) or poly_<lat>_<lon>_<hash> (drawn polygons, centre first)
+const PARCEL_RE = /^(?:pt_(-?\d+(?:\.\d+)?)_(-?\d+(?:\.\d+)?)|poly_(-?\d+\.\d+)_(-?\d+\.\d+)_[0-9a-f]{12})$/;
 
 export function parseParcelId(id: string): LatLon | null {
   const m = PARCEL_RE.exec(id);
   if (!m) return null;
-  const lat = Number(m[1]);
-  const lon = Number(m[2]);
+  const lat = Number(m[1] ?? m[3]);
+  const lon = Number(m[2] ?? m[4]);
   if (!checkParcelLat(lat).ok || Math.abs(lon) > 180) return null;
   return { lat, lon };
 }
@@ -51,7 +52,7 @@ export function isPilotFarm(id: string): boolean {
   return id === PILOT_FARM_ID;
 }
 
-// A farm id the app accepts from a deep link: the pilot or a well-formed pt_ id
+// A farm id the app accepts from a deep link: the pilot or a well-formed pt_ / poly_ id
 export function isValidFarmId(id: string | null): id is string {
   return id !== null && (isPilotFarm(id) || parseParcelId(id) !== null);
 }

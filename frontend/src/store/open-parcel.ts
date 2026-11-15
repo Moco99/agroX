@@ -1,4 +1,6 @@
 import { checkParcelLat, parcelIdFromPoint, PILOT_FARM_ID } from "../lib/parcel";
+import { es } from "../i18n/es";
+import { api } from "../services/api";
 import type { LatLon } from "../types/parcel";
 import { useMapStore } from "./map-store";
 import { useParcelStore } from "./parcel-store";
@@ -38,6 +40,18 @@ export function openParcelAt(point: LatLon): OpenResult {
   const check = canOpenAt(point);
   if (check.ok) activate(check.farmId);
   return check;
+}
+
+// Registers the drawn polygons and opens them as the active parcel; resolves to an error message or null
+export async function openDrawn(polygons: LatLon[][]): Promise<string | null> {
+  if (useParcelStore.getState().capability === "unsupported") return es.openParcel.unsupported;
+  try {
+    const { farm_id } = await api.registerPolygonFarm(polygons);
+    activate(farm_id);
+    return null;
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e);
+  }
 }
 
 export function openPilot(): void {
