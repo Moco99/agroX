@@ -25,6 +25,7 @@ from app.schemas.load import FarmLoadStatus, LoadStage, StageName, StageStatus
 # Thread stages that failed are retried by the next prepare call after this many seconds
 RETRY_FAILED_AFTER_S = 60.0
 POLL_INTERVAL_S = 2.0
+PILOT_FARM_ID = "story_pilot_farm"
 FINAL: set[StageStatus] = {"ready", "provisional", "failed", "skipped"}
 
 # (stage, required for "ready") in the order the UI shows them; imagery and land cover are optional
@@ -60,8 +61,10 @@ _POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="agrox-load")
 
 
 def ensure_supported(p: Providers, farm_id: str) -> tuple[float, float] | None:
-    """(lat, lon) of a point farm, None for pilot ids; 422 for a bad pt_ id, 404 outside live mode."""
+    """(lat, lon) of a point farm, None for the pilot; 422 for a bad pt_ id, 404 for an unknown id or outside live."""
     pt = point_farm(farm_id)
+    if pt is None and farm_id != PILOT_FARM_ID:
+        raise DataNotFoundError(f"unknown farm '{farm_id}'")
     if pt is not None and not p.any_parcel_supported:
         raise DataNotFoundError(POINT_FARMS_NEED_LIVE)
     return pt
@@ -217,6 +220,8 @@ def status(p: Providers, farm_id: str, trigger: bool = True) -> FarmLoadStatus:
                               stages=[], warnings=[f"{p.mode} mode: every source is served from disk, no staged load"])
     with _JOBS_LOCK:
         runs = dict(_JOBS.get((id(p), farm_id), {}))
+    # A GET on a farm nobody prepared must not start SoilGrids/land-cover requests by itself
+    trigger = trigger and bool(runs)
     now = time.time()
     stages: list[LoadStage] = []
     for stage, required in _stage_list(pt):
@@ -243,6 +248,7 @@ def status(p: Providers, farm_id: str, trigger: bool = True) -> FarmLoadStatus:
     done = sum(1 for s in stages if s.status in FINAL)
     soil = next(s for s in stages if s.stage == "soil")
     loading = any(s.required and s.status not in FINAL for s in stages)
+    failed = [s for s in stages if s.status == "failed"]
     started = bool(runs) or any(s.status != "pending" for s in stages)
     busy = any(s.status in ("running", "pending") for s in stages)
     return FarmLoadStatus(
@@ -253,4 +259,6 @@ def status(p: Providers, farm_id: str, trigger: bool = True) -> FarmLoadStatus:
         soil_final=soil.status == "ready" or (soil.status == "provisional" and soil.retry_after_s is None),
         stages=stages,
         poll_after_s=POLL_INTERVAL_S if busy else None,
+        failed_stages=[s.stage for s in failed],
+        warnings=[f"{s.stage} failed: {s.message}" for s in failed if s.required],
     )

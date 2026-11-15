@@ -18,6 +18,7 @@ import time
 import urllib.parse
 import urllib.request
 from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 
 from app.providers.live.background import BackgroundCache, Lookup
@@ -44,6 +45,9 @@ MIN_INTERVAL_S = 12.0
 # First try right away, then back off; a cell that fails all three is negative-cached
 RETRY_DELAYS_S = (0.0, 15.0, 45.0)
 REQUEST_TIMEOUT_S = 25.0
+# TOTAL wall-clock budget of one attempt: urllib's timeout is per socket operation, so a response that
+# trickles in (or a stalled TLS/DNS step) can take minutes; past this the attempt is abandoned and retried
+ATTEMPT_DEADLINE_S = 40.0
 POSITIVE_TTL_S = 30 * 24 * 3600.0
 NEGATIVE_TTL_S = 10 * 60.0
 # The request that discovers a new cell waits this long for it; later requests never wait
@@ -108,6 +112,7 @@ class LiveSoilProvider(RealSoilProvider):
         fetcher: Fetcher = fetch_soilgrids,
         *,
         wait_s: float = FIRST_LOAD_WAIT_S,
+        attempt_deadline_s: float = ATTEMPT_DEADLINE_S,
         retry_delays_s: tuple[float, ...] = RETRY_DELAYS_S,
         min_interval_s: float = MIN_INTERVAL_S,
         clock: Callable[[], float] = time.time,
@@ -116,6 +121,9 @@ class LiveSoilProvider(RealSoilProvider):
         super().__init__(derived_dir)
         self._fetcher = fetcher
         self._wait_s = wait_s
+        self._deadline_s = attempt_deadline_s
+        # Runs the raw fetches so an attempt can be abandoned at its deadline without killing the thread
+        self._io = ThreadPoolExecutor(max_workers=4, thread_name_prefix="agrox-soilgrids-io")
         # One worker: SoilGrids calls are serialised anyway by the rate limit
         self._cache = BackgroundCache(
             cache_dir / "soilgrids",
@@ -140,17 +148,33 @@ class LiveSoilProvider(RealSoilProvider):
         lon, lat = sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts)
         return cell_key(lon, lat), lon, lat, list(rings)
 
-    def _fetch(self, lon: float, lat: float) -> Callable[[], dict[str, object]]:
+    def _fetch(self, key: str, lon: float, lat: float) -> Callable[[], dict[str, object]]:
+        def result(data: SoilJson) -> dict[str, object]:
+            return {"awc_mm_per_m": awc_mm_per_m(data), "lon": round(lon, 5), "lat": round(lat, 5)}
+
+        def late(fut: Future[SoilJson]) -> None:
+            # The attempt blew its deadline but the request finished later: keep the answer for next time
+            if fut.cancelled() or fut.exception() is not None:
+                return
+            try:
+                self._cache.store(key, result(fut.result()))
+            except Exception:
+                pass
+
         def run() -> dict[str, object]:
-            awc = awc_mm_per_m(self._fetcher(lon, lat))
-            return {"awc_mm_per_m": awc, "lon": round(lon, 5), "lat": round(lat, 5)}
+            fut = self._io.submit(self._fetcher, lon, lat)
+            try:
+                return result(fut.result(timeout=self._deadline_s))
+            except TimeoutError:
+                fut.add_done_callback(late)
+                raise TimeoutError(f"SoilGrids gave no answer within {self._deadline_s:g} s") from None
 
         return run
 
     def lookup(self, farm_id: str, wait_s: float | None = None) -> Lookup:
         """Cached SoilGrids answer for the farm, starting a background fetch on a miss."""
         key, lon, lat, _ = self._farm_cell(farm_id)
-        return self._cache.get(key, self._fetch(lon, lat), self._wait_s if wait_s is None else wait_s)
+        return self._cache.get(key, self._fetch(key, lon, lat), self._wait_s if wait_s is None else wait_s)
 
     def status(self, farm_id: str) -> Lookup | None:
         """Read-only status for the load contract (None = never requested)."""

@@ -12,7 +12,7 @@ from app.schemas.common import DataState
 from app.schemas.crops import CropCatalog
 from app.schemas.farm import CropOption, DeclaredInputs, Farm, FarmAnalyzeResponse, LandCover, SeasonWindow
 from app.schemas.observations import NdviOverlay, ObservationPoint, ObservationSeries
-from app.services import farm_load_service
+from app.services import farm_load_service, imagery_service
 
 # The point-farm NDVI series takes ~60 s the first time: responses never wait for it (ADR-024)
 NDVI_LOADING_WARNING = "Sentinel-2 NDVI series still loading in the background: poll /api/farms/{farm_id}/status"
@@ -173,6 +173,10 @@ def soil_moisture(p: Providers, farm_id: str, start: date | None, end: date | No
 
 
 def ndvi_overlay(p: Providers, farm_id: str) -> NdviOverlay:
+    # Point farms have no pipeline PNG: render the latest clear Sentinel-2 date live (cached on disk)
+    overlay = imagery_service.point_overlay(p, farm_id) if point_farm(farm_id) is not None else None
+    if overlay is not None:
+        return overlay
     overlay = p.observations.ndvi_overlay(farm_id)
     if overlay is None:
         raise DataNotFoundError(f"no NDVI overlay available for farm '{farm_id}' in {p.mode} mode")
