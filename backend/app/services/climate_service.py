@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import date
 
 from app.engine.indicators import period_indicators, precip_anomaly_pct
+from app.engine.spi import MIN_YEARS as SPI_MIN_YEARS
+from app.engine.spi import spi
 from app.providers.factory import Providers
 from app.schemas.climate import ClimateIndicators, ClimateResponse
 from app.schemas.common import DataState, Metric
@@ -64,11 +66,9 @@ def get_climate(p: Providers, start: date, end: date, lat: float | None, lon: fl
             f"precipitation anomaly needs >= 10 reference years (have {len(reference)}): "
             "requires POWER history since 1981 (open item O-7)"
         )
-    cov_start, cov_end = p.weather.coverage()
-    if cov_end.year - cov_start.year + 1 >= 30:
-        warnings.append("SPI not computed yet: the series is long enough (AGROX_DATA_MODE=live) but SPI is pending")
-    else:
-        warnings.append("SPI not computed: needs >= 30 years of precipitation (AGROX_DATA_MODE=live, open item O-7)")
+    spi_value = spi(ind.precip_total, reference)
+    if spi_value is None:
+        warnings.append(f"SPI needs >= {SPI_MIN_YEARS} reference years (have {len(reference)}): AGROX_DATA_MODE=live")
     indicators = ClimateIndicators(
         start=series.days[0].date,
         end=series.days[-1].date,
@@ -88,7 +88,7 @@ def get_climate(p: Providers, start: date, end: date, lat: float | None, lon: fl
         cold_days=Metric(value=float(ind.cold_days), unit="days", data_state=state, source=src),
         cold_threshold_c=COLD_THRESHOLD_C,
         precip_anomaly_pct=Metric(value=anomaly, unit="%", data_state=derived, source="same window, other years"),
-        spi=Metric(value=None, unit="index", data_state=derived, source="not available"),
+        spi=Metric(value=spi_value, unit="index", data_state=derived, source="McKee 1993, gamma (Thom), same window"),
     )
     return ClimateResponse(
         data_mode=p.mode,
