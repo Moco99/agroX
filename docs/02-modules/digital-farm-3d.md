@@ -1,6 +1,6 @@
 # Digital Farm: mapa 2D + diorama 3D (`digital_farm`)
 
-> TL;DR: Leaflet para parcela y capas; diorama isométrico low-poly en React Three Fiber (ADR-009) que representa por zona el estado del gemelo y el escenario, ILUSTRATIVO. Globo = stretch. No calcula nada.
+> TL;DR: Globo y mapa de granja en un solo visor MapLibre (teselas NASA GIBS + Esri, zoom continuo hasta campos; ADR-021/022); diorama isométrico en React Three Fiber (ADR-009) que representa por zona el estado del gemelo y el escenario, ILUSTRATIVO. No calcula nada.
 > Depende de: [data-contracts](../01-architecture/data-contracts.md), [design-tokens](../07-design/design-tokens.md), [ui-spec](../07-design/ui-spec.md)
 > Estado: draft
 > Última revisión: 2026-11-14
@@ -21,7 +21,7 @@ El backend calcula; el frontend traduce a escena. Una zona roja en "sequía" es 
 | Overlay NDVI | `L.imageOverlay` con PNG + `bounds` de `GET /api/observations/ndvi-overlay` |
 | Otras capas | CDL por año (PNG recortado) |
 
-Leaflet se mantiene (O-12): el overlay es una imagen georreferenciada ya coloreada por el backend; MapLibre solo aportaría con teselas vectoriales o terreno 3D, que el MVP no usa. Acción: seleccionar parcela/zona → actualiza el store.
+Histórico (O-12): se planeó Leaflet; desde ADR-021 el mapa de granja es MapLibre (mismo visor que el globo) y el NDVI se dibuja como imagen georreferenciada ya coloreada por el backend. Acción: seleccionar parcela/zona → actualiza el store.
 
 ## Diorama 3D (R3F + drei)
 
@@ -64,15 +64,9 @@ Color **por zona** (material o atributo de instancia `instanceColor`) en MVP; gr
 
 Hitos por etapa fenológica (`PhenoStage`, UI: Siembra, Desarrollo, Floración, Llenado, Cosecha; mapeo exacto TBD) derivados de `TwinState.stage`/`gdd_cum` de la zona seleccionada; fechas reales de la temporada (no el calendario del mockup). Play avanza día a día sobre `states` ya calculados (no re-simula).
 
-## Globo (S1, stretch F5)
+## Globo (S1)
 
-| Opción | Pro | Contra |
-|---|---|---|
-| `three-globe` dentro del mismo `<Canvas>` R3F (`<primitive>`) | Basado en three.js; capas de puntos/polígonos listas | Dependencia extra |
-| `globe.gl` / `react-globe.gl` | Rápido de montar | Canvas propio, aparte del store/escena |
-| Esfera propia R3F + textura NASA (Blue Marble) | Cero deps nuevas | Capas a mano |
-
-Capas diarias: NASA GIBS/Worldview (WMTS) — **verificar disponibilidad, licencia y atribución** antes de depender de ellas; la demo debe funcionar offline con textura empaquetada. Prioridad siempre: flujo parcela → gemelo.
+Implementado con MapLibre GL JS (ADR-022), no con `three-globe` ni una esfera R3F: ver «Recorrido de exploración» abajo. Las capas NASA GIBS se verificaron (WMTS `GoogleMapsCompatible_Level8`, CORS abierto, niveles 0–8) y la demo degrada a un mosaico empaquetado sin red (ADR-023).
 
 ## Componentes sugeridos (`frontend/src/scene/`)
 
@@ -92,3 +86,19 @@ globe/                # stretch
 5–8 h (dossier). Si amenaza al motor: losa + zonas coloreadas + etiquetas + timeline; sin props ni riego animado.
 
 Builder/revisor: [agent-routing](../06-agents/agent-routing.md).
+
+## Recorrido de exploración (globo → granja → gemelo)
+
+Las etapas globo y granja comparten **un solo visor MapLibre GL JS** en proyección `globe` (`frontend/src/screens/geographic/`); la etapa se decide por la cámara (`stageForCamera` en `lib/globe-view.ts`, con histéresis 12.5/9) o por un vuelo explícito. El gemelo R3F es otra escena, cargada bajo demanda. Máquina de etapas: `store/stage-store.ts` (`idle | flying | fading | revealing`); peticiones de vuelo y cámara compartida: `store/map-store.ts`; consulta por punto: `store/point-store.ts`. Deep links `?stage=globe|map|twin`.
+
+Capas del visor: mosaico Blue Marble empaquetado (respaldo sin red) → NASA GIBS Blue Marble NG (z0–8) → Esri World Imagery (desde z4.5, fundido hasta z6.5, máx. z19) → ortofoto NAIP del piloto (solo sin conexión) → NDVI Sentinel-2 por fecha → zonas y contorno de la granja (GeoJSON de `/api/farms/analyze`). Caché de teselas acotada (320) y `map.remove()` al desmontar. El worker de MapLibre 6 se resuelve con `?worker&url` + `setWorkerUrl` (el pre-bundling de Vite rompe su ruta relativa).
+
+## Cobertura honesta
+
+La imagen satelital muestra campos en todo el mundo, pero **polígonos de parcela, NDVI por fecha y gemelo existen solo en la granja piloto de Story County, Iowa**. Fuera del piloto la UI lo dice explícitamente y ofrece la consulta por punto (`POST /api/points/query`), que no crea un gemelo ni reutiliza el del piloto. Las teselas requieren red; la resolución y la fecha varían por ubicación y no se promete imagen submétrica. El gemelo Three.js sigue siendo una vista local ilustrativa (cultivos, infraestructura y crecimiento ilustrativos sobre ortofoto NAIP y DEM reales).
+
+Proveedor de alto zoom configurable (`VITE_SATELLITE_TILE_URL`, `VITE_SATELLITE_ATTRIBUTION`); cualquier clave publicada por Vite debe ser pública y restringida, nunca un secreto. Créditos: [credits](../07-design/credits.md).
+
+## Gemelo de cualquier parcela
+
+El diorama usa la parcela activa: 4 zonas con su cultivo declarado, capas (NDVI observado, estrés, humedad, temperatura, riego), panel de escenario (`precip_factor`, `temp_delta_c`, `irrigation_level`, presets), KPI con insignias y la explicación determinista del piloto. Un resumen «Cultivo y fecha de siembra» (insignias `DECLARED`/`ESTIMATED`) enlaza al formulario del mapa de granja. El suelo del terreno es la imagen base y el relieve de la parcela cuando `/api/imagery/basemap` y `/api/terrain/heightmap` aceptan `farm_id=pt_*`; si faltan, se usa suelo procedural y terreno plano con la nota visible «Sin imagen base ni relieve para esta parcela». Al cambiar de parcela se cancelan las peticiones en vuelo y se descarta el estado de la anterior.

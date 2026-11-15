@@ -4,10 +4,25 @@ from __future__ import annotations
 
 from datetime import date
 
+from app.engine.calendar import hemisphere, is_tropical, suggested_planting, suggested_season
 from app.providers.factory import Providers
+from app.providers.live.parcel import point_farm
 from app.providers.ports import DataNotFoundError
-from app.schemas.farm import FarmAnalyzeResponse
+from app.schemas.common import DataState
+from app.schemas.crops import CropCatalog
+from app.schemas.farm import CropOption, DeclaredInputs, Farm, FarmAnalyzeResponse, LandCover, SeasonWindow
 from app.schemas.observations import NdviOverlay, ObservationPoint, ObservationSeries
+from app.services import farm_load_service, imagery_service
+
+# The point-farm NDVI series takes ~60 s the first time: responses never wait for it (ADR-024)
+NDVI_LOADING_WARNING = "Sentinel-2 NDVI series still loading in the background: poll /api/farms/{farm_id}/status"
+
+
+def ndvi_ready(p: Providers, farm_id: str) -> bool:
+    """False while a point farm's live NDVI series is not built yet (pilot farms are never held back)."""
+    if p.live_observations is None or point_farm(farm_id) is None:
+        return True
+    return p.live_observations.series_ready(farm_id)
 
 
 def latest_ndvi_by_zone(
@@ -18,6 +33,8 @@ def latest_ndvi_by_zone(
     chosen: ObservationSeries | None = None
     for source_id in ("sentinel2", "modis_ndvi"):
         if source_id not in p.observations.ndvi_sources():
+            continue
+        if source_id == "sentinel2" and not ndvi_ready(p, farm_id):
             continue
         try:
             series = p.observations.ndvi_series(farm_id, source_id)
@@ -39,15 +56,24 @@ def latest_ndvi_by_zone(
 
 
 def analyze_farm(p: Providers, farm_id: str) -> FarmAnalyzeResponse:
+    pt = farm_load_service.ensure_supported(p, farm_id)
     farm = p.farm.get_farm(farm_id)
     catalog = p.catalog.get_catalog()
+    # Start the slow sources (NDVI, imagery, land cover) after the farm itself, so this request is the one
+    # that waits the short first-load soil window and the background jobs never race it
+    load = farm_load_service.prepare(p, farm_id) if p.mode == "live" else None
     latest, series = latest_ndvi_by_zone(p, farm_id)
     warnings = list(p.warnings) + list(farm.warnings)
     for z in farm.zones:
         warnings.extend(f"{z.zone_id}: {w}" for w in z.soil.warnings)
+    if not ndvi_ready(p, farm_id):
+        warnings.append(NDVI_LOADING_WARNING.format(farm_id=farm_id))
     if any(not c.verified for c in catalog.crops):
         warnings.append("crop parameters are provisional (verified=false): literature values to verify")
-    dates = [pt.date for pt in latest.values()]
+    land = land_cover(p, pt)
+    if land.warning:
+        warnings.append(land.warning)
+    dates = [pt_.date for pt_ in latest.values()]
     return FarmAnalyzeResponse(
         farm=farm,
         data_mode=p.mode,
@@ -55,7 +81,82 @@ def analyze_farm(p: Providers, farm_id: str) -> FarmAnalyzeResponse:
         latest_ndvi={z.zone_id: (latest[z.zone_id].value if z.zone_id in latest else None) for z in farm.zones},
         latest_ndvi_date=max(dates).isoformat() if dates else None,
         latest_ndvi_source=series.source_id if series else None,
+        declared_inputs=declared_inputs(farm, catalog, pt is not None, date.today()),
+        land_cover=land,
+        load_status=load,
         warnings=list(dict.fromkeys(warnings)),
+    )
+
+
+# ─────────────────────────────────────────
+# Section: Declared inputs and land cover
+# ─────────────────────────────────────────
+
+
+def declared_inputs(farm: Farm, catalog: CropCatalog, is_point: bool, today: date) -> DeclaredInputs:
+    """Crop options and calendar suggestions the UI needs before running the twin (never measured values)."""
+    lat = farm.centroid.lat
+    if is_point:
+        start, end = suggested_season(lat, today)
+        plantings = {c.crop_id: suggested_planting(c.crop_id, lat, start) for c in catalog.crops}
+    else:
+        # The pilot keeps its documented 2024 season and US Midwest dates (ADR-018)
+        start, end = date(2024, 4, 1), date(2024, 10, 31)
+        plantings = {c.crop_id: suggested_planting(c.crop_id, lat, start) for c in catalog.crops}
+    crops = ", ".join(c.crop_id for c in catalog.crops)
+    return DeclaredInputs(
+        crop_options=[
+            CropOption(crop_id=c.crop_id, name_es=c.name_es, crop_type=c.crop_type.value, verified=c.verified)
+            for c in catalog.crops
+        ],
+        catalog_version=catalog.catalog_version,
+        default_crop_by_zone={z.zone_id: z.crop_id for z in farm.zones},
+        crop_state=DataState.DECLARED if is_point else DataState.MEASURED,
+        hemisphere=hemisphere(lat),
+        tropical=is_tropical(lat),
+        suggested_season=SeasonWindow(start=start, end=end),
+        suggested_planting_dates=plantings,
+        note=(
+            "suggestion, verify: US Midwest pilot calendar, shifted 6 months in the southern hemisphere "
+            "(product configuration, not a local agronomic calendar nor a measurement)"
+            + ("; between the tropics planting follows the rainy season: declare the real date" if is_tropical(lat)
+               else "")
+        ),
+        unsupported_crop_note=(
+            f"only crops in {catalog.catalog_version} can be simulated ({crops}); "
+            "any other crop_id is rejected with 422"
+        ),
+    )
+
+
+def land_cover(p: Providers, pt: tuple[float, float] | None) -> LandCover:
+    """Cached land-cover answer for a point farm; never waits (the load job fetches it)."""
+    if pt is None or p.land_cover is None:
+        return LandCover(status="not_applicable")
+    found = p.land_cover.lookup(*pt)
+    if found.status == "running":
+        return LandCover(status="pending")
+    if found.status == "failed" or not found.value:
+        return LandCover(status="failed", warning=f"land cover unavailable ({found.error}); point not checked")
+    value = found.value
+    by_year = value.get("por_anio")
+    is_crop = value.get("es_cultivo")
+    cover = value.get("worldcover_2021")
+    years = {str(k): str(v) for k, v in by_year.items()} if isinstance(by_year, dict) else {}
+    crop_flag = bool(is_crop) if isinstance(is_crop, bool) else None
+    warning = None
+    if crop_flag is False:
+        warning = (
+            f"this point does not look like cropland (WorldCover 2021: {cover}; LULC by year: "
+            f"{', '.join(f'{y} {c}' for y, c in sorted(years.items())) or 'n/a'}): the twin still runs, "
+            "but check the location"
+        )
+    return LandCover(
+        status="ready",
+        is_cropland=crop_flag,
+        worldcover_2021=str(cover) if cover is not None else None,
+        by_year=years,
+        warning=warning,
     )
 
 
@@ -72,6 +173,10 @@ def soil_moisture(p: Providers, farm_id: str, start: date | None, end: date | No
 
 
 def ndvi_overlay(p: Providers, farm_id: str) -> NdviOverlay:
+    # Point farms have no pipeline PNG: render the latest clear Sentinel-2 date live (cached on disk)
+    overlay = imagery_service.point_overlay(p, farm_id) if point_farm(farm_id) is not None else None
+    if overlay is not None:
+        return overlay
     overlay = p.observations.ndvi_overlay(farm_id)
     if overlay is None:
         raise DataNotFoundError(f"no NDVI overlay available for farm '{farm_id}' in {p.mode} mode")

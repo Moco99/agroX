@@ -40,7 +40,7 @@ React (Vite)  ── REST/JSON ──►  FastAPI routers   (validación Pydanti
 | `CropCatalogProvider` | `CropCatalog` | Parámetros provisionales | `derived/catalog/catalog_v1.json` verificado |
 | `ObservationProvider` | `ObservationSeries` (NDVI, SMAP) | NDVI doble logística + ruido | `derived/obs/ndvi_modis_<parcel_id>.csv`, `smap_*.csv` |
 
-Selección del adaptador por variable de entorno `AGROX_DATA_MODE=synthetic|real|live` (`live`: clima directo de la API de NASA POWER 1981→hoy con caché en disco y respaldo a `derived/`; el resto de puertos igual que `real`) (por puerto se permite override, p. ej. `AGROX_WEATHER_MODE`), resuelta en un único módulo `providers/factory.py`.
+Selección del adaptador por variable de entorno `AGROX_DATA_MODE=synthetic|real|live` (`live`: clima de NASA POWER 1981→hoy, NDVI Sentinel-2 por zona desde Planetary Computer y suelo SSURGO + SoilGrids, todo con caché diaria en disco y respaldo a `derived/`; parcela, MODIS y SMAP igual que `real`) (por puerto se permite override, p. ej. `AGROX_WEATHER_MODE`), resuelta en un único módulo `providers/factory.py`.
 
 ## Flujo de una petición (ej. `POST /api/twin/simulate`)
 
@@ -60,3 +60,9 @@ Un store (Zustand o Context, O-10) con: parcela seleccionada, ciclo activo, rota
 - Si el modo es mixto (p. ej. clima real + suelo sintético), la respuesta lo dice por campo y la UI muestra el aviso.
 
 Detalle de módulos: [02-modules](../02-modules/). Estructura de carpetas: [repo-structure](repo-structure.md).
+
+## Consultas globales por punto
+
+`POST /api/points/query` conecta la interfaz a las seis consultas de `scraper/punto.py` mediante router → servicio → proveedor. Valida coordenadas y periodo antes de realizar llamadas externas. Cada fuente devuelve su propio estado, procedencia y error parcial; una fuente caída no invalida los demás resultados.
+
+Estas consultas representan un punto y su periodo, no una nueva parcela delimitada ni una simulación del piloto. El frontend presenta los resultados en un panel separado; volver al gemelo conserva la identidad de Story County. La red se usa solo en esta consulta explícita y en el modo climático `live`; la demo con derivados mantiene funcionamiento offline.

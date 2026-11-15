@@ -7,7 +7,7 @@ export type TwinLevel = "DIGITAL_MODEL" | "DIGITAL_SHADOW" | "DIGITAL_TWIN";
 export type PhenoStage = "PRE_PLANTING" | "INITIAL" | "DEVELOPMENT" | "MID_SEASON" | "LATE_SEASON" | "HARVESTED";
 export type IrrigationLevel = "NONE" | "LOW" | "MEDIUM" | "HIGH";
 export type StressClass = "NONE" | "LOW" | "MEDIUM" | "HIGH";
-export type DataMode = "real" | "synthetic";
+export type DataMode = "real" | "synthetic" | "live";
 
 export interface Provenance {
   source: string;
@@ -33,6 +33,8 @@ export interface Health {
   derived_built_at: string | null;
   farms: string[];
   warnings: string[];
+  // Added by the any-parcel backend; absent on older servers, in which case live mode implies support
+  any_parcel_supported?: boolean;
 }
 
 export interface PolygonGeometry {
@@ -95,7 +97,47 @@ export interface Farm {
   warnings: string[];
 }
 
+// Optional blocks added by the any-parcel backend: all tolerated when absent (older servers, the pilot)
+export interface DeclaredInputs {
+  hemisphere: "north" | "south";
+  tropical: boolean;
+  suggested_season: { start: string; end: string };
+  // Keyed by crop_id (or zone_id); always a calendar suggestion, never an observation
+  suggested_planting_dates: Record<string, string>;
+  suggestion_state: DataState;
+  note: string;
+  unsupported_crop_note: string;
+}
+
+export interface LandCover {
+  status: "ready" | "pending" | "failed" | "not_applicable";
+  is_cropland: boolean | null;
+  worldcover_2021: string | null;
+  warning: string | null;
+  data_state: DataState;
+}
+
+export interface LoadStage {
+  stage: string;
+  status: "pending" | "running" | "ready" | "provisional" | "failed" | "skipped";
+  required: boolean;
+  message: string | null;
+  retry_after_s: number | null;
+}
+
+export interface FarmLoadStatus {
+  state: "not_started" | "loading" | "ready";
+  progress: number;
+  soil_final: boolean;
+  stages: LoadStage[];
+  poll_after_s: number | null;
+  warnings: string[];
+}
+
 export interface FarmAnalyzeResponse {
+  declared_inputs?: DeclaredInputs | null;
+  land_cover?: LandCover | null;
+  load_status?: FarmLoadStatus | null;
   farm: Farm;
   data_mode: DataMode;
   catalog_version: string;
@@ -211,6 +253,8 @@ export interface ZoneResult {
   crop_id: string;
   area_ha: number;
   planting_date: string;
+  crop_state?: DataState;
+  planting_state?: DataState;
   irrigation_level: IrrigationLevel;
   states: TwinState[];
   summary: ZoneSummary;
@@ -258,6 +302,10 @@ export interface TwinSimulateRequest {
   end: string;
   scenario: Partial<TwinScenario>;
   fork_date?: string | null;
+  // crop_id -> ISO planting date (the backend keys planting dates by crop, not by zone)
+  planting_dates?: Record<string, string>;
+  // zone_id -> catalog crop_id declared by the user (DECLARED); only sent when it differs from the farm's crop
+  crop_overrides?: Record<string, string>;
   monte_carlo?: { n: number; seed: number } | null;
   include_states?: boolean;
   include_comparison?: boolean;
@@ -309,4 +357,128 @@ export interface ClimateMetric {
   unit: string;
   data_state: DataState;
   source: string | null;
+}
+
+// ─────────────────────────────────────────
+// Section: Imagery, terrain and region contracts (data agent, see docs/01-architecture/data-contracts.md)
+// ─────────────────────────────────────────
+
+// The backend may still be building these endpoints: the frontend normalises tolerant shapes in guards.ts
+// and falls back to procedural assets when a call fails, so the UI never blocks on them.
+
+export interface GeoBounds {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}
+
+export interface BasemapInfo {
+  available: boolean;
+  source: string | null;
+  resolution_m: number | null;
+  date: string | null;
+  data_state: DataState;
+}
+
+export interface ImageryMeta {
+  farm_id: string;
+  bounds: GeoBounds;
+  crs: string;
+  basemap: BasemapInfo | null;
+  ndvi_dates: string[];
+  ndvi_source: string | null;
+  warnings: string[];
+}
+
+export interface NdviDates {
+  farm_id: string;
+  source: string | null;
+  dates: string[];
+  warnings: string[];
+}
+
+export interface Heightmap {
+  farm_id: string;
+  bounds: GeoBounds;
+  width: number;
+  height: number;
+  // Row-major, first row = north edge; metres above sea level
+  elevations_m: number[];
+  min_m: number;
+  max_m: number;
+  resolution_m: number | null;
+  source: string | null;
+  data_state: DataState;
+  warnings: string[];
+}
+
+export interface RegionMetric {
+  value: number | null;
+  unit: string;
+  // Absolute change vs the reference period (same unit); null when no reference exists
+  delta: number | null;
+  delta_pct: number | null;
+  reference: string;
+  data_state: DataState;
+  source: string | null;
+}
+
+export interface AptitudeEntry {
+  crop_id: string;
+  // GAEZ v4 suitability index 0–100 (SI) — a comparative index, never a probability
+  index: number | null;
+  suitability_class: string | null;
+  data_state: DataState;
+}
+
+export interface RegionSummary {
+  region_name: string;
+  period_start: string;
+  period_end: string;
+  previous_start: string | null;
+  previous_end: string | null;
+  ndvi: RegionMetric;
+  precipitation: RegionMetric;
+  temperature: RegionMetric;
+  radiation: RegionMetric;
+  ndvi_series: { date: string; value: number }[];
+  aptitude: AptitudeEntry[] | null;
+  aptitude_source: string | null;
+  warnings: string[];
+  // Where the numbers came from: "api" (region/summary) or "climate+modis" (frontend fallback)
+  origin: "api" | "fallback";
+}
+
+export interface WeatherDay {
+  date: string;
+  t_mean: number;
+  t_max: number;
+  t_min: number;
+  precip: number;
+  rh_mean: number;
+  solar_rad: number;
+  wind_2m: number;
+  qa_flags: string[];
+}
+
+export interface ClimateIndicatorMetric {
+  value: number | null;
+  unit: string;
+  data_state: DataState;
+  source: string | null;
+}
+
+export interface ClimateResponse {
+  methodology: string;
+  data_mode: DataMode;
+  series: {
+    location: Location;
+    elevation_m: number;
+    days: WeatherDay[];
+    provenance: Provenance;
+    warnings: string[];
+  };
+  indicators: Record<string, unknown>;
+  warnings: string[];
 }

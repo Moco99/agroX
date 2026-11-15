@@ -12,6 +12,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
+from app.engine.ndvi import colorize_ndvi
+
 # ─────────────────────────────────────────
 # Section: Paths
 # ─────────────────────────────────────────
@@ -57,33 +61,33 @@ CDL_CODES: dict[int, str] = {
 }
 
 # ─────────────────────────────────────────
-# Section: NDVI colour ramp (mirror of docs/07-design/design-tokens.md)
+# Section: NDVI colour ramp (single implementation in app.engine.ndvi, mirror of docs/07-design/design-tokens.md)
 # ─────────────────────────────────────────
-
-# (ndvi_stop, (r, g, b)); linear interpolation in RGB, clipped outside the domain
-NDVI_RAMP: list[tuple[float, tuple[int, int, int]]] = [
-    (0.20, (0xDC, 0x34, 0x2E)),
-    (0.35, (0xF1, 0x97, 0x28)),
-    (0.50, (0xF0, 0xE5, 0x33)),
-    (0.65, (0x6F, 0xBE, 0x30)),
-    (0.80, (0x31, 0x9D, 0x34)),
-]
-NDVI_NODATA_RGB = (0x4B, 0x55, 0x63)
 
 
 def ndvi_to_rgb(value: float) -> tuple[int, int, int]:
-    """Map an NDVI value to the canonical ramp colour (same stops as the frontend)."""
-    if value != value or value < 0:
-        return NDVI_NODATA_RGB
-    if value <= NDVI_RAMP[0][0]:
-        return NDVI_RAMP[0][1]
-    if value >= NDVI_RAMP[-1][0]:
-        return NDVI_RAMP[-1][1]
-    for (v0, c0), (v1, c1) in zip(NDVI_RAMP, NDVI_RAMP[1:], strict=False):
-        if v0 <= value <= v1:
-            t = (value - v0) / (v1 - v0)
-            return tuple(int(round(c0[i] + t * (c1[i] - c0[i]))) for i in range(3))  # type: ignore[return-value]
-    return NDVI_NODATA_RGB
+    """Map one NDVI value to the canonical ramp colour (same stops as the frontend)."""
+    rgba = colorize_ndvi(np.array([[value]], dtype=np.float64))
+    return int(rgba[0, 0, 0]), int(rgba[0, 0, 1]), int(rgba[0, 0, 2])
+
+
+# ─────────────────────────────────────────
+# Section: Common analysis area (farm + margin) shared by basemap, NDVI overlays and heightmap
+# ─────────────────────────────────────────
+
+# Margin around the farm bbox so the 3D scene and the map show some surrounding context
+AREA_MARGIN_DEG = 0.004
+
+
+def farm_area_bounds() -> tuple[float, float, float, float]:
+    """(west, south, east, north) of the farm bbox plus AREA_MARGIN_DEG, read from the derived parcel."""
+    parcel = json.loads((DERIVED_DIR / "parcel" / f"{FARM_ID}.geojson").read_text())
+    farm = next(f for f in parcel["features"] if f["properties"]["feature_kind"] == "farm")
+    ring = farm["geometry"]["coordinates"][0]
+    lons = [p[0] for p in ring]
+    lats = [p[1] for p in ring]
+    m = AREA_MARGIN_DEG
+    return round(min(lons) - m, 6), round(min(lats) - m, 6), round(max(lons) + m, 6), round(max(lats) + m, 6)
 
 
 # ─────────────────────────────────────────

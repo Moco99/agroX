@@ -18,3 +18,17 @@ def test_offset_by_generation_date() -> None:
     assert s2_offset("S2A_MSIL2A_20220124T170000_R069_T15TVG_20220125T010000") == S2_BOA_OFFSET
     # 2022 acquisition reprocessed in 2024 (baseline 05.10): offset
     assert s2_offset("S2A_MSIL2A_20220730T165901_R069_T15TVG_20240716T000000") == S2_BOA_OFFSET
+
+
+def test_shared_ndvi_math_respects_product_offset() -> None:
+    import numpy as np
+
+    from app.engine.ndvi import compute_ndvi
+
+    red = np.array([[2000.0]])
+    nir = np.array([[6000.0]])
+    scl = np.array([[4]])
+    early, _ = compute_ndvi(red, nir, scl, offset=0)
+    modern, _ = compute_ndvi(red, nir, scl, offset=S2_BOA_OFFSET)
+    assert np.isclose(early[0, 0], .5)
+    assert np.isclose(modern[0, 0], 2 / 3)

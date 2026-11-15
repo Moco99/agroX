@@ -55,3 +55,11 @@ Overlay renderizado en backend (no en el navegador) porque el ráster recortado 
 - `services/climate_service.py`: obtiene serie del provider, llama indicadores, arma respuesta con provenance.
 - `pipeline/build_ndvi.py` (+ `services/observation_service.py`): recorte y PNG del overlay.
 - Builder: Sonnet para cableado y UI; Opus para SPI, anomalías y QA del overlay (ver [agent-routing](../06-agents/agent-routing.md)).
+
+## Exploración global y consulta por punto (UI)
+
+La pantalla de exploración es un globo MapLibre con zoom continuo hasta escala de campo ([ui-spec](../07-design/ui-spec.md), [digital-farm-3d](digital-farm-3d.md)). Desde cualquier punto, «Consultar este punto» o `⌘K` llaman a `POST /api/points/query` (cobertura, relieve, suelo, clima, vegetación, aptitud) y muestran cada sección con su fuente y `data_state`; los indicadores climáticos de esta página siguen calculándose solo para el piloto. Fuera del piloto no hay parcelas, NDVI por fecha ni gemelo, y la UI lo indica.
+
+## Abrir cualquier parcela (UI)
+
+El `farm_id` ya no está fijo: `store/parcel-store.ts` guarda la parcela activa (piloto por defecto; `?farm=`), `store/open-parcel.ts` es el único punto que la cambia y `lib/parcel.ts` deriva `pt_<lat>_<lon>` y valida la latitud (−60..75). La carga de una parcela llama primero a `GET /api/farms/{id}` (lo lento: suelo y primer NDVI, en solitario para no duplicar trabajo aguas arriba) y después en paralelo a simulación, NDVI Sentinel-2, clima del punto (`/api/climate?lat=&lon=`), imagen base/NDVI raster y relieve, cada una con su estado. La etapa «granja» se ancla a la parcela activa (`stageForCamera` recibe el ancla), así que cualquier parcela abierta tiene el mismo recorrido globo → granja → gemelo. Fuera del piloto no hay MODIS, SMAP ni resumen regional; el NDVI es solo Sentinel-2 y el cultivo es `DECLARED`. Detalle de pantallas: [ui-spec](../07-design/ui-spec.md).

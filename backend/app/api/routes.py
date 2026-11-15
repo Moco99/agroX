@@ -10,13 +10,16 @@ from fastapi import APIRouter, Depends, Query
 from app.api.deps import providers_dep
 from app.config import get_settings
 from app.providers.factory import Providers
+from app.providers.live.parcel import MAX_LAT, MIN_LAT
 from app.providers.real import manifest_entry
 from app.schemas.climate import ClimateResponse
 from app.schemas.crops import CropCatalog
 from app.schemas.farm import FarmAnalyzeRequest, FarmAnalyzeResponse
+from app.schemas.load import FarmLoadStatus
 from app.schemas.observations import NdviOverlay, ObservationSeries
+from app.schemas.rotations import RotationRecommendRequest
 from app.schemas.twin import TwinSimulateRequest, TwinSimulateResponse, TwinStateResponse
-from app.services import climate_service, farm_service, twin_service
+from app.services import climate_service, farm_load_service, farm_service, twin_service
 
 router = APIRouter(prefix="/api")
 ProvidersDep = Annotated[Providers, Depends(providers_dep)]
@@ -38,6 +41,15 @@ def health(p: ProvidersDep) -> dict[str, object]:
         "data_mode": p.mode,
         "data_state": "SYNTHETIC" if p.mode == "synthetic" else "MEASURED",
         "requested_mode": settings.data_mode,
+        # The frontend reads this before offering "open any point": pt_<lat>_<lon> farms need live mode
+        "any_parcel_supported": p.any_parcel_supported,
+        "point_farm": {
+            "id_pattern": "pt_<lat>_<lon>",
+            "lat_range": [MIN_LAT, MAX_LAT],
+            "lon_range": [-180.0, 180.0],
+            "requires_mode": "live",
+            "hint": None if p.any_parcel_supported else "restart the backend with AGROX_DATA_MODE=live (make dev-live)",
+        },
         "weather_coverage": {"start": cov_start.isoformat(), "end": cov_end.isoformat()},
         "derived_built_at": built,
         "farms": p.farm.farm_ids(),
@@ -79,6 +91,16 @@ def analyze(p: ProvidersDep, body: FarmAnalyzeRequest) -> FarmAnalyzeResponse:
 @router.get("/farms/{farm_id}", response_model=FarmAnalyzeResponse)
 def farm(p: ProvidersDep, farm_id: str) -> FarmAnalyzeResponse:
     return farm_service.analyze_farm(p, farm_id)
+
+
+@router.post("/farms/{farm_id}/prepare", response_model=FarmLoadStatus, status_code=202)
+def prepare_farm(p: ProvidersDep, farm_id: str) -> FarmLoadStatus:
+    return farm_load_service.prepare(p, farm_id)
+
+
+@router.get("/farms/{farm_id}/status", response_model=FarmLoadStatus)
+def farm_status(p: ProvidersDep, farm_id: str) -> FarmLoadStatus:
+    return farm_load_service.status(p, farm_id)
 
 
 @router.get("/observations/ndvi", response_model=ObservationSeries)
@@ -133,3 +155,39 @@ def observed_vs_simulated(p: ProvidersDep, farm_id: str = "story_pilot_farm", ye
         farm_id=farm_id, start=date(year, 4, 1), end=date(year, 10, 31), include_states=True, include_comparison=True
     )
     return twin_service.simulate(p, req)
+
+
+# ─────────────────────────────────────────
+# Section: EcoCrop-RF Rotation Engine
+# ─────────────────────────────────────────
+
+
+
+@router.get("/ecocrop/search")
+def search_ecocrop(q: str = "maiz", limit: int = 10) -> list[dict[str, object]]:
+    from app.engine.ecocrop_model import EcoCropEngine
+    engine = EcoCropEngine()
+    return engine.find_crops(q, limit=limit)
+
+
+@router.post("/rotations/recommend")
+def recommend_rotations(body: RotationRecommendRequest | None = None) -> dict[str, object]:
+    from app.engine.ecocrop_model import RotationEngine
+    req = body or RotationRecommendRequest()
+    recommender = RotationEngine()
+    results = recommender.recommend_top_rotations(
+        t_mean=req.t_mean,
+        rain_mm=req.rain_mm,
+        soil_ph=req.soil_ph,
+        soil_awc=req.soil_awc,
+        t_extreme_days=req.t_extreme_days,
+        cycles=req.cycles,
+        top_k=req.top_k,
+    )
+    return {
+        "status": "ok",
+        "methodology": "EcoCrop-RF Hybrid (FAO Trapezoidal Suitability + Random Forest Stress Classifier)",
+        "inputs": req.model_dump(),
+        "recommendations": results,
+    }
+

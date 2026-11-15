@@ -1,16 +1,158 @@
-import type { DataState, IrrigationLevel, PhenoStage, StressClass } from "../types/api";
+import type {
+  DataState,
+  IrrigationLevel,
+  PhenoStage,
+  StressClass,
+} from "../types/api";
 
 // ─────────────────────────────────────────
 // Section: es-MX UI copy (single source; components never hard-code visible text)
 // ─────────────────────────────────────────
 
 export const es = {
+  geo: {
+    title: "Exploración satelital global",
+    eyebrow: "OBSERVACIÓN DE LA TIERRA",
+    hint: "Arrastra para girar el globo y acerca con la rueda o dos dedos hasta ver campos individuales en cualquier lugar. Haz clic para elegir un punto.",
+    gesture: "Arrastra para girar · rueda para acercarte hasta las parcelas · clic para elegir un punto",
+    loading: "Cargando el globo…",
+    retry: "Reintentar imágenes",
+    unavailable:
+      "El globo requiere WebGL. Puedes consultar coordenadas desde la búsqueda superior.",
+    offlineTitle: "Sin conexión: imágenes globales no disponibles",
+    offlineBody:
+      "Se muestra un mosaico global reducido (NASA Blue Marble, incluido en la app) y, en el piloto de Iowa, la ortofoto NAIP servida por el backend.",
+    selected: "Punto seleccionado",
+    choose: "Haz clic en cualquier punto del globo para consultar sus fuentes (relieve, suelo, clima, vegetación).",
+    analyze: "Consultar este punto",
+    analyzeHint: "La primera consulta tarda unos 20 s: se piden las fuentes en vivo.",
+    insidePilot: "Dentro del piloto: parcelas, NDVI por fecha y gemelo 3D disponibles.",
+    outsidePilot:
+      "Fuera del piloto: puedes abrir una parcela de 36 ha centrada en este punto (límite aproximado, no un predio) con NDVI por fecha y gemelo 3D.",
+    pilot: "Visitar piloto de Iowa",
+    pinLabel: "Piloto Iowa",
+    twin: "Abrir gemelo 3D del piloto",
+    pilotTitle: "Granja piloto · Story County, Iowa",
+    pilotHint:
+      "Parcela de referencia con datos medidos de campo (cultivo CDL, suelo SSURGO) y funcionamiento sin conexión.",
+    places: "Explorar otros lugares",
+    placesHint: "Imagen satelital a nivel de campo; elige un punto y abre su parcela.",
+    place: {
+      pampa: "Pampa húmeda · Pergamino, Argentina",
+      veracruz: "Caña de azúcar · Úrsulo Galván, Veracruz",
+      cdmx: "Ciudad de México · Centro",
+    } as Record<"pampa" | "veracruz" | "cdmx", string>,
+    pilotMetrics: "Indicadores del piloto (temporada)",
+    resolution:
+      "Zoom bajo: NASA Blue Marble (GIBS). Zoom alto: Esri World Imagery; la fecha y la resolución varían por ubicación (máx. zoom 19).",
+    ndvi: "NDVI de la parcela",
+    boundaries: "Límites de la parcela",
+    pilotDates: "Fechas observadas de NDVI · piloto de Iowa",
+    pilotSeason:
+      "Temporada de datos del piloto de Iowa (no es la fecha de la imagen global)",
+    zoom: (n: number) => `Zoom ${n.toFixed(1)} / 19`,
+    scale: (m: number) => (m >= 1000 ? `~${(m / 1000).toFixed(1)} km/px` : `~${m.toFixed(m < 10 ? 1 : 0)} m/px`),
+    source: (z: number) =>
+      z < 4.5 ? "NASA Blue Marble" : z < 6.5 ? "NASA → Esri" : "Esri World Imagery",
+    flyingPilot: "Descendiendo a la parcela…",
+    flying: "Volando…",
+    backToGlobe: "Volver al globo",
+    farmTitle: "Granja piloto Story County",
+    farmPlace: "Story County, Iowa (EE. UU.)",
+    zones: (n: number) => `${n} zonas de manejo`,
+    zoneNdvi: "NDVI más reciente por zona",
+    noZoneNdvi: "Sin NDVI por zona en esta temporada",
+    season: "Condiciones de la temporada",
+    imagery: "Imagen satelital",
+    cta: "Ver gemelo digital 3D",
+    ctaSub: "Simulación hídrica por zona con escenarios",
+    coverage:
+      "Cobertura: la imagen satelital es global. Fuera del piloto, la parcela es un cuadrado de 36 ha alrededor del punto elegido, no un predio catastral.",
+  },
+  point: {
+    search: "Consultar coordenadas",
+    title: "Análisis del punto consultado",
+    hint: "Consulta fuentes históricas bajo demanda por latitud y longitud. Esta consulta no modifica el gemelo de Iowa.",
+    lat: "Latitud",
+    lon: "Longitud",
+    start: "Desde",
+    end: "Hasta",
+    submit: "Analizar punto",
+    loading: "Consultando fuentes del punto…",
+    cancel: "Cancelar consulta",
+    retry: "Reintentar fuentes",
+    pilot: "Volver al mapa",
+    noData: "Sin datos disponibles",
+    error: "No se pudo completar la consulta",
+    sections: {
+      coverage: "Cobertura y fuentes",
+      terrain: "Relieve",
+      soil: "Suelo",
+      climate: "Clima",
+      vegetation: "Vegetación y NDVI",
+      suitability: "Aptitud de cultivos",
+    },
+    state: {
+      MEASURED: "Medido",
+      ESTIMATED: "Estimado",
+      SIMULATED: "Simulado",
+      SYNTHETIC: "Sintético",
+      DECLARED: "Declarado",
+    },
+    yes: "Sí",
+    no: "No",
+    validation:
+      "Selecciona un periodo de hasta 730 días y coordenadas válidas.",
+    records: (n: number) => `${n} registros`,
+    observations: (n: number) => `${n} observaciones`,
+    days: (n: number) => `${n} días válidos · media del periodo`,
+    latest: (date: string, n: number) =>
+      `Último dato: ${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)} · ${n} días válidos`,
+    labels: {
+      elevacion_m: "Elevación (m)",
+      pendiente_grados: "Pendiente (°)",
+      arcilla_pct: "Arcilla (%)",
+      "arcilla_%": "Arcilla (%)",
+      "arena_%": "Arena (%)",
+      "limo_%": "Limo (%)",
+      carbono_organico_g_kg: "Carbono orgánico (g/kg)",
+      ph: "pH",
+      nitrogeno_g_kg: "Nitrógeno (g/kg)",
+      cic_cmol_kg: "Capacidad de intercambio catiónico (cmol/kg)",
+      densidad_kg_dm3: "Densidad aparente (kg/dm³)",
+      worldcover_2021: "Cobertura WorldCover 2021",
+      por_anio: "Cobertura por año",
+      es_cultivo: "Campo de cultivo",
+      aviso: "Aviso",
+      fuente: "Fuente",
+      escenas_revisadas: "Escenas revisadas",
+      cultivos:
+        "Índices comparativos de aptitud (0–100; no son probabilidades)",
+      temporal: "Temporal",
+      riego: "Con riego",
+      escala: "Escala y referencia",
+    } as Record<string, string>,
+    climateNames: {
+      T2M: "Temperatura media",
+      T2M_MAX: "Temperatura máxima",
+      T2M_MIN: "Temperatura mínima",
+      PRECTOTCORR: "Precipitación media diaria",
+      RH2M: "Humedad relativa",
+      ALLSKY_SFC_SW_DWN: "Radiación solar",
+      WS2M: "Viento a 2 m",
+    } as Record<string, string>,
+    chart: "Serie observada de NDVI",
+    partial:
+      "La fuente no pudo responder. Las demás secciones siguen disponibles.",
+  },
   app: {
     name: "AGROX",
     tagline: "Gemelo digital agrícola",
     loading: "Cargando gemelo digital…",
     retry: "Reintentar",
-    backendDown: "No se pudo conectar con el backend (¿está corriendo en el puerto 8000?).",
+    backendDown:
+      "No se pudo conectar con el backend (¿está corriendo en el puerto 8000?).",
+    stageFailed: "No se pudo mostrar esta vista. Recarga la página o usa otra etapa desde el menú.",
     illustrative: "Representación ilustrativa — no es una predicción",
     exploratory: "Simulación exploratoria, no predicción de rendimiento",
   },
@@ -23,13 +165,143 @@ export const es = {
     reports: "Informes",
     soon: "próximamente",
     aiTitle: "AGROX AI",
-    aiBody: "Explicaciones por plantillas a partir del motor. Sin IA generativa en esta versión.",
+    aiBody:
+      "Explicaciones por plantillas a partir del motor. Sin IA generativa en esta versión.",
   },
   topbar: {
-    search: "Granja piloto · Story County, Iowa (EE. UU.)",
+    search: "Buscar ubicación, establecimiento o área…",
+    searchHint:
+      "En esta versión la búsqueda solo resuelve la granja piloto (Story County, Iowa).",
+    searchResult: "Granja piloto · Story County, Iowa (EE. UU.)",
     season: "Temporada",
     period: "Periodo",
     layers: (n: number) => `Capas (${n})`,
+    notifications: "Notificaciones",
+    help: "Ayuda",
+    account: "Cuenta",
+    shortcut: "⌘K",
+  },
+  help: {
+    close: "Cerrar",
+    search: "consultar coordenadas",
+    escape: "cierra la búsqueda o la consulta de punto",
+    deepLink: "enlace directo a una etapa",
+  },
+  stages: {
+    globe: "Exploración",
+    map: "Granja",
+    twin: "Gemelo 3D",
+    stepper: {
+      location: { title: "1. Ubicación", sub: "Globo" },
+      farm: { title: "2. Granja", sub: "Parcela activa" },
+      analysis: { title: "3. Análisis", sub: "Gemelo digital" },
+    },
+    backToMap: "Volver al mapa de la granja",
+  },
+  controls: {
+    zoomIn: "Acercar",
+    zoomOut: "Alejar",
+    locate: "Centrar en la granja",
+    fullscreen: "Pantalla completa",
+    scale: (label: string) => label,
+  },
+  globe: {
+    title: "Análisis de región",
+    region: "Región seleccionada",
+    marker: "Story County, Iowa · granja piloto",
+    ndvi: "NDVI (prom.)",
+    precipitation: "Precipitación",
+    temperature: "Temperatura",
+    radiation: "Radiación solar",
+    evolution: "Evolución del NDVI",
+    evolutionRange: "Temporada completa",
+    noDelta: "sin periodo de referencia",
+    aptitude: "Índice de aptitud agroclimática (FAO GAEZ v4)",
+    aptitudeHint:
+      "Índice de aptitud 0–100 de FAO GAEZ v4 (clima 1981–2010, ~9 km, secano con insumos medios). Es un índice comparativo de condiciones agroclimáticas, no una probabilidad ni una predicción de rendimiento.",
+    aptitudeMissing:
+      "Sin datos de aptitud en esta versión: el índice GAEZ se mostrará cuando el backend lo sirva (nunca se estima en el cliente).",
+    aptitudeSource: "Fuente: FAO GAEZ v4",
+    sourcePower: "Clima: NASA POWER (celda MERRA-2 ~50 km), temporada may–sep",
+    sourceModis: "NDVI: MODIS MOD13Q1/MYD13Q1 250 m, media de la granja",
+    fallbackNote:
+      "Resumen armado en el cliente a partir de /api/climate y MODIS (el endpoint regional aún no está disponible).",
+    credits: "Créditos de imágenes",
+    creditsBody:
+      "Globo: MapLibre GL JS. Zoom bajo: NASA Blue Marble Next Generation vía NASA GIBS (dominio público; también el mosaico sin conexión incluido en la app). Zoom alto: Esri World Imagery (Esri, Vantor, Earthstar Geographics y comunidad GIS); atribución visible en el mapa. La fecha y resolución varían por ubicación. El piloto usa ortofoto NAIP (USDA) y NDVI Sentinel-2 (Copernicus).",
+    periodLabel: (a: string, b: string) => `${a} – ${b}`,
+    loadingRegion: "Cargando resumen regional…",
+  },
+  map: {
+    title: "Granja piloto Story County",
+    subtitle: "Ames, Iowa (EE. UU.)",
+    tabs: {
+      summary: "Resumen",
+      crops: "Cultivos",
+      rotation: "Rotación",
+      scenarios: "Escenarios",
+    },
+    satellite: "Imagen satelital",
+    ndvi: "NDVI",
+    vegetation: "Estado de la vegetación (NDVI)",
+    vegetationHint:
+      "Media de las zonas de la granja en la fecha seleccionada; la gráfica usa MODIS 250 m (temporada completa).",
+    recent: "Condiciones recientes",
+    recentSub: (n: number) => `prom. últimos ${n} días (NASA POWER)`,
+    analysis: "Análisis de la parcela",
+    cta: "Ver gemelo digital 3D",
+    ctaSub: "Simulación hídrica por zona con escenarios",
+    noBasemap:
+      "Sin ortofoto NAIP en esta versión: fondo procedural ilustrativo.",
+    basemapSource: (src: string, res: string) => `Fondo: ${src} · ${res}`,
+    ndviScene: (d: string, src: string) => `NDVI ${src} · escena ${d}`,
+    ndviProvisional:
+      "NDVI del overlay provisional (última escena Sentinel-2 disponible)",
+    noNdvi: "Sin NDVI por fecha disponible",
+    legend: "NDVI (actividad vegetal)",
+    evolution: "Evolución del NDVI",
+    zoneOf: (n: number) => `${n} zonas de manejo`,
+    scenarioHint: "Los escenarios se simulan en el gemelo 3D (siguiente paso).",
+    rotationHint: "Historial CDL por zona (cultivo declarado por año).",
+    cropsHint: "Cultivo 2024 por zona (USDA CDL) con pureza del polígono.",
+    purity: "pureza",
+    lowVigor: (name: string, v: string) => `menor vigor en ${name} (NDVI ${v})`,
+    highVigor: (name: string, v: string) =>
+      `mayor vigor en ${name} (NDVI ${v})`,
+    analysisTemplate: (mean: string, cls: string) =>
+      `La granja presenta una actividad vegetal ${cls} (NDVI medio ${mean}) en la fecha seleccionada.`,
+    analysisNote:
+      "Texto generado por plantilla a partir de observaciones; no es una recomendación agronómica.",
+    classes: { high: "alta", medium: "media", low: "baja" },
+  },
+  mapLayers: {
+    ndvi: "NDVI",
+    precipitation: "Precipitación",
+    temperature: "Temperatura",
+    boundaries: "Límites",
+    precipitationHint:
+      "Colorea el marcador regional con la precipitación acumulada de la temporada (POWER).",
+    temperatureHint:
+      "Colorea el marcador regional con la temperatura media de la temporada (POWER).",
+    disabled: "No disponible en esta etapa",
+  },
+  ndviPlayer: {
+    play: "Reproducir escenas NDVI",
+    pause: "Pausa",
+    prev: "Escena anterior",
+    next: "Escena siguiente",
+    scenes: (n: number) => `${n} escenas Sentinel-2`,
+  },
+  scene3d: {
+    terrain: (exag: number) =>
+      `Relieve NASADEM/SRTM 30 m, exageración vertical ${exag}×`,
+    terrainFallback:
+      "Relieve interpolado de medias por zona (heightmap no disponible)",
+    sun: (h: string) => `Sol calculado para la fecha, ${h} hora local`,
+    wind: (v: string) => `Viento POWER ${v} m/s`,
+    quality: { high: "Calidad alta", low: "Calidad reducida (rendimiento)" },
+    fps: (n: number) => `${n} fps`,
+    irrigating: "Riego activo",
   },
   banner: {
     synthetic: "Datos sintéticos — no representan la parcela real",
@@ -67,12 +339,22 @@ export const es = {
       LATE_SEASON: "Llenado",
       HARVESTED: "Cosecha",
     } satisfies Record<PhenoStage, string>,
-    stageNote: "Etapas FAO-56 por grados-día (Floración = media temporada, Llenado = final)",
+    stageNote:
+      "Etapas FAO-56 por grados-día (Floración = media temporada, Llenado = final)",
   },
   twin: {
-    tabs: { twin: "Gemelo digital", map2d: "Mapa 2D" },
+    tabs: {
+      twin: "Gemelo digital",
+      map2d: "Mapa 2D",
+      satellite: "Vista satelital",
+    },
     panelTitle: "Gemelo digital de la granja",
-    tabsPanel: { summary: "Resumen", scenario: "Escenario", charts: "Gráficas", data: "Datos" },
+    tabsPanel: {
+      summary: "Resumen",
+      scenario: "Escenario",
+      charts: "Gráficas",
+      data: "Datos",
+    },
     scenario: "Escenario",
     conditions: "Condiciones de simulación",
     precipReduction: "Cambio de precipitación",
@@ -131,15 +413,20 @@ export const es = {
     SIMULATED: "Simulado",
     SYNTHETIC: "Sintético",
   } satisfies Record<DataState, string>,
-  crops: { corn: "Maíz", soybean: "Soya", cereal_rye: "Centeno" } as Record<string, string>,
+  crops: { corn: "Maíz", soybean: "Soya", cereal_rye: "Centeno" } as Record<
+    string,
+    string
+  >,
   charts: {
     soilWater: "Agua disponible en zona radicular (% de TAW)",
     ks: "Coeficiente de estrés hídrico Ks (1 = sin estrés)",
     gdd: "Grados-día acumulados (°C·día) y etapas",
     ndvi: "NDVI observado vs. forma de dosel esperada",
-    ndviNote: "El gemelo no simula NDVI: la curva esperada es el Kc normalizado (solo forma y fechas).",
+    ndviNote:
+      "El gemelo no simula NDVI: la curva esperada es el Kc normalizado (solo forma y fechas).",
     smap: "Humedad superficial SMAP (contexto regional 9 km) vs. agua simulada",
-    smapNote: "SMAP mide ~5 cm en una celda de 9 km y sus retrievals están marcados de calidad no recomendada.",
+    smapNote:
+      "SMAP mide ~5 cm en una celda de 9 km y sus retrievals están marcados de calidad no recomendada.",
     baseline: "Línea base",
     scenario: "Escenario",
     threshold: "Umbral de estrés (1 − p)",
@@ -148,7 +435,8 @@ export const es = {
     expected: "Dosel esperado (índice 0–1)",
     smapSeries: "SMAP (m³/m³)",
     simulated: "Simulado (% TAW)",
-    metrics: (src: string, n: number, r: string, lag: string) => `${src}: n=${n} · r=${r} · desfase=${lag}`,
+    metrics: (src: string, n: number, r: string, lag: string) =>
+      `${src}: n=${n} · r=${r} · desfase=${lag}`,
   },
   explanation: {
     title: "Explicación de AGROX AI",
@@ -169,10 +457,92 @@ export const es = {
     awc: "AWC",
     hydgrp: "Grupo hidrológico",
     drainage: "Drenaje",
-    erosion: { low: "baja", moderate: "moderada", high: "alta", unknown: "desconocida" } as Record<string, string>,
+    erosion: {
+      low: "baja",
+      moderate: "moderada",
+      high: "alta",
+      unknown: "desconocida",
+    } as Record<string, string>,
     erosionLabel: "Índice de erosión",
     ndviLatest: "NDVI a la fecha",
-    coverageNote: "Sentinel-2 solo cubre el final de temporada (31 ago–30 sep 2024).",
+    coverageNote:
+      "Sentinel-2 solo cubre el final de temporada (31 ago–30 sep 2024).",
+  },
+  openParcel: {
+    open: "Abrir parcela aquí",
+    openHint: "Crea una parcela de 36 ha con 4 zonas de 9 ha centrada en este punto. La primera carga tarda entre 30 y 90 s.",
+    openPilot: "Abrir la granja piloto",
+    parcelId: "Parcela",
+    approx: "Límite aproximado de 36 ha alrededor del punto; no es un predio ni un límite catastral.",
+    notCrop: "Este punto no parece cultivo; los resultados pueden no servir. Puedes continuar de todos modos.",
+    coverageUnknown: "Cobertura no verificada. Usa «Consultar este punto» para saber si es cultivo.",
+    coverageOk: "La consulta de cobertura indica campo de cultivo.",
+    latSouth: "Latitud menor a −60°: no hay cobertura de Sentinel-2 ni de relieve Copernicus utilizable para crear una parcela.",
+    latNorth: "Latitud mayor a 75°: no hay cobertura de Sentinel-2 ni de relieve Copernicus utilizable para crear una parcela.",
+    invalid: "Coordenadas inválidas: no se puede crear una parcela.",
+    unsupported: "El backend actual no abre parcelas en cualquier punto. Reinícialo en modo vivo: make dev-live (o AGROX_DATA_MODE=live make dev).",
+    capabilityUnknown: "Comprobando que el backend admita cualquier parcela…",
+    loadingTitle: "Cargando la parcela",
+    loadingHint: "La primera carga de una parcela nueva tarda entre 30 y 90 s (suelo y NDVI en vivo); después sale de la caché.",
+    elapsed: (s: number) => `${s} s transcurridos`,
+    cancel: "Cancelar",
+    retry: "Reintentar",
+    backToPilot: "Volver al piloto",
+    cancelled: "Carga cancelada. Puedes reintentar o volver al piloto.",
+    failedTitle: "No se pudo abrir la parcela",
+    sources: {
+      farm: "Parcela, zonas y suelo",
+      ndvi: "NDVI Sentinel-2",
+      climate: "Clima del punto (NASA POWER)",
+      imagery: "Imagen base y NDVI raster",
+      terrain: "Relieve",
+      simulation: "Simulación del gemelo",
+    } as Record<string, string>,
+    sourceState: { pending: "en curso", ok: "listo", error: "falló", skipped: "no disponible", idle: "en espera" } as Record<string, string>,
+    sourceSkippedNote: "Sin este recurso se usan respaldos (color por zona, terreno plano).",
+    warningsTitle: (n: number) => `Avisos de la parcela (${n})`,
+    ndviTitle: "NDVI por zona",
+    ndviAt: (d: string) => `Escena del ${d}`,
+    ndviLoading: "El NDVI Sentinel-2 se está descargando en segundo plano; aparecerá aquí solo.",
+    stageNames: { terrain: "relieve", soil: "suelo", weather: "clima", ndvi: "NDVI", land_cover: "uso de suelo", basemap: "imagen", heightmap: "relieve 3D" } as Record<string, string>,
+    stageStatus: { pending: "en espera", running: "en curso", ready: "listo", provisional: "provisional", failed: "falló", skipped: "omitido" } as Record<string, string>,
+    ndviNone: "Sin NDVI Sentinel-2 en esta parcela todavía.",
+    ndviChart: "NDVI Sentinel-2 por zona (serie completa)",
+    climateTitle: "Clima del punto",
+    climateWindow: (a: string, b: string) => `Ventana ${a} — ${b}`,
+    climateNone: "Sin clima del punto.",
+    precipTotal: "Precipitación acumulada",
+    tempMean: "Temperatura media",
+    soilTitle: "Suelo",
+    soilAwc: "Agua disponible",
+    soilProvisional:
+      "Suelo provisional: SoilGrids no respondió y se usa un valor genérico estimado. Puedes reintentar para obtener el valor real.",
+    soilRetry: "Reintentar suelo",
+    soilRetrying: "Reintentando suelo…",
+    soilReal: "Suelo de SoilGrids (250 m), estimado por modelo.",
+    declTitle: "Cultivo y fecha de siembra",
+    declHint:
+      "Fuera de EE. UU. no existe un mapa global de cultivo por parcela: lo declaras tú. El catálogo actual solo cubre los cultivos listados.",
+    declCatalogNote: (names: string) => `Catálogo actual: ${names}. Si necesitas otro cultivo, aún no está soportado.`,
+    declZone: "Cultivo de la zona",
+    declAll: "Aplicar a toda la parcela",
+    declPlanting: (crop: string) => `Siembra de ${crop}`,
+    declSuggested: (d: string) => `Sugerencia estimada (ventana del catálogo ajustada por hemisferio): ${d}`,
+    declUseSuggestion: "Usar sugerencia",
+    declDeclared: "Declarado por ti",
+    declDefault: "Sugerido",
+    declApply: "Aplicar y simular",
+    declEdit: "Editar en el mapa de granja",
+    declReset: "Quitar declaración",
+    declApplying: "Simulando con tus datos…",
+    declPilot: "La granja piloto usa el cultivo medido (CDL); no se declara.",
+    declUnverified: "Parámetros del cultivo por verificar (verified=false).",
+    twinNoImagery: "Sin imagen base ni relieve para esta parcela: se usa un suelo procedural y terreno plano.",
+    twinNoRelief: "Sin relieve para esta parcela: terreno plano.",
+    seasonLabel: "Ventana de simulación",
+    seasonTitle: "Ventana alrededor de la siembra declarada o sugerida",
+    cropOverrideError: "El backend rechazó el cultivo declarado. Prueba con el cultivo original de la zona.",
+    sourceLabel: "Fuente",
   },
   legend: {
     ndvi: ["Suelo desnudo", "Baja", "Media", "Alta", "Muy alta"],
@@ -181,7 +551,10 @@ export const es = {
 
 export function fmt(value: number | null | undefined, digits = 1): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
-  return value.toLocaleString("es-MX", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return value.toLocaleString("es-MX", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
 }
 
 export function fmtDate(iso: string | null | undefined): string {
@@ -199,5 +572,9 @@ export function fmtDate(iso: string | null | undefined): string {
 export function fmtDateShort(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   if (!y || !m || !d) return iso;
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("es-MX", { day: "numeric", month: "short", timeZone: "UTC" });
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("es-MX", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
 }

@@ -1,32 +1,55 @@
 import { es } from "../i18n/es";
-import { useTwinStore, type Screen } from "../store/twin-store";
+import { useMapStore } from "../store/map-store";
+import { usePointStore } from "../store/point-store";
+import { useStageStore, type Stage } from "../store/stage-store";
 
 // ─────────────────────────────────────────
-// Section: Left navigation (only the two MVP screens are active)
+// Section: Left navigation (menu items map to the three stages)
 // ─────────────────────────────────────────
+
+// Globe and farm share the same map, so moving between them is a camera flight; the twin is a separate scene
+export function navigateTo(target: Stage): void {
+  usePointStore.getState().close();
+  const { stage, goTo } = useStageStore.getState();
+  if (target === "twin") {
+    goTo("twin");
+    return;
+  }
+  if (stage === "twin") goTo(target);
+  // Queued even from the twin: the map replays the pending flight once it is mounted again
+  useMapStore.getState().flyTo(target === "map" ? "pilot" : "globe");
+}
 
 interface NavItem {
   label: string;
-  screen: Screen | null;
+  stage: Stage | null;
   icon: string;
 }
 
 const ITEMS: NavItem[] = [
-  { label: es.nav.exploration, screen: null, icon: "◎" },
-  { label: es.nav.vegetation, screen: "parcel", icon: "❦" },
-  { label: es.nav.climate, screen: null, icon: "☀" },
-  { label: es.nav.rotations, screen: null, icon: "↻" },
-  { label: es.nav.scenarios, screen: "twin", icon: "◈" },
-  { label: es.nav.reports, screen: null, icon: "▤" },
+  { label: es.nav.exploration, stage: "globe", icon: "◎" },
+  { label: es.nav.vegetation, stage: "map", icon: "❦" },
+  { label: es.nav.climate, stage: null, icon: "☁" },
+  { label: es.nav.rotations, stage: null, icon: "↻" },
+  { label: es.nav.scenarios, stage: "twin", icon: "◈" },
+  { label: es.nav.reports, stage: null, icon: "▤" },
 ];
 
 export function Sidebar() {
-  const screen = useTwinStore((s) => s.screen);
-  const setScreen = useTwinStore((s) => s.setScreen);
+  const stage = useStageStore((s) => s.stage);
   return (
     <aside className="sidebar">
       <div className="logo">
-        <span className="logo-mark">▲</span>
+        <svg
+          className="logo-mark"
+          viewBox="0 0 32 32"
+          aria-hidden
+          width="30"
+          height="30"
+        >
+          <path d="M4 24 L16 6 L28 24 Z" fill="#7EE36D" />
+          <path d="M10 24 L16 14 L22 24 Z" fill="#107432" />
+        </svg>
         <div>
           <strong>{es.app.name}</strong>
           <small>{es.app.tagline}</small>
@@ -34,14 +57,16 @@ export function Sidebar() {
       </div>
       <nav>
         {ITEMS.map((item) => {
-          const disabled = item.screen === null;
+          const disabled = item.stage === null;
           return (
             <button
               key={item.label}
               type="button"
-              className={`nav-item${item.screen === screen ? " is-active" : ""}`}
+              className={`nav-item${item.stage === stage ? " is-active" : ""}`}
               disabled={disabled}
-              onClick={() => item.screen && setScreen(item.screen)}
+              onClick={() => {
+                if (item.stage) navigateTo(item.stage);
+              }}
               title={disabled ? es.nav.soon : item.label}
             >
               <span className="nav-icon" aria-hidden>
@@ -54,8 +79,13 @@ export function Sidebar() {
         })}
       </nav>
       <div className="ai-card">
-        <strong>{es.nav.aiTitle}</strong>
-        <p>{es.nav.aiBody}</p>
+        <span className="ai-spark" aria-hidden>
+          ✦
+        </span>
+        <div>
+          <strong>{es.nav.aiTitle}</strong>
+          <p>{es.nav.aiBody}</p>
+        </div>
       </div>
     </aside>
   );

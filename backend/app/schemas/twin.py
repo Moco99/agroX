@@ -6,21 +6,29 @@ from datetime import date
 
 from pydantic import BaseModel, Field
 
-from app.schemas.common import DataState, IrrigationLevel, PhenoStage, Provenance, StressClass, TwinLevel
+from app.schemas.common import (
+    DataState,
+    IrrigationLevel,
+    PhenoStage,
+    Provenance,
+    StressClass,
+    StrictRequest,
+    TwinLevel,
+)
 
 # ─────────────────────────────────────────
 # Section: Scenario
 # ─────────────────────────────────────────
 
 
-class TwinScenario(BaseModel):
+class TwinScenario(StrictRequest):
     precip_factor: float = Field(default=1.0, ge=0.0, le=3.0)
     temp_delta_c: float = Field(default=0.0, ge=-8.0, le=8.0)
     irrigation_level: IrrigationLevel | None = Field(default=None, description="global override; None keeps zone level")
     preset: str | None = Field(default=None, description="named preset expanded server-side (product configuration)")
 
 
-class MonteCarloRequest(BaseModel):
+class MonteCarloRequest(StrictRequest):
     n: int = Field(default=0, ge=0, le=300)
     seed: int = 20261114
 
@@ -129,6 +137,9 @@ class ZoneResult(BaseModel):
     crop_id: str
     area_ha: float
     planting_date: date
+    # Who said so: MEASURED (CDL), DECLARED (request / farm default) or ESTIMATED (calendar suggestion)
+    crop_state: DataState = DataState.DECLARED
+    planting_state: DataState = DataState.DECLARED
     irrigation_level: IrrigationLevel
     states: list[TwinState]
     summary: ZoneSummary
@@ -149,14 +160,23 @@ class ZoneResult(BaseModel):
 # ─────────────────────────────────────────
 
 
-class TwinSimulateRequest(BaseModel):
+class TwinSimulateRequest(StrictRequest):
     farm_id: str = "story_pilot_farm"
-    start: date = date(2024, 4, 1)
-    end: date = date(2024, 10, 31)
+    # None = suggested season: Apr-Oct 2024 for the pilot, latest complete hemisphere season for pt_ farms
+    start: date | None = None
+    end: date | None = None
     scenario: TwinScenario = Field(default_factory=TwinScenario)
     fork_date: date | None = Field(default=None, description="observed weather up to this day, scenario after it")
     zone_ids: list[str] | None = None
-    planting_dates: dict[str, date] | None = Field(default=None, description="override per crop_id")
+    planting_dates: dict[str, date] | None = Field(
+        default=None, description="DECLARED planting date keyed by zone_id or crop_id (zone_id wins)"
+    )
+    zone_crops: dict[str, str] | None = Field(
+        default=None, description="DECLARED crop_id per zone_id; overrides CDL (pilot) or the default crop (pt_)"
+    )
+    crop_overrides: dict[str, str] | None = Field(
+        default=None, description="DECLARED crop_id per zone_id (frontend contract); wins over zone_crops"
+    )
     monte_carlo: MonteCarloRequest | None = None
     include_states: bool = True
     include_comparison: bool = True

@@ -36,7 +36,7 @@ docs:
   - id: decisions
     path: 00-overview/decisions.md
     title: Decisiones (ADRs)
-    summary: ADR-001..020 (R3F, mockups, NDVI, pnpm+Zustand, parcela CDL, calidad POWER, balance hídrico, nivel de gemelo, config de producto) y decisiones abiertas O-1..O-17.
+    summary: ADR-001..023 (R3F, mockups, NDVI, pnpm+Zustand, parcela CDL, calidad POWER, balance hídrico, nivel de gemelo, config de producto, globo MapLibre por teselas, degradación sin red) y decisiones abiertas O-1..O-17.
     depends_on: [project-brief]
     read_when: Antes de tomar o cuestionar una decisión de arquitectura o alcance.
     audience: [head, reviewer]
@@ -47,7 +47,7 @@ docs:
   - id: tech-stack
     path: 01-architecture/tech-stack.md
     title: Tech stack
-    summary: FastAPI+Pydantic+pandas; React+Vite+TS+Leaflet+R3F(+three-globe stretch)+Recharts; tokens, i18n; JSON versionado; despliegue.
+    summary: FastAPI+Pydantic+pandas; React+Vite+TS+MapLibre GL JS (globo/teselas)+R3F (gemelo)+Recharts; tokens, i18n; JSON versionado; despliegue.
     depends_on: []
     read_when: Crear esqueletos, añadir dependencias, decidir despliegue.
     audience: [builder, head]
@@ -74,7 +74,7 @@ docs:
   - id: data-contracts
     path: 01-architecture/data-contracts.md
     title: Contratos de datos y API
-    summary: Endpoints (incl. observations NDVI), modelos Pydantic base, Farm/FarmZone por zonas (propuesta), provenance, ejemplos JSON, versionado.
+    summary: Endpoints de gemelo, imágenes y consulta global por punto; contratos Pydantic, procedencia y errores parciales por fuente.
     depends_on: [glossary]
     read_when: Tocar API, schemas, providers o tipos del frontend.
     audience: [builder, reviewer]
@@ -103,7 +103,7 @@ docs:
   - id: digital-farm-3d
     path: 02-modules/digital-farm-3d.md
     title: Digital Farm (2D + 3D)
-    summary: Mapa Leaflet y diorama isométrico R3F por zonas (capas NDVI/estrés/riego, timeline, globo stretch); ilustrativo.
+    summary: Globo y mapa satelital MapLibre por teselas, selección global por punto y gemelo R3F local por zonas; cobertura y límites.
     depends_on: [data-contracts, design-tokens, ui-spec]
     read_when: Cualquier trabajo de mapa, escena 3D o globo.
     audience: [builder]
@@ -165,6 +165,15 @@ docs:
     audience: [builder, reviewer]
     status: draft
     est_tokens: 1250
+  - id: credits
+    path: 07-design/credits.md
+    title: Créditos de imágenes
+    summary: Atribuciones exactas de NASA GIBS, Esri World Imagery, mosaico sin conexión, NAIP y Sentinel-2; pendiente de términos de Esri.
+    depends_on: []
+    read_when: Añadir o cambiar un proveedor de imágenes o textos de atribución; antes de un despliegue público.
+    audience: [builder, reviewer, head]
+    status: draft
+    est_tokens: 650
   - id: ui-spec
     path: 07-design/ui-spec.md
     title: UI spec
@@ -205,6 +214,15 @@ docs:
     audience: [builder, head]
     status: draft
     est_tokens: 1000
+  - id: data-guide
+    path: 04-data/data-guide.md
+    title: Guía de datos
+    summary: Cómo obtener datos (API live con pt_<lat>_<lon> en cualquier lugar, punto.py, scraper), qué fuente hay detrás de cada dato, reglas, límites y pendientes.
+    depends_on: [sources]
+    read_when: Antes de usar datos en cualquier módulo (UI, Rotation Engine, What If).
+    audience: [all]
+    status: draft
+    est_tokens: 2000
   - id: storage-s3
     path: 04-data/storage-s3.md
     title: Almacenamiento S3
@@ -296,11 +314,11 @@ task_paths:
   build-api-endpoints: [glossary, system-architecture, repo-structure, data-contracts, conventions, testing-strategy]
   build-synthetic-data: [glossary, data-contracts, synthetic-data, conventions, testing-strategy]
   implement-twin-engine: [glossary, system-architecture, data-contracts, models-catalog, model-specs, digital-twin-engine, synthetic-data, conventions, testing-strategy]
-  implement-earth-scanner: [glossary, data-contracts, models-catalog, model-specs, earth-scanner, conventions, testing-strategy]
-  implement-rotation-engine: [glossary, data-contracts, crop-catalog, models-catalog, model-specs, rotation-engine, conventions, testing-strategy]
+  implement-earth-scanner: [glossary, data-contracts, sources, data-guide, models-catalog, model-specs, earth-scanner, conventions, testing-strategy]
+  implement-rotation-engine: [glossary, data-contracts, sources, data-guide, crop-catalog, models-catalog, model-specs, rotation-engine, conventions, testing-strategy]
   implement-what-if: [glossary, system-architecture, data-contracts, crop-catalog, models-catalog, model-specs, digital-twin-engine, rotation-engine, what-if-scenarios, conventions, testing-strategy]
-  build-3d-scene: [glossary, data-contracts, design-tokens, ui-spec, digital-farm-3d, conventions]
-  build-frontend-ui: [glossary, data-contracts, design-tokens, ui-spec, digital-farm-3d, earth-scanner, conventions, testing-strategy]
+  build-3d-scene: [glossary, data-contracts, design-tokens, ui-spec, credits, digital-farm-3d, conventions]
+  build-frontend-ui: [glossary, data-contracts, design-tokens, ui-spec, credits, digital-farm-3d, earth-scanner, conventions, testing-strategy]
   build-ui-shell: [glossary, system-architecture, repo-structure, tech-stack, data-contracts, design-tokens, ui-spec, conventions, testing-strategy]
   design-review: [glossary, project-brief, decisions, data-contracts, design-tokens, ui-spec, agent-routing]
   build-copilot: [glossary, data-contracts, ai-copilot, conventions]

@@ -21,6 +21,10 @@ class DataNotFoundError(LookupError):
     """Requested farm/zone/source does not exist for the active adapter (API maps it to 404)."""
 
 
+class InvalidFarmIdError(ValueError):
+    """A `pt_<lat>_<lon>` id that is malformed or outside the supported latitudes (API maps it to 422)."""
+
+
 class WeatherProvider(Protocol):
     def coverage(self) -> tuple[date, date]: ...
 

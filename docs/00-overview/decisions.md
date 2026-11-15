@@ -154,10 +154,32 @@ Formato: Contexto · Decisión · Consecuencias · Estado. Nuevos ADRs: numeraci
 | O-8 | Definición operativa de A, Ssuelo, C (mapeo a 0–100) | HEAD + Opus | F1 |
 | O-9 | Proveedor LLM y si el Copilot entra al MVP | HEAD | F5 |
 | O-10 | ~~Zustand vs Context~~ **cerrada: Zustand (ADR-012)** | Sonnet (propone) | F1 |
-| O-11 | ¿Globo (S1) en MVP? Propuesta: no, stretch F5 (`three-globe` o esfera R3F) | HEAD | F5 |
+| O-11 | ~~¿Globo (S1) en MVP?~~ **cerrada: globo MapLibre con teselas (ADR-021, ADR-022)** | HEAD | F5 |
 | O-12 | ~~Leaflet vs MapLibre~~ **cerrada para MVP: SVG sin teselas (ADR-012)** | Sonnet (propone) + HEAD | F1 |
 | O-13 | ~~Humedad del suelo en UI~~ **cerrada: % de TAW del gemelo (ADR-018)** | Opus + HEAD | F1 |
 | O-14 | ~~Presets~~ **provisional: ADR-018** | Opus + HEAD | F1 |
 | O-15 | ~~Lámina de riego~~ **provisional: ADR-018** | Opus | F1 |
 | O-16 | ~~Umbrales de estrés~~ **provisional: ADR-018** | Opus + HEAD | F1 |
 | O-17 | ~~Mapa base satelital~~ **fuera del MVP (ADR-012)** | Sonnet (propone) + HEAD | F1 |
+
+## ADR-021 · Exploración global con teselas satelitales
+
+**Decisión:** el recorrido global usa MapLibre GL JS con proyección globo y teselas por nivel de zoom. Sustituye la esfera R3F con textura fija (cierra O-11 y reabre O-12/O-17 en favor de teselas) y el zoom por escala CSS del mapa de parcela; Three.js se conserva para el gemelo local. Amplía ADR-012.
+
+**Motivo:** una textura global fija no gana detalle al acercarse; las teselas permiten llegar a escala de campo sin descargar un mosaico mundial.
+
+**Límites:** el detalle depende del proveedor y requiere red. Las imágenes de campos no equivalen a polígonos de parcelas globales. Seleccionar coordenadas consulta fuentes por API; no crea un gemelo nuevo.
+
+**Estado:** aceptada.
+
+## ADR-022 · MapLibre globe en lugar de three-globe o Cesium; un visor para globo y granja
+
+**Contexto:** se pidió un globo realista con zoom continuo «tipo Google Maps» hasta las parcelas. **Decisión:** MapLibre GL JS 6 (`projection: globe`, `sky` para atmósfera), un único mapa para las etapas globo y granja (la etapa la decide la cámara) y el gemelo R3F aparte. Zoom bajo: NASA GIBS Blue Marble NG (dominio público, sin clave); zoom alto: Esri World Imagery con fundido cruzado z4.5–6.5. **Alternativas:** three-globe/esfera R3F (sin LOD por teselas), CesiumJS (≈3 MB más, terreno y token Ion innecesarios para imágenes 2D), Google Maps 3D (clave y términos). **Consecuencias:** sin claves; bundle MapLibre (~1.1 MB) cargado solo en esas etapas; el vuelo es `flyTo` en lugar de una cámara three.js.
+
+**Estado:** aceptada.
+
+## ADR-023 · Dependencia de red para teselas y degradación sin conexión
+
+**Decisión:** las teselas globales requieren internet. Sin red se muestra un aviso explícito, un mosaico Blue Marble de 2048 px (Web Mercator, 447 kB, cosido de GIBS nivel 3) empaquetado en `frontend/public/textures/earth/` y, en el piloto, la ortofoto NAIP servida por el backend. **Pendiente:** verificar los términos de Esri World Imagery antes de un despliegue público o comercial (ver [credits](../07-design/credits.md)); el proveedor es configurable por variables `VITE_SATELLITE_*`.
+
+**Estado:** aceptada (términos de Esri: abierto).

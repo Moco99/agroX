@@ -9,11 +9,36 @@ make setup   # venv Python (uv) + dependencias del frontend (pnpm) + derived/ si
 make dev     # backend http://127.0.0.1:8000/api/health  ·  frontend http://127.0.0.1:5173  (Ctrl+C detiene ambos)
 ```
 
-- Datos: `backend/app/data/derived/` (versionado, ~170 KB) se genera desde `data/raw/` con `make derived`.
+- Datos: `backend/app/data/derived/` (derivados pequeños versionados) se genera desde `data/raw/` con `make derived`.
 - Modo sintético: `AGROX_DATA_MODE=synthetic make dev` (la UI muestra el banner "Datos sintéticos").
-- Modo en vivo: `AGROX_DATA_MODE=live make dev`. El clima se pide directo a la API de NASA POWER (1984 a hoy, ~43 años; 3 s la primera vez, luego caché en `data/cache/`). Activa la anomalía de lluvia (necesita ≥ 10 años). Si POWER no responde, usa `derived/` y lo avisa. Parcela, suelo y NDVI siguen saliendo de `derived/`.
+- Modo en vivo: `AGROX_DATA_MODE=live make dev`. El gemelo pide directo a las APIs de cada fuente:
+  - **Clima:** NASA POWER, 1984 a hoy (~43 años). Activa la anomalía de lluvia y el **SPI** (índice de sequía). Tarda ~3 s la primera vez.
+  - **NDVI por zona:** Sentinel-2 vía Planetary Computer, 2021 a hoy (~150–300 fechas sin nubes según el lugar; 158 en el piloto). Tarda **~36 s la primera vez del día**; conviene abrir la parcela una vez antes de la demo.
+  - **Suelo:** SSURGO donde existe, con validación cruzada contra SoilGrids (ISRIC). Donde no hay SSURGO, se usa SoilGrids como `ESTIMATED`.
+  - **Cualquier lugar del mundo:** usa `farm_id = pt_<lat>_<lon>` (p. ej. `pt_18.83_-96.78`) en `/api/farms/{id}`, `/api/twin/simulate` y `/api/observations/ndvi`, y `lat`/`lon` en `/api/climate`. Se arma una parcela de 36 ha (4 zonas) con clima de POWER en ese punto, NDVI de Sentinel-2, terreno del DEM de Copernicus y suelo de SoilGrids. El cultivo se **declara** (por defecto maíz) y las fechas de siembra por defecto son del Medio Oeste de EE.UU.: hay que cambiarlas para otras regiones. Primera carga ~30–90 s; después, caché.
+  - Las respuestas se guardan en caché en `data/cache/` durante un día. Si una API falla, se usa `derived/` y se avisa. La parcela, MODIS y SMAP siguen saliendo de `derived/`.
 - Calidad: `make test` (pytest), `make lint` (ruff, mypy, tsc), `make build` (frontend).
 - Simulación exploratoria: no predice rendimiento; parámetros de cultivo provisionales (`verified=false`). Decisiones en `docs/00-overview/decisions.md` (ADR-012..020).
+
+### Recorrido visual y datos remotos
+
+La entrada muestra la Tierra completa (globo MapLibre con atmósfera, giro lento hasta que interactúas). Puedes arrastrar y acercarte sin saltos hasta campos individuales en cualquier lugar. Un clic selecciona un punto y «Consultar este punto» (o `⌘K`) lo analiza mediante FastAPI. «Visitar piloto de Iowa» vuela a la granja piloto (polígono, 4 zonas, NDVI por fecha) y desde ahí se abre el gemelo 3D; acercarte manualmente sobre el piloto también entra a la vista de granja. Los enlaces `?stage=globe`, `?stage=map` y `?stage=twin` abren cada vista; se respeta la preferencia de movimiento reducido.
+
+Para leer datos remotos, configura estas variables en `.env` (no versionado):
+
+```dotenv
+AGROX_S3_BUCKET=<your-bucket>
+AWS_PROFILE=<your-read-only-profile>
+AWS_REGION=us-east-1
+AGROX_DATA_SOURCE=auto
+```
+
+`make dev` carga esas variables. El backend usa la cadena de credenciales de AWS y lecturas parciales con caché local; el navegador consume la API y nunca recibe credenciales. No hace falta descargar el bucket. `auto` permite recurrir al espejo local; `s3` exige acceso remoto. Los derivados empaquetados permiten consultar el piloto sin reconstruir los datos crudos.
+
+El relieve y las imágenes conservan su procedencia. Los cultivos y elementos decorativos del 3D son ilustrativos; las simulaciones no predicen rendimiento.
+
+
+> **¿Vas a usar los datos?** Empieza por [docs/04-data/data-guide.md](docs/04-data/data-guide.md).
 
 ## App global: datos de cualquier punto del mundo
 
@@ -177,3 +202,28 @@ Notas:
 3. Si es una API, copia `scraper/sites/_plantilla.py` como `scraper/sites/<id>.py`. Si varias fuentes usan la misma API, comparten conector con `"hook"` (como `stac` y `earthdata`).
 
 Pruebas: `python scraper/test_scrape.py`
+
+### Consultar un punto desde la aplicación
+
+La búsqueda por coordenadas consulta fuentes históricas bajo demanda; no son mediciones en tiempo real. Ejecuta `make setup` tras actualizar para instalar `requests`, y `make dev` para levantar ambos servicios.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/points/query \
+  -H 'Content-Type: application/json' \
+  -d '{"lat":30.8,"lon":75.55,"start":"2023-01-01","end":"2024-12-31","refresh":false}'
+```
+
+Cada sección identifica su fuente, estado y errores independientes. Una fuente caída no sustituye datos con cifras inventadas. El primer resultado puede tardar alrededor de 90 segundos más la finalización de solicitudes pendientes; repetir una consulta completa usa la caché local durante 24 horas. Los intervalos admiten un máximo de 730 días de diferencia.
+
+### Globo y zoom satelital
+
+MapLibre carga imágenes por teselas al acercarse: NASA Blue Marble (GIBS, dominio público) en zoom bajo y Esri World Imagery en zoom alto (fundido cruzado entre zoom 4.5 y 6.5, máx. 19). Rueda, doble clic y gestos táctiles permiten explorar; un clic selecciona coordenadas para analizarlas. El detalle de campos depende de la imagen disponible y no incluye polígonos de parcelas globales. La imagen base no representa necesariamente la fecha del análisis NDVI.
+
+Las teselas requieren conexión; sin red aparece un aviso, un mosaico Blue Marble reducido incluido en la app y, en el piloto, la ortofoto NAIP del backend. Créditos y pendiente de términos de Esri: `docs/07-design/credits.md`. Para cambiar la fuente de zoom alto Para otra fuente compatible configura `frontend/.env.local` y reinicia Vite:
+
+```dotenv
+VITE_SATELLITE_TILE_URL=https://your-provider.example/tiles/{z}/{x}/{y}.jpg
+VITE_SATELLITE_ATTRIBUTION=Your imagery provider
+```
+
+Las variables `VITE_*` son públicas en el navegador: no introducir secretos de AWS. Conserva la atribución exigida por tu proveedor.

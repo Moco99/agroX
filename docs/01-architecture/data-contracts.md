@@ -143,3 +143,25 @@ Respuesta: `{"methodology": "twin_v1", "catalog_version", "data_mode", "twin_lev
 ## Versionado
 
 `methodology` (`multicriteria_v1`, `twin_v1`) y `catalog_version` en cada respuesta. Cambio incompatible ⇒ subir versión + actualizar este doc en el mismo PR.
+
+## Imágenes y contexto del piloto
+
+- `GET /api/imagery/meta?farm_id=...`: límites WGS84 compartidos, ortofoto, fechas NDVI y procedencia.
+- `GET /api/imagery/basemap?farm_id=...&size=2048`: JPEG limitado a 2048 px por lado.
+- `GET /api/imagery/ndvi/dates?farm_id=...`: fechas, fracción válida y disponibilidad de derivados.
+- `GET /api/imagery/ndvi?farm_id=...&date=YYYY-MM-DD&size=1024`: PNG RGBA; en modo S3 se calcula por ventanas desde bandas remotas.
+- `GET /api/terrain/heightmap?farm_id=...`: grilla de elevaciones norte→sur sobre los mismos límites.
+- `GET /api/region/summary?period_start=...&period_end=...`: métricas y diferencias frente al periodo anterior de igual longitud; advierte cobertura incompleta. El NDVI representa observaciones del piloto, no un promedio espacial regional. Aptitud ausente hasta disponer del derivado GAEZ.
+- `GET /api/data/catalog`: disponibilidad de almacenes, inventario y contadores de transferencia/caché.
+
+Parcela desconocida o imagen ausente devuelve 404; fecha o tamaño inválidos, 422; almacenamiento obligatorio inaccesible, 503. Nunca se entregan credenciales ni identificadores del bucket.
+
+## Consulta histórica por punto
+
+`POST /api/points/query` recibe `{lat, lon, start?, end?, refresh?}`. Coordenadas finitas dentro de WGS84, normalizadas a cinco decimales antes de consultar y responder; intervalo ordenado de máximo 730 días, sin fechas futuras. Por defecto termina siete días antes de hoy y empieza 730 días antes de ese fin. `refresh` omite la caché de lectura.
+
+La respuesta contiene `point`, `period` y `sections` con `coverage`, `terrain`, `soil`, `climate`, `vegetation`, `suitability`. Cada sección lleva `status` (`ok|error`), `data` (objeto de la fuente con claves originales en español o `null`), `error`, `source`, `data_state` y `elapsed_s`. Fuentes caídas producen errores por sección con HTTP 200; el resto se conserva. Validación devuelve 422 y capacidad agotada 503. Errores externos se sanitizan.
+
+Los datos se consultan bajo demanda, pero son históricos o productos de referencia: WorldCover/LULC, Copernicus DEM, SoilGrids, POWER, Sentinel-2 y GAEZ 1981–2010. No representan sensores de campo en tiempo real. POWER y modelos de suelo/aptitud se etiquetan `ESTIMATED`. La vegetación revisa como máximo 128 escenas y devuelve un aviso de posible truncamiento.
+
+Se permiten cuatro consultas concurrentes por proceso. La sesión impide nuevas solicitudes tras 90 s y limita cada espera de red a 20 s (la finalización puede superar el plazo mientras concluye una solicitud en curso). Solo respuestas completas se guardan, durante 24 h; archivos corruptos o con secciones fallidas se vuelven a consultar. Los reemplazos de caché son atómicos.

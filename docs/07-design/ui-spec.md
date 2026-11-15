@@ -92,3 +92,37 @@ Cada KPI muestra insignia `data_state` (MEASURED/ESTIMATED/SIMULATED/SYNTHETIC) 
 | i | Nivel de riego | Input nuevo del balance hídrico (`I_i`); mm aplicados por nivel = TBD (O-15). |
 | j | 4 zonas con cultivos distintos | Gemelo **por zona**: cada zona = instancia con su cultivo y suelo; granja = lista de zonas; MVP 1–4 zonas. |
 | k | Vigor NDVI que cambia con el escenario | El gemelo no simula NDVI: bajo escenario la capa por defecto del 3D es estrés hídrico (`ks`, SIMULATED); NDVI queda como último observado con su fecha. |
+
+## Exploración cinematográfica
+
+Las tres referencias se recorren como globo → mapa de parcela → gemelo. Se mantiene la carcasa oscura con acentos verdes y panel de indicadores a la derecha; en pantallas pequeñas el panel fluye debajo del visor. La ubicación es el piloto disponible en Iowa: los nombres, superficies, métricas y fechas de los mockups no se usan como datos. La ortofoto y el overlay NDVI comparten bounds, y las fechas seleccionadas se solicitan a la API.
+
+## Consulta global por coordenadas
+
+La búsqueda superior (`⌘K` / `Ctrl K`) abre un formulario de latitud, longitud y fechas (hasta 730 días), precargado con el punto elegido en el globo. Envía `POST /api/points/query`. El resultado se muestra como **capa superpuesta** sobre la etapa (el mapa sigue montado debajo y conserva cámara y teselas); `Esc` o «← Volver al mapa» la cierran y abortan la petición. Durante la consulta (~20 s la primera vez) hay estado de carga con cancelar; un reintento fuerza actualización. Los seis bloques muestran fuente y `data_state`; un error de una fuente no oculta las demás. Una nota indica si el punto está dentro del piloto (parcelas, NDVI por fecha y gemelo disponibles) o fuera (solo imagen satelital y consulta por punto).
+
+## Globo y zoom continuo hasta escala de campo
+
+**Etapa 1 · globo (`?stage=globe`, pantalla inicial).** Tierra completa en proyección globo (MapLibre) con atmósfera y fondo estelar; gira lentamente hasta la primera interacción (sin giro con `prefers-reduced-motion`). Rueda, pellizco o arrastre acercan sin saltos hasta campos individuales en cualquier lugar (zoom máx. 19). Imágenes por rango de zoom con fundido cruzado: NASA Blue Marble (GIBS) en zoom bajo → Esri World Imagery desde zoom 4.5–6.5 ([credits](credits.md)). Un chip muestra zoom, metros por píxel y fuente; la atribución y la escala están siempre visibles. Un pin «Piloto Iowa» marca la única zona con datos de parcela.
+
+Panel derecho: punto seleccionado (clic en el globo → marcador, coordenadas, nota de cobertura, botón «Consultar este punto»), granja piloto («Visitar piloto de Iowa», «Abrir gemelo 3D»), «Explorar otros lugares» (Pampa húmeda, caña en Veracruz, Ciudad de México: solo imagen) e indicadores de temporada del piloto con `data_state`. Barra inferior: capas del piloto (NDVI, límites) y reproductor de escenas NDVI.
+
+**Etapa 2 · granja (`?stage=map`).** «Visitar piloto de Iowa» (o el pin) vuela con `flyTo` ~4.6 s del globo a la granja; también se entra al acercarse manualmente sobre el piloto (zoom ≥ 12.5) y se sale al alejarse (zoom < 9 o a más de 25 km), sin cambiar de visor. Aparecen el polígono de la granja y las 4 zonas, el NDVI de la fecha elegida (`/api/imagery/ndvi`) con leyenda, el selector «Imagen satelital / NDVI», el stepper «1. Ubicación → 2. Granja → 3. Análisis», «← Volver al globo» y el CTA «Ver gemelo digital 3D». Panel: NDVI más reciente por zona (con fecha y `data_state`), condiciones de la temporada y nota de cobertura.
+
+**Etapa 3 · gemelo (`?stage=twin`).** Fundido (450 ms + 700 ms) hacia la escena R3F; «← Volver al mapa de la granja» y el menú lateral regresan (el menú «Exploración» vuela de vuelta al globo).
+
+**Sin conexión.** Si fallan las teselas (o el navegador reporta `offline`), aviso «Sin conexión: imágenes globales no disponibles» con reintento; queda un mosaico Blue Marble reducido incluido en la app y, en el piloto, la ortofoto NAIP servida por el backend. Nunca una pantalla vacía. Sin WebGL: aviso y la búsqueda por coordenadas sigue disponible.
+
+Clima, Rotaciones e Informes siguen marcados «próximamente» (deshabilitados).
+
+## Abrir cualquier parcela
+
+Desde el globo, un clic elige un punto. Fuera del piloto, el panel muestra la parcela que se crearía (`pt_<lat>_<lon>`, redondeo a 2 decimales) y **«Abrir parcela aquí»**. La latitud válida es −60 a 75: fuera de ese rango el botón se desactiva y el panel explica que no hay cobertura de Sentinel-2 ni de relieve Copernicus utilizable. Si `/api/health` indica que el backend no está en modo `live` (o `any_parcel_supported=false`), el botón se desactiva con la nota «Reinícialo en modo vivo: `make dev-live` (o `AGROX_DATA_MODE=live make dev`)». Si la consulta de punto (`/api/points/query`) o la cobertura de uso de suelo de la parcela dicen que no es cultivo, se avisa («este punto no parece cultivo; los resultados pueden no servir») pero se permite continuar.
+
+**Carga lenta (30–90 s la primera vez).** Al abrir, la cámara vuela al punto (`flyTo`) y el panel muestra una tarjeta de progreso con una fila por fuente (parcela y suelo, NDVI Sentinel-2, clima, imagen base, relieve, simulación), contador de segundos, botón **Cancelar** (aborta las peticiones), **Reintentar** y **Volver al piloto**. Cada fuente falla por separado con su mensaje; solo la parcela y la simulación son críticas. Un recurso que el backend no sirve para esa parcela (404/501) se marca «no disponible» y se usa el respaldo. Si el suelo es provisional (`ESTIMATED`, SoilGrids no respondió), el panel lo dice, ofrece «Reintentar suelo» y, cuando el backend publica `load_status.soil_final`, refresca solo.
+
+**Etapa de granja para cualquier parcela (`?stage=map&farm=pt_…`).** Cuadrado de 36 ha y 4 zonas de 9 ha con etiquetas (cultivo declarado); NDVI como raster `/api/imagery/ndvi` cuando existe y, si no, como **color por zona** a partir de la serie Sentinel-2 real; reproductor con las fechas disponibles; panel con NDVI por zona (fecha y `data_state`), gráfica de la serie, clima del punto (NASA POWER), suelo con su estado, avisos colapsables (`farm.warnings`: «límite aproximado de 36 ha, no es un predio», cultivo declarado, suelo provisional) y el formulario de cultivo y siembra. El selector de temporada del piloto se sustituye por la ventana de simulación de la parcela.
+
+**Declarar cultivo y fecha de siembra.** Por zona o para toda la parcela, con los cultivos de `GET /api/crops` (si el usuario necesita otro, el panel dice que aún no está soportado). La fecha de siembra es por cultivo y muestra una sugerencia `ESTIMATED` por hemisferio (la del backend si la da; si no, la ventana del catálogo desplazada seis meses al sur) que el usuario puede aceptar o cambiar. Lo declarado lleva la insignia `DECLARED`, se envía a `POST /api/twin/simulate` (`planting_dates`, `zone_crops`) y se guarda en `localStorage` por `farm_id`.
+
+**Deep links.** `?farm=<id>` (piloto o `pt_*` válido; otro valor se ignora) y `?stage=`. El piloto es el valor por defecto y no escribe `farm`.
