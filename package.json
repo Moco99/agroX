@@ -1,0 +1,6 @@
+{
+  "name": "agrox-explorer",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": { "dev": "node frontend/server.mjs", "start": "node frontend/server.mjs", "check": "node --check frontend/app.js && node --check frontend/imagery.js && node --check frontend/satellite.js && node --check frontend/server.mjs", "test": "node --test frontend/imagery.test.cjs" }
+}

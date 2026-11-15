@@ -1,0 +1,15 @@
+/* The viewport and controls stay in place throughout the entire camera journey. */
+.satellite-shell{position:absolute;left:0;right:calc(min(540px,43%) + 30px);top:0;bottom:95px;overflow:hidden;z-index:1;background:transparent}
+#satellite-map{width:100%;height:100%;background:transparent;isolation:isolate}
+.satellite-toolbar{position:absolute;top:24px;right:15px;z-index:2;display:flex;gap:7px;align-items:center}
+.satellite-toolbar button{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #ffffff25;border-radius:10px;background:#152129e8;color:#dfe8e1;font-size:11px;box-shadow:0 5px 20px #0003;backdrop-filter:blur(10px)}
+.satellite-toolbar button:first-child{color:#b6e29f}.satellite-toolbar i svg{width:17px;height:17px}
+.workspace>.map-caption{display:none}.workspace>.map-controls{z-index:3}.workspace>.analysis-panel{z-index:2}
+.map-status{position:absolute;left:18px;bottom:62px;z-index:2;max-width:calc(100% - 36px);border:1px solid #ffffff22;border-radius:10px;background:#112126ed;color:#e0eadf;font-size:12px;padding:10px 13px}
+.satellite-shell .maplibregl-ctrl-attrib{background:#0b151be8;color:#c5d0d4;font-size:9px;padding:4px 7px;line-height:1.4;max-width:calc(100% - 20px)}
+.satellite-shell .maplibregl-ctrl-attrib a{color:#bbdba8}.satellite-shell .maplibregl-ctrl-attrib-button{filter:invert(1)}
+.satellite-shell .maplibregl-ctrl-scale{margin:0 0 14px 22px;color:#f0f5ec;background:#101e23bb;border-color:#e1ebdd;font-family:inherit;font-size:11px;padding:3px 7px}
+.satellite-shell .maplibregl-canvas:focus-visible{outline:2px solid #a5d790;outline-offset:-3px}
+@media(max-width:1350px){.satellite-shell{right:calc(46% + 25px)}}
+@media(max-width:1100px){.satellite-shell{right:calc(48% + 25px)}.satellite-toolbar{gap:5px;right:8px}.satellite-toolbar button{font-size:10px;padding:9px 8px;gap:5px}}
+@media(max-width:760px){.satellite-shell{top:0;left:0;right:0;bottom:auto;height:390px}.satellite-toolbar{top:18px;right:12px}.satellite-toolbar button{font-size:10px;padding:8px}.satellite-shell .maplibregl-ctrl-scale{margin-left:14px;margin-bottom:12px}.map-status{font-size:10px}.satellite-shell .maplibregl-ctrl-attrib{font-size:8px}}
