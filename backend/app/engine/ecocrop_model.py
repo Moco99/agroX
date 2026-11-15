@@ -73,8 +73,8 @@ class EcoCropEngine:
         q = query.strip().lower()
         df = self.df
         mask = (
-            df["scientificname"].str.lower().str.contains(q, na=False) |
-            df["comname"].astype(str).str.lower().str.contains(q, na=False)
+            df["scientificname"].str.lower().str.contains(q, na=False, regex=False) |
+            df["comname"].astype(str).str.lower().str.contains(q, na=False, regex=False)
         )
         sub = df[mask].head(limit)
         results = []
@@ -103,7 +103,7 @@ class EcoCropEngine:
         match = self.df[self.df["scientificname"].str.lower() == scientific_name.strip().lower()]
         if match.empty:
             # Fuzzy match
-            match = self.df[self.df["scientificname"].str.contains(scientific_name.strip(), case=False, na=False)]
+            match = self.df[self.df["scientificname"].str.contains(scientific_name.strip(), case=False, na=False, regex=False)]
             if match.empty:
                 raise ValueError(f"Crop '{scientific_name}' not found in EcoCrop dataset.")
 
@@ -139,7 +139,7 @@ class EcoCropEngine:
 class EcoCropRiskModel:
     """Random Forest Classifier for Climatic Stress and Vulnerability.
 
-    Trained on multi-decade climate variability, soil properties and EcoCrop parameters.
+    Synthetic surrogate of an explicit stress heuristic, not a field-trained model.
     """
 
     def __init__(self, engine: Optional[EcoCropEngine] = None):
@@ -160,7 +160,7 @@ class EcoCropRiskModel:
         self._train_default_model()
 
     def _train_default_model(self) -> None:
-        """Train or initialize the Random Forest on agro-climatic synthetic/historical samples."""
+        """Train or initialize the Random Forest on synthetic samples; labels are heuristic, not observations."""
         try:
             from sklearn.ensemble import RandomForestClassifier
             has_sklearn = True
@@ -168,19 +168,25 @@ class EcoCropRiskModel:
             has_sklearn = False
 
         rng = np.random.RandomState(42)
-        n_samples = 1500
+        n_samples = 12000
+        self.training_samples = n_samples
 
         # Generate realistic feature combinations
         t_mean = rng.uniform(8.0, 34.0, n_samples)
-        t_extreme_ratio = rng.beta(1.5, 5.0, n_samples)
+        t_extreme_ratio = rng.uniform(0.0, 1.0, n_samples)
         rain_mm = rng.uniform(200.0, 1600.0, n_samples)
-        rain_deficit = rng.uniform(0.0, 1.0, n_samples)
+        rain_deficit = np.zeros(n_samples)  # Derived below after water demand is known.
         soil_ph = rng.uniform(5.0, 8.2, n_samples)
         soil_awc = rng.uniform(80.0, 220.0, n_samples)
         cycle_days = rng.choice([75, 90, 110, 130, 150, 180], n_samples)
         crop_water_need = rng.choice([350, 500, 650, 800, 1100], n_samples)
         is_same_family = rng.binomial(1, 0.35, n_samples)
         is_legume_preceding = rng.binomial(1, 0.45, n_samples)
+
+        rain_mm = crop_water_need * rng.uniform(0.0, 1.6, n_samples)
+        rain_deficit = np.maximum(0.0, (crop_water_need - rain_mm) / crop_water_need)
+        extreme_days = np.rint(t_extreme_ratio * cycle_days)
+        t_extreme_ratio = extreme_days / cycle_days
 
         X = np.column_stack([
             t_mean,
@@ -195,7 +201,7 @@ class EcoCropRiskModel:
             is_legume_preceding
         ])
 
-        # Stress formula: physical ground-truth logic
+        # Product heuristic with synthetic label noise; not physical ground truth
         stress_score = (
             rain_deficit * 0.40 +
             t_extreme_ratio * 0.30 +
@@ -212,7 +218,7 @@ class EcoCropRiskModel:
         )
 
         if has_sklearn:
-            clf = RandomForestClassifier(n_estimators=60, max_depth=6, random_state=42)
+            clf = RandomForestClassifier(n_estimators=120, max_depth=12, min_samples_leaf=3, random_state=42)
             clf.fit(X, y)
             self.model = clf
             self.has_sklearn = True
@@ -233,7 +239,14 @@ class EcoCropRiskModel:
         is_legume_preceding: bool = False
     ) -> Dict[str, Any]:
         """Predict climatic risk category and return explainability weights."""
-        t_extreme_ratio = min(1.0, max(0.0, t_extreme_days / max(cycle_days, 1)))
+        numeric = [t_mean, t_extreme_days, rain_mm, crop_water_need, cycle_days, soil_ph, soil_awc]
+        if not all(math.isfinite(float(value)) for value in numeric):
+            raise ValueError("Risk inputs must be finite")
+        if cycle_days <= 0 or crop_water_need <= 0 or rain_mm < 0 or soil_awc < 0:
+            raise ValueError("Cycle and demand must be positive; rainfall and AWC nonnegative")
+        if not 0 <= soil_ph <= 14 or not 0 <= t_extreme_days <= cycle_days:
+            raise ValueError("Invalid pH or extreme-day count")
+        t_extreme_ratio = t_extreme_days / cycle_days
         rain_deficit = max(0.0, (crop_water_need - rain_mm) / max(crop_water_need, 1.0))
 
         feat = np.array([[
@@ -250,37 +263,23 @@ class EcoCropRiskModel:
         ]])
 
         if getattr(self, "has_sklearn", False) and self.model is not None:
-            probs = self.model.predict_proba(feat)[0]
+            probs = np.zeros(3)
+            probs[self.model.classes_.astype(int)] = self.model.predict_proba(feat)[0]
             importances = dict(zip(self.feature_names, [round(float(w), 3) for w in self.model.feature_importances_]))
         else:
-            # High-performance NumPy ensemble fallback
+            # Same heuristic and label-noise assumption as RF training.
             stress_idx = (
-                rain_deficit * 0.42 +
-                t_extreme_ratio * 0.32 +
-                (1.0 - (soil_awc / 220.0)) * 0.14 +
-                (0.12 if is_same_family else 0.0) -
-                (0.08 if is_legume_preceding else 0.0)
+                rain_deficit * 0.40 + t_extreme_ratio * 0.30
+                + (1.0 - soil_awc / 220.0) * 0.15
+                + float(is_same_family) * 0.15 - float(is_legume_preceding) * 0.10
             )
-            p_high = float(1.0 / (1.0 + math.exp(-10.0 * (stress_idx - 0.58))))
-            p_low = float(1.0 / (1.0 + math.exp(10.0 * (stress_idx - 0.30))))
-            p_mod = max(0.0, 1.0 - p_high - p_low)
-            tot = p_high + p_mod + p_low
-            probs = [p_low / tot, p_mod / tot, p_high / tot]
-            importances = {
-                "rain_deficit_ratio": 0.38,
-                "t_extreme_ratio": 0.28,
-                "soil_awc": 0.14,
-                "is_same_family": 0.12,
-                "is_legume_preceding": 0.08
-            }
+            cdf = lambda threshold: 0.5 * (1.0 + math.erf((threshold - stress_idx) / (0.05 * math.sqrt(2))))
+            p_low, below_high = cdf(0.30), cdf(0.58)
+            probs = [p_low, below_high - p_low, 1.0 - below_high]
+            importances = {}  # No learned feature importances in the analytic fallback.
 
         risk_score_pct = round(float(probs[2] * 100 + probs[1] * 50), 1)
-        if risk_score_pct >= 55.0:
-            pred_class = 2
-        elif risk_score_pct >= 30.0:
-            pred_class = 1
-        else:
-            pred_class = 0
+        pred_class = int(np.argmax(probs))
 
         labels = ["BAJO", "MODERADO", "ALTO"]
 
@@ -295,9 +294,12 @@ class EcoCropRiskModel:
         if is_legume_preceding:
             factors.append("Abono de nitrógeno por leguminosa previa (mitiga estrés)")
         if not factors:
-            factors.append("Condiciones climáticas y edáficas dentro del rango óptimo")
+            factors.append("Sin factores destacados por la heuristica; no confirma condiciones optimas")
 
         return {
+            "model_source": "synthetic_random_forest" if self.has_sklearn else "analytic_heuristic",
+            "field_validated": False,
+            "warnings": ["Synthetic heuristic; probabilities are not calibrated field risks."],
             "risk_level": labels[pred_class],
             "risk_score_pct": risk_score_pct,
             "probabilities": {

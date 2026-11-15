@@ -1,0 +1,78 @@
+{
+  "seed": 20261116,
+  "samples": 3000,
+  "training_samples": 12000,
+  "validation_type": "synthetic consistency with noiseless training heuristic; no field labels",
+  "accuracy": 0.9423333333333334,
+  "balanced_accuracy": 0.9284941433056733,
+  "majority_baseline": 0.4553333333333333,
+  "confusion_matrix_labels": [
+    "BAJO",
+    "MODERADO",
+    "ALTO"
+  ],
+  "confusion_matrix": [
+    [
+      1194,
+      73,
+      0
+    ],
+    [
+      32,
+      1308,
+      26
+    ],
+    [
+      0,
+      42,
+      325
+    ]
+  ],
+  "classification_report": {
+    "BAJO": {
+      "precision": 0.9738988580750407,
+      "recall": 0.9423835832675612,
+      "f1-score": 0.9578820697954272,
+      "support": 1267.0
+    },
+    "MODERADO": {
+      "precision": 0.9191848208011244,
+      "recall": 0.9575402635431918,
+      "f1-score": 0.937970598780925,
+      "support": 1366.0
+    },
+    "ALTO": {
+      "precision": 0.9259259259259259,
+      "recall": 0.885558583106267,
+      "f1-score": 0.9052924791086351,
+      "support": 367.0
+    },
+    "accuracy": 0.9423333333333334,
+    "macro avg": {
+      "precision": 0.9396698682673637,
+      "recall": 0.9284941433056733,
+      "f1-score": 0.9337150492283292,
+      "support": 3000.0
+    },
+    "weighted avg": {
+      "precision": 0.943117044403409,
+      "recall": 0.9423333333333334,
+      "f1-score": 0.942382253399473,
+      "support": 3000.0
+    }
+  },
+  "membership_known_answers_pass": true,
+  "prototype_gate": {
+    "accuracy_min": 0.85,
+    "balanced_accuracy_min": 0.8,
+    "high_recall_min": 0.8,
+    "passed": true
+  },
+  "source_sha256": "89cd326e2201670317a3a642e68ec5930989c659c47d0098af06a4f2c11c8c9f",
+  "limitations": [
+    "Labels reproduce a heuristic, not measured damage or yield.",
+    "Rainfall thresholds require temporal-unit verification before rotation use.",
+    "Validation cases were used to diagnose the previous version; this is a regression benchmark, not a fresh holdout.",
+    "Probabilities are uncalibrated synthetic class frequencies."
+  ]
+}

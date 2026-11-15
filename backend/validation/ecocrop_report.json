@@ -1,0 +1,78 @@
+{
+  "seed": 20261115,
+  "samples": 3000,
+  "training_samples": 12000,
+  "validation_type": "synthetic consistency with noiseless training heuristic; no field labels",
+  "accuracy": 0.9413333333333334,
+  "balanced_accuracy": 0.9222807723134925,
+  "majority_baseline": 0.4563333333333333,
+  "confusion_matrix_labels": [
+    "BAJO",
+    "MODERADO",
+    "ALTO"
+  ],
+  "confusion_matrix": [
+    [
+      1212,
+      72,
+      0
+    ],
+    [
+      37,
+      1312,
+      20
+    ],
+    [
+      0,
+      47,
+      300
+    ]
+  ],
+  "classification_report": {
+    "BAJO": {
+      "precision": 0.9703763010408326,
+      "recall": 0.9439252336448598,
+      "f1-score": 0.9569680221081721,
+      "support": 1284.0
+    },
+    "MODERADO": {
+      "precision": 0.9168413696715584,
+      "recall": 0.95836376917458,
+      "f1-score": 0.9371428571428572,
+      "support": 1369.0
+    },
+    "ALTO": {
+      "precision": 0.9375,
+      "recall": 0.8645533141210374,
+      "f1-score": 0.8995502248875562,
+      "support": 347.0
+    },
+    "accuracy": 0.9413333333333334,
+    "macro avg": {
+      "precision": 0.9415725569041303,
+      "recall": 0.9222807723134925,
+      "f1-score": 0.9312203680461951,
+      "support": 3000.0
+    },
+    "weighted avg": {
+      "precision": 0.9421438352055975,
+      "recall": 0.9413333333333334,
+      "f1-score": 0.9412798132838155,
+      "support": 3000.0
+    }
+  },
+  "membership_known_answers_pass": true,
+  "prototype_gate": {
+    "accuracy_min": 0.85,
+    "balanced_accuracy_min": 0.8,
+    "high_recall_min": 0.8,
+    "passed": true
+  },
+  "source_sha256": "89cd326e2201670317a3a642e68ec5930989c659c47d0098af06a4f2c11c8c9f",
+  "limitations": [
+    "Labels reproduce a heuristic, not measured damage or yield.",
+    "Rainfall thresholds require temporal-unit verification before rotation use.",
+    "Validation cases were used to diagnose the previous version; this is a regression benchmark, not a fresh holdout.",
+    "Probabilities are uncalibrated synthetic class frequencies."
+  ]
+}
