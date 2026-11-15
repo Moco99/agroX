@@ -12,6 +12,7 @@ dependencies = [
     "boto3>=1.44.3",
     "rasterio>=1.5.2",
     "pillow>=13.0.0",
+    "requests>=2.32",
 ]
 
 # Pipeline deps are heavier (raster/netCDF readers) and only needed to rebuild derived/

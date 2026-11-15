@@ -1,0 +1,51 @@
+{
+  "point": {
+    "lat": 41.995,
+    "lon": -93.49
+  },
+  "variable": "suHr",
+  "label": "Indice de aptitud agroclimatica (no es una probabilidad)",
+  "interpretation": "FAO GAEZ v4 'suHr': suitability index for rain-fed (r) cropping at high (H) input level, scale 0-10000 (= 0-100 %), climate period 1981-2010, ~9 km (5 arc-minute) cells. It ranks the agro-climatic fit of a crop at the cell; it is not a yield forecast nor a probability of success, and it does not see this farm's soil or management.",
+  "classes_note": "GAEZ publishes qualitative SI classes (very suitable ... not suitable); thresholds TBD (verificar fuente: FAO GAEZ v4 documentation) so only the numeric index is exposed.",
+  "source": "FAO/IIASA GAEZ v4, theme 4 Suitability and Attainable Yield (suHr rasters)",
+  "period": "1981-2010",
+  "resolution": "5 arc-minute (~9 km)",
+  "data_state": "ESTIMATED",
+  "crops": {
+    "maize": {
+      "index_raw": 10000,
+      "index": 10000,
+      "index_pct": 100.0
+    },
+    "soybean": {
+      "index_raw": 10000,
+      "index": 10000,
+      "index_pct": 100.0
+    },
+    "wheat": {
+      "index_raw": 10000,
+      "index": 10000,
+      "index_pct": 100.0
+    },
+    "alfalfa": {
+      "index_raw": 7778,
+      "index": 7778,
+      "index_pct": 77.8
+    },
+    "oat": {
+      "index_raw": 10000,
+      "index": 10000,
+      "index_pct": 100.0
+    },
+    "rye": {
+      "index_raw": 10000,
+      "index": 10000,
+      "index_pct": 100.0
+    },
+    "sorghum": {
+      "index_raw": 10000,
+      "index": 10000,
+      "index_pct": 100.0
+    }
+  }
+}
