@@ -27,6 +27,8 @@ from app.schemas.observations import ObservationPoint, ObservationSeries, Observ
 PC = "https://planetarycomputer.microsoft.com/api"
 HISTORY_START = "2021-01-01"
 MAX_CLOUD_PCT = 30
+# Bound the upstream fan-out while retaining observations across the available history.
+MAX_SCENES = 72
 S2_BOA_OFFSET = -1000.0
 SCL_KEEP = (4, 5, 6)
 
@@ -43,7 +45,7 @@ Crop = Callable[[str, list[float], int, int], np.ndarray]
 def _http(url: str, body: dict[str, object] | None = None) -> bytes:
     data = json.dumps(body).encode() if body is not None else None
     headers = {"User-Agent": "agrox-backend", "Content-Type": "application/json"}
-    with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=headers), timeout=90) as resp:
+    with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=headers), timeout=20) as resp:
         return bytes(resp.read())
 
 
@@ -154,19 +156,25 @@ class LiveObservationProvider(RealObservationProvider):
         def build() -> list[dict[str, object]]:
             scenes = self._search(bbox, today.isoformat())
             masks = zone_masks((height, width), bbox, rings)
+            scenes = sorted(scenes, key=lambda scene: (scene["date"], scene["id"]))
+            if len(scenes) > MAX_SCENES:
+                scenes = [scenes[round(i * (len(scenes) - 1) / (MAX_SCENES - 1))] for i in range(MAX_SCENES)]
 
-            def one(sc: Scene) -> list[dict[str, object]]:
+            def one(sc: Scene) -> list[dict[str, object]] | None:
                 try:
                     arr = self._crop(sc["id"], bbox, width, height)
                 except Exception:
-                    return []
+                    return None
                 return [
                     {"date": sc["date"], "zone_id": z, "ndvi": v, "n_pixels": n}
                     for z, (v, n) in zone_ndvi(arr, masks, sc["baseline"]).items()
                 ]
 
             with ThreadPoolExecutor(16) as ex:
-                rows = [row for rs in ex.map(one, scenes) for row in rs]
+                results = list(ex.map(one, scenes))
+            if results and all(result is None for result in results):
+                raise RuntimeError("Sentinel-2 scene reads failed")
+            rows = [row for result in results if result is not None for row in result]
             # Overlapping tiles give the same date twice: keep one mean per date and zone
             merged: dict[tuple[str, str], list[dict[str, object]]] = {}
             for row in rows:
@@ -214,5 +222,8 @@ class LiveObservationProvider(RealObservationProvider):
                 method=f"scenes {HISTORY_START}->today with cloud < {MAX_CLOUD_PCT}%; zone mean over SCL "
                 f"{list(SCL_KEEP)}; BOA offset {S2_BOA_OFFSET:+.0f} only for baseline >= 04.00",
             ),
-            warnings=[f"{len({p.date for p in points})} clear dates since {HISTORY_START}; winter gaps expected"],
+            warnings=[
+                f"{len({p.date for p in points})} clear dates since {HISTORY_START}; up to {MAX_SCENES} "
+                "scenes sampled, cloud gaps and failed scene reads may leave gaps"
+            ],
         )

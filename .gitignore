@@ -28,3 +28,6 @@ frontend/.env.*.local
 
 # Playwright MCP local captures and logs
 .playwright-mcp/
+
+# Local agent worktrees (never commit the gitlinks)
+.claude/worktrees/

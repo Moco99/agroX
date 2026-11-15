@@ -158,3 +158,11 @@ La respuesta contiene `point`, `period` y `sections` con `coverage`, `terrain`, 
 Los datos se consultan bajo demanda, pero son históricos o productos de referencia: WorldCover/LULC, Copernicus DEM, SoilGrids, POWER, Sentinel-2 y GAEZ 1981–2010. No representan sensores de campo en tiempo real. POWER y modelos de suelo/aptitud se etiquetan `ESTIMATED`. La vegetación revisa como máximo 128 escenas y devuelve un aviso de posible truncamiento.
 
 Se permiten cuatro consultas concurrentes por proceso. La sesión impide nuevas solicitudes tras 90 s y limita cada espera de red a 20 s (la finalización puede superar el plazo mientras concluye una solicitud en curso). Solo respuestas completas se guardan, durante 24 h; archivos corruptos o con secciones fallidas se vuelven a consultar. Los reemplazos de caché son atómicos.
+
+### Clima disponible y simulación con referencia histórica
+
+`GET /api/farms/{farm_id}/weather/coverage` devuelve `start`, `end`, `available_days`, `missing` (intervalos inclusivos sin datos diarios completos), `source`, `data_state` y `warnings`. Describe los datos del proveedor de esa parcela; el rango exterior no implica ausencia de lagunas.
+
+Las solicitudes `POST /api/twin/simulate` y `POST /api/rotations/recommend` aceptan `reference_year` opcional (1900–9997). Con él, toda la ventana se calcula usando días históricos por mes y día: el año de `start` se corresponde con `reference_year` y los siguientes mantienen el desplazamiento. Si el destino tiene un 29 de febrero y el año histórico no, se reutiliza el 28 y se informa. Si falta algún día de la referencia, responde 422; no se rellenan lagunas ni se sustituye otra parcela. El clima y resultados se marcan `SIMULATED` (o `SYNTHETIC` si el origen es sintético) y se identifican con el año histórico. Es una simulación exploratoria, no un pronóstico del clima ni del rendimiento. Sin `reference_year` se conserva la búsqueda de observaciones originales.
+
+En `POST /api/twin/simulate`, `crop_override_state: "SIMULATED"` indica que `crop_overrides` son una alternativa hipotética de rotación. El cultivo y sus resultados se etiquetan como simulados, y no se comparan con observaciones como si fueran hechos. Por defecto las selecciones continúan siendo `DECLARED`. Las fechas de observaciones anteriores se conservan.

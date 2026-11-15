@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import providers_dep
 from app.config import get_settings
-from app.providers.factory import Providers
+from app.providers.factory import Providers, weather_for
 from app.providers.live.parcel import MAX_LAT, MIN_LAT
 from app.providers.real import manifest_entry
 from app.schemas.climate import ClimateResponse
@@ -20,6 +20,7 @@ from app.schemas.observations import NdviOverlay, ObservationSeries
 from app.schemas.rotations import RotationRecommendRequest
 from app.schemas.twin import TwinSimulateRequest, TwinSimulateResponse, TwinStateResponse
 from app.services import climate_service, farm_load_service, farm_service, twin_service
+from app.services.weather_reference import observed_coverage
 
 router = APIRouter(prefix="/api")
 ProvidersDep = Annotated[Providers, Depends(providers_dep)]
@@ -97,6 +98,12 @@ def register_polygon_farm(body: PolygonFarmRequest) -> PolygonFarmResponse:
 @router.get("/farms/{farm_id}", response_model=FarmAnalyzeResponse)
 def farm(p: ProvidersDep, farm_id: str) -> FarmAnalyzeResponse:
     return farm_service.analyze_farm(p, farm_id)
+
+
+@router.get("/farms/{farm_id}/weather/coverage")
+def farm_weather_coverage(p: ProvidersDep, farm_id: str) -> dict[str, object]:
+    farm_load_service.ensure_supported(p, farm_id)
+    return observed_coverage(weather_for(p, farm_id))
 
 
 @router.post("/farms/{farm_id}/prepare", response_model=FarmLoadStatus, status_code=202)
