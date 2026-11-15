@@ -455,6 +455,7 @@ export const es = {
     stage: "Etapa",
     zoneHint: "Haz clic en una zona del diorama para ver su detalle.",
     noWebgl: "WebGL no disponible: se muestra el mapa 2D equivalente.",
+    pivotIllustrative: "Pivote ilustrativo: riego del escenario, no el sistema real",
     compass: "N",
     scale: (m: number) => `${m} m`,
     presets: {

@@ -433,6 +433,15 @@ select {
   align-items: center;
 }
 
+/* Honesty caption under an irrigated zone: the pivot is a metaphor, not the parcel's real system */
+.zone-label-note {
+  color: var(--text-muted);
+  font-size: 10px;
+  max-width: 220px;
+  white-space: normal;
+  text-align: center;
+}
+
 .panel {
   width: 450px;
   flex-shrink: 0;

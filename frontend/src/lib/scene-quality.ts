@@ -26,8 +26,8 @@ export interface QualitySettings {
   plantDensity: number;
   maxPlantsPerZone: number;
   wind: boolean;
-  // "always" animates wind and irrigation; "demand" only redraws on change
-  frameloop: "always" | "demand";
+  // Whether wind, water and the pivot may animate (the scene still renders on demand when idle)
+  animate: boolean;
 }
 
 // Software rasterisers cannot hold a shaded scene at interactive rates
@@ -65,7 +65,7 @@ const SETTINGS: Record<SceneQuality, QualitySettings> = {
     plantDensity: 1,
     maxPlantsPerZone: 3200,
     wind: true,
-    frameloop: "always",
+    animate: true,
   },
   medium: {
     dpr: [1, 1.5],
@@ -78,7 +78,7 @@ const SETTINGS: Record<SceneQuality, QualitySettings> = {
     plantDensity: 0.6,
     maxPlantsPerZone: 1600,
     wind: true,
-    frameloop: "always",
+    animate: true,
   },
   low: {
     dpr: [1, 1],
@@ -91,14 +91,14 @@ const SETTINGS: Record<SceneQuality, QualitySettings> = {
     plantDensity: 0.35,
     maxPlantsPerZone: 700,
     wind: false,
-    frameloop: "demand",
+    animate: false,
   },
 };
 
 export function qualitySettings(q: SceneQuality, reducedMotion = false): QualitySettings {
   const base = SETTINGS[q];
-  // Reduced motion: no wind sway; the scene still redraws on demand for transitions
-  return reducedMotion ? { ...base, wind: false, frameloop: "demand" } : base;
+  // Reduced motion: nothing sways or spins; the scene still redraws on demand for transitions
+  return reducedMotion ? { ...base, wind: false, animate: false } : base;
 }
 
 // ─────────────────────────────────────────

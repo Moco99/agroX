@@ -3,8 +3,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { seededRandom } from "../lib/geo";
+import { FARMSTEAD_HALF, type Extent } from "../lib/scene-layout";
 import { useQuality } from "./quality-context";
 import { SCENE_SCALE, type Elevation } from "./terrain-sampler";
+
+// Re-exported so scene modules can keep importing the box type from here
+export type { Extent };
 
 // ─────────────────────────────────────────
 // Section: Decorative props (slab, pond, road, trees, farmstead, irrigation) — illustrative only
@@ -13,13 +17,6 @@ import { SCENE_SCALE, type Elevation } from "./terrain-sampler";
 // None of these objects comes from data except the centre pivot, which only appears when the
 // zone's irrigation_level is not NONE. The real irrigation system of a parcel is unknown: the
 // pivot is a visual metaphor for "this zone is irrigated in the scenario".
-
-export interface Extent {
-  minX: number;
-  maxX: number;
-  minZ: number;
-  maxZ: number;
-}
 
 // Scene-space (x, z) → terrain Y, from the local-metre sampler
 function sceneY(elevation: Elevation | undefined, x: number, z: number): number {
@@ -106,7 +103,7 @@ export function Pond({ extent, elevation }: { extent: Extent; elevation?: Elevat
   }, []);
   // A slow shimmer on the water when the scene is animating anyway
   useFrame(({ clock }) => {
-    if (water.current && quality.frameloop === "always") water.current.roughness = 0.08 + 0.04 * Math.sin(clock.elapsedTime * 0.8);
+    if (water.current && quality.animate) water.current.roughness = 0.08 + 0.04 * Math.sin(clock.elapsedTime * 0.8);
   });
   return (
     <group position={[x, y, z]}>
@@ -270,32 +267,13 @@ function gableRoof(width: number, depth: number, rise: number): THREE.BufferGeom
   return g;
 }
 
-// Footprint radius of the farmstead group; a candidate spot is rejected if an observed building is this close
-const FARMSTEAD_CLEARANCE = 1.6;
-
-// Candidate spots clockwise from the north-east corner, outside the fields and off the road and pond
-function farmsteadCandidates(extent: Extent): [number, number][] {
-  return [
-    [extent.maxX + 2.1, extent.minZ + 1.2],
-    [extent.maxX + 2.1, extent.maxZ - 1.4],
-    [extent.minX + 1.4, extent.minZ - 2.2],
-    [extent.maxX - 1.6, extent.minZ - 2.2],
-  ];
-}
-
-// Decorative farmstead, placed where no observed building stands. Real footprints come from the
-// BuildingsLayer; drawing a barn on top of a real house would contradict the imagery, so `avoid`
-// lists their scene positions and the group disappears when every candidate spot is taken.
-export function Farmstead({ extent, elevation, avoid = [] }: { extent: Extent; elevation?: Elevation; avoid?: [number, number][] }) {
+// Decorative farmstead. `site` comes from pickFarmsteadSite (lib/scene-layout.ts): a spot on the slab
+// that overlaps no observed footprint, or null while footprints are unknown, failed to load or
+// every candidate is taken. A barn drawn over a real house would contradict the imagery.
+export function Farmstead({ site, elevation }: { site: [number, number] | null; elevation?: Elevation }) {
   const quality = useQuality();
-  const spot = useMemo(
-    () =>
-      farmsteadCandidates(extent).find(([cx, cz]) => avoid.every(([bx, bz]) => Math.hypot(bx - cx, bz - cz) > FARMSTEAD_CLEARANCE)) ??
-      null,
-    [extent, avoid],
-  );
-  const x = spot?.[0] ?? 0;
-  const z = spot?.[1] ?? 0;
+  const x = site?.[0] ?? 0;
+  const z = site?.[1] ?? 0;
   const y = sceneY(elevation, x, z);
   const barnRoof = useMemo(() => gableRoof(0.78, 1.1, 0.34), []);
   const houseRoof = useMemo(() => gableRoof(0.56, 0.62, 0.22), []);
@@ -307,7 +285,7 @@ export function Farmstead({ extent, elevation, avoid = [] }: { extent: Extent; e
     [barnRoof, houseRoof],
   );
   const s = quality.shadows;
-  if (!spot) return null;
+  if (!site) return null;
   return (
     <group position={[x, y, z]}>
       {/* Barn */}
@@ -358,9 +336,9 @@ export function Farmstead({ extent, elevation, avoid = [] }: { extent: Extent; e
           <meshStandardMaterial color="#5B3A2E" roughness={0.8} />
         </mesh>
       </group>
-      {/* Yard */}
-      <mesh position={[0.05, 0.004, 0.2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[2.2, 2.2]} />
+      {/* Yard: same box pickFarmsteadSite tests against (farmsteadBox) */}
+      <mesh position={[0, 0.004, 0.2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[FARMSTEAD_HALF * 2, FARMSTEAD_HALF * 2]} />
         <meshStandardMaterial color="#A39B84" roughness={1} />
       </mesh>
     </group>
@@ -422,7 +400,7 @@ export function CenterPivot({
   // Start each pivot at a different angle so several zones do not look synchronised
   const startAngle = useMemo(() => (position[0] * 7.3 + position[2] * 3.1) % (Math.PI * 2), [position]);
   useFrame(({ clock }, delta) => {
-    if (arm.current && active && quality.frameloop === "always") arm.current.rotation.y -= delta * 0.12;
+    if (arm.current && active && quality.animate) arm.current.rotation.y -= delta * 0.12;
     if (spray.current) spray.current.opacity = active ? 0.22 + 0.06 * Math.sin(clock.elapsedTime * 5) : 0;
   });
   const towers = Array.from({ length: PIVOT_TOWERS }, (_, i) => ((i + 1) / PIVOT_TOWERS) * radius);

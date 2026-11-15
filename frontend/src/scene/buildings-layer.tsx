@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Projector } from "../lib/geo";
+import type { Extent } from "../lib/scene-layout";
 import { footprintBaseM } from "../lib/terrain-height";
 import { useTwinStore } from "../store/twin-store";
 import { fetchBuildings, type Building } from "../services/buildings";
@@ -19,6 +20,21 @@ const HEIGHT_EXAGGERATION = 3;
 const ROOF_GROUP = 0;
 const WALL_GROUP = 1;
 
+// Scene-space bounding box of one footprint, so props can test overlap against its real size
+function footprintBox(building: Building, projector: Projector): Extent {
+  const box: Extent = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
+  for (const [lon, lat] of building.ring) {
+    const [x, y] = projector.toLocal(lon, lat);
+    const sx = x * SCENE_SCALE;
+    const sz = -y * SCENE_SCALE;
+    box.minX = Math.min(box.minX, sx);
+    box.maxX = Math.max(box.maxX, sx);
+    box.minZ = Math.min(box.minZ, sz);
+    box.maxZ = Math.max(box.maxZ, sz);
+  }
+  return box;
+}
+
 export function BuildingsLayer({
   projector,
   bounds,
@@ -26,8 +42,9 @@ export function BuildingsLayer({
 }: {
   projector: Projector;
   bounds: GeoBounds;
-  // Scene-space (x, z) centroids of the observed footprints, so decorative props can stay clear of them
-  onBuildings?: (centroids: [number, number][]) => void;
+  // Scene-space boxes of the observed footprints once known; null when the request failed, so the
+  // caller can tell "no buildings" from "unknown" before placing decorative props
+  onBuildings?: (footprints: Extent[] | null) => void;
 }) {
   const heightmap = useTwinStore((s) => s.heightmap);
   const quality = useQuality();
@@ -36,15 +53,8 @@ export function BuildingsLayer({
     const ctl = new AbortController();
     void fetchBuildings(bounds, ctl.signal).then((b) => {
       if (ctl.signal.aborted) return;
-      setBuildings(b);
-      onBuildings?.(
-        b.map((building) => {
-          const n = building.ring.length || 1;
-          const [lon, lat] = building.ring.reduce<[number, number]>((s, p) => [s[0] + p[0] / n, s[1] + p[1] / n], [0, 0]);
-          const [x, y] = projector.toLocal(lon, lat);
-          return [x * SCENE_SCALE, -y * SCENE_SCALE];
-        }),
-      );
+      setBuildings(b ?? []);
+      onBuildings?.(b ? b.map((building) => footprintBox(building, projector)) : null);
     });
     return () => ctl.abort();
     // onBuildings is deliberately not a dependency: the diorama passes a stable callback and a
