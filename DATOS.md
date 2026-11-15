@@ -56,7 +56,7 @@ El gemelo pide sus datos **directo a la API de cada fuente**, con caché diaria 
 | Dato | Fuente en vivo | Qué se ganó |
 |---|---|---|
 | Clima | NASA POWER, **1984 a hoy (~43 años)** | Anomalía de lluvia y **SPI** (índice de sequía). La temporada de 2012 da **SPI −2.37 / −50.9 %**, la sequía histórica del Medio Oeste; la de 2024 da 0.1, un año normal |
-| NDVI por zona | Sentinel-2 vía Planetary Computer, **2021 a hoy** | ~300 fechas sin nubes por zona, incluidos 2025 y 2026; ~36 s la primera vez del día |
+| NDVI por zona | Sentinel-2 vía Planetary Computer, **2021 a hoy** | ~150–300 fechas sin nubes por zona según la nubosidad del lugar (158 en el piloto), incluidos 2025 y 2026; ~36 s la primera vez del día |
 | Suelo | SSURGO + **SoilGrids** (ISRIC) | Validación cruzada de la capacidad de agua: SSURGO 176 mm/m frente a SoilGrids 131 mm/m. Fuera de EE.UU. se usa SoilGrids, marcado como `ESTIMATED` |
 
 **En cualquier lugar del mundo:** con `farm_id = pt_<lat>_<lon>` el gemelo arma una parcela de 36 ha con datos globales. Lo probamos en Veracruz, Mato Grosso, Punjab y Francia: la primavera de 2024 en Francia sale con **SPI 2.03 (+58.8 % de lluvia)**, una de las más lluviosas registradas, y Punjab con estrés hídrico alto para maíz sin riego.

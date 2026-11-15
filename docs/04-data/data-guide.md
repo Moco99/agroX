@@ -135,5 +135,5 @@ make derived                          # data/raw -> backend/app/data/derived
 | Frijol y un cultivo de cobertura en el catálogo | Aptitud GAEZ de frijol disponible | 🔴 Faltan parámetros verificados |
 | UI: elegir un punto en el mapa → `pt_<lat>_<lon>` | API lista | 🟡 Frontend |
 | UI: declarar cultivo y fecha de siembra | `planting_dates` ya existe | 🟡 Frontend |
-| Periodos de suelo desnudo a partir del NDVI | ~300 fechas de NDVI por zona | 🟡 Cálculo pendiente |
+| Periodos de suelo desnudo a partir del NDVI | ~150–300 fechas de NDVI por zona (según nubosidad; 158 medidas en el piloto) | 🟡 Cálculo pendiente |
 | GRACE / GRACE-FO | — | ⚪ Opcional |
