@@ -174,6 +174,9 @@ class TwinSimulateRequest(StrictRequest):
     zone_crops: dict[str, str] | None = Field(
         default=None, description="DECLARED crop_id per zone_id; overrides CDL (pilot) or the default crop (pt_)"
     )
+    crop_overrides: dict[str, str] | None = Field(
+        default=None, description="DECLARED crop_id per zone_id (frontend contract); wins over zone_crops"
+    )
     monte_carlo: MonteCarloRequest | None = None
     include_states: bool = True
     include_comparison: bool = True
