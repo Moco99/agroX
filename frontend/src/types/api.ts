@@ -282,8 +282,41 @@ export interface ZoneResult {
   expected_canopy: { date: string; value: number }[];
   monte_carlo: MonteCarloSummary | null;
   outcome?: SeasonOutcome | null;
+  // Only in climate-projection runs: the same zone under every climate model that answered
+  projection_range?: ProjectionRange | null;
   data_state: DataState;
   warnings: string[];
+}
+
+export type ProjectionScenario = "ssp126" | "ssp245" | "ssp370";
+
+export interface ProjectionRange {
+  n_models: number;
+  matured_models: number;
+  stress_days_min: number;
+  stress_days_max: number;
+  season_precip_min_mm: number;
+  season_precip_max_mm: number;
+  by_model: { model: string; status: SeasonOutcome["status"]; stress_days: number; season_precip_mm: number; data_state: DataState }[];
+  data_state: DataState;
+  note: string;
+}
+
+// Exactly what fed a projection run ("Datos que usa esta simulación")
+export interface ClimateProjectionInfo {
+  source: string;
+  scenario: ProjectionScenario;
+  models_requested: string[];
+  models_used: string[];
+  models_failed: Record<string, string>;
+  animated_model: string;
+  animated_rule: string;
+  variables: string[];
+  conversions: string[];
+  filled_days: Record<string, string[]>;
+  api_first_day: string;
+  api_last_day: string;
+  data_state: DataState;
 }
 
 export interface FarmSummary {
@@ -310,6 +343,7 @@ export interface TwinSimulateResponse {
   farm_summary: FarmSummary;
   warnings: string[];
   provenance: Record<string, Provenance>;
+  climate_projection?: ClimateProjectionInfo | null;
   // When the run was computed (ISO datetime); start/end are the simulated window
   computed_at?: string;
 }
@@ -319,6 +353,9 @@ export interface TwinSimulateRequest {
   start: string;
   end: string;
   reference_year?: number | null;
+  // Absent = observed weather or reference_year, exactly as before; "projection" needs `projection`
+  climate_source?: "reference_year" | "projection";
+  projection?: { scenario: ProjectionScenario; model?: string };
   scenario: Partial<TwinScenario>;
   fork_date?: string | null;
   // crop_id -> ISO planting date (the backend keys planting dates by crop, not by zone)

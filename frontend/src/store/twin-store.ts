@@ -4,6 +4,7 @@ import { api, ApiError } from "../services/api";
 import { buildRegionFallback } from "../lib/region";
 import { isPilotFarm, parseParcelId } from "../lib/parcel";
 import { buildRunPlan, type RunPlan } from "../lib/run-plan";
+import { climateFields, type ProjectionChoice } from "../lib/climate-projection";
 import { useParcelStore, type SourceKey } from "./parcel-store";
 import type {
   ClimateResponse,
@@ -97,6 +98,8 @@ interface TwinStore {
   plan: RunPlan | null;
   rotationPreview: RotationPreview | null;
   referenceYear: number | null;
+  // Opt-in CMIP6 climate for the window (never together with referenceYear); null = as before
+  projection: ProjectionChoice | null;
   dayIndex: number;
   playing: boolean;
   selectedZoneId: string | null;
@@ -153,7 +156,7 @@ interface TwinStore {
   runScenario: () => Promise<void>;
   previewRotation: (preview: RotationPreview) => Promise<void>;
   clearRotationPreview: () => Promise<void>;
-  simulateWindow: (span: SeasonSpan, referenceYear: number | null) => Promise<void>;
+  simulateWindow: (span: SeasonSpan, referenceYear: number | null, projection?: ProjectionChoice | null) => Promise<void>;
 }
 
 // ─────────────────────────────────────────
@@ -312,6 +315,7 @@ const PARCEL_RESET = {
   plan: null,
   rotationPreview: null,
   referenceYear: null,
+  projection: null,
   simulating: false,
 };
 
@@ -331,12 +335,13 @@ function scenarioRequest(
   c: ScenarioControls,
   forkDate: string | null,
   referenceYear: number | null = null,
+  projection: ProjectionChoice | null = null,
 ): TwinSimulateRequest {
   return {
     farm_id: farmId,
     start: span.start,
     end: span.end,
-    reference_year: referenceYear,
+    ...climateFields(referenceYear, projection),
     scenario: {
       precip_factor: Math.round((1 + c.precipPct / 100) * 1000) / 1000,
       temp_delta_c: c.tempDelta,
@@ -351,12 +356,14 @@ function scenarioRequest(
   };
 }
 
-function baselineRequest(farmId: string, span: SeasonSpan, plan: RunPlan | null, referenceYear: number | null = null): TwinSimulateRequest {
+function baselineRequest(
+  farmId: string, span: SeasonSpan, plan: RunPlan | null, referenceYear: number | null = null, projection: ProjectionChoice | null = null,
+): TwinSimulateRequest {
   return {
     farm_id: farmId,
     start: span.start,
     end: span.end,
-    reference_year: referenceYear,
+    ...climateFields(referenceYear, projection),
     scenario: {},
     ...planExtras(plan),
     include_states: true,
@@ -427,6 +434,7 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
   span: seasonRange(2024),
   rotationPreview: null,
   referenceYear: null,
+  projection: null,
   plan: null,
   dayIndex: 0,
   playing: false,
@@ -565,11 +573,13 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
   },
 
   applyDeclaration: async () => {
-    const { farm, health, referenceYear } = get();
+    const { farm, health, referenceYear, projection } = get();
     if (!farm || get().rotationPreview) return;
     const generatedPlan = planFor(farm, health);
-    const span = referenceYear !== null ? get().span : (generatedPlan?.span ?? get().span);
-    const plan = referenceYear !== null && generatedPlan
+    // A chosen future climate keeps the chosen window; only observed runs follow the plan's season
+    const keepSpan = referenceYear !== null || projection !== null;
+    const span = keepSpan ? get().span : (generatedPlan?.span ?? get().span);
+    const plan = keepSpan && generatedPlan
       ? { ...generatedPlan, span, plantingDates: Object.fromEntries(Object.entries(generatedPlan.plantingDates).filter(([, day]) => day >= span.start && day <= span.end)) }
       : generatedPlan;
     simulateAbort?.abort();
@@ -577,7 +587,7 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
     const { signal } = simulateAbort;
     set({ plan, span, simulating: true, error: null });
     try {
-      const baseline = await api.simulate(baselineRequest(farm.farm.farm_id, span, plan, referenceYear), signal);
+      const baseline = await api.simulate(baselineRequest(farm.farm.farm_id, span, plan, referenceYear, projection), signal);
       set({ baseline, scenario: null, dayIndex: openingDay(baseline, false, get().year), simulating: false });
       if (!isNeutral(get().controls)) await get().runScenario();
       // The climate window follows the simulation window; failure here only leaves the previous summary in place
@@ -679,7 +689,7 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
         throw new Error("La ventana no incluye la fecha de siembra estimada para este cultivo.");
       }
       set({
-        rotationPreview: preview, referenceYear, span, plan, baseline: nextBaseline, scenario, controls, simulating: false,
+        rotationPreview: preview, referenceYear, projection: null, span, plan, baseline: nextBaseline, scenario, controls, simulating: false,
         dayIndex: openingDay(active, isPilotFarm(preview.farmId), year),
         canvasTab: "twin", layer: "stress",
       });
@@ -696,7 +706,7 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
     await get().init();
   },
 
-  simulateWindow: async (span, referenceYear) => {
+  simulateWindow: async (span, referenceYear, projection = null) => {
     const { farm, plan, controls, rotationPreview } = get();
     if (!farm || farm.farm.farm_id !== useParcelStore.getState().farmId) throw new Error("Espera a que cargue la parcela.");
     const days = (Date.parse(span.end) - Date.parse(span.start)) / 86_400_000 + 1;
@@ -711,8 +721,8 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
     set({ simulating: true, error: null, playing: false });
     try {
       const [baseline, scenario] = await Promise.all([
-        api.simulate({ ...baselineRequest(savedFarmId, span, nextPlan, referenceYear), ...(rotationPreview ? { crop_override_state: "SIMULATED" as const } : {}) }, controller.signal),
-        isNeutral(controls) ? Promise.resolve(null) : api.simulate({ ...scenarioRequest(savedFarmId, span, nextPlan, controls, null, referenceYear), ...(rotationPreview ? { crop_override_state: "SIMULATED" as const } : {}) }, controller.signal),
+        api.simulate({ ...baselineRequest(savedFarmId, span, nextPlan, referenceYear, projection), ...(rotationPreview ? { crop_override_state: "SIMULATED" as const } : {}) }, controller.signal),
+        isNeutral(controls) ? Promise.resolve(null) : api.simulate({ ...scenarioRequest(savedFarmId, span, nextPlan, controls, null, referenceYear, projection), ...(rotationPreview ? { crop_override_state: "SIMULATED" as const } : {}) }, controller.signal),
       ]);
       if (controller.signal.aborted || useParcelStore.getState().farmId !== savedFarmId) throw new DOMException("La parcela cambió", "AbortError");
       const nextPreview = rotationPreview ? { ...rotationPreview,
@@ -720,7 +730,7 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
         cycles: rotationPreview.cycles.map((cycle, index) => index === rotationPreview.index ? { ...cycle, span } : cycle),
       } : null;
       // A new period plays from its first day; with reduced motion it only rewinds
-      set({ baseline, scenario, span, plan: nextPlan, referenceYear, rotationPreview: nextPreview, simulating: false,
+      set({ baseline, scenario, span, plan: nextPlan, referenceYear, projection, rotationPreview: nextPreview, simulating: false,
         dayIndex: 0, playing: !prefersReducedMotion(), canvasTab: "twin" });
     } catch (error) {
       if (!controller.signal.aborted) { controller.abort(); set({ simulating: false }); }
@@ -729,7 +739,7 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
   },
 
   runScenario: async () => {
-    const { controls, span, plan, baseline, dayIndex, farm, referenceYear, rotationPreview } = get();
+    const { controls, span, plan, baseline, dayIndex, farm, referenceYear, projection, rotationPreview } = get();
     simulateAbort?.abort();
     if (isNeutral(controls) || !farm) {
       set({ scenario: null, simulating: false });
@@ -741,7 +751,7 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
     set({ simulating: true });
     try {
       const scenario = await api.simulate(
-        { ...scenarioRequest(farm.farm.farm_id, span, plan, controls, forkDate, referenceYear), ...(rotationPreview ? { crop_override_state: "SIMULATED" as const } : {}) },
+        { ...scenarioRequest(farm.farm.farm_id, span, plan, controls, forkDate, referenceYear, projection), ...(rotationPreview ? { crop_override_state: "SIMULATED" as const } : {}) },
         signal,
       );
       if (!signal.aborted) set({ scenario, simulating: false, error: null });

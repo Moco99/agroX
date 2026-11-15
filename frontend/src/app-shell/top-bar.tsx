@@ -6,6 +6,7 @@ import { es, fmtDate } from "../i18n/es";
 import { useStageStore } from "../store/stage-store";
 import { useGuideStore } from "../store/guide-store";
 import { isPilotFarm } from "../lib/parcel";
+import { scenarioLabel } from "../lib/climate-projection";
 import { displayName } from "../lib/parcel-history";
 import { useHistoryStore } from "../store/history-store";
 import { useParcelStore } from "../store/parcel-store";
@@ -35,6 +36,7 @@ export function TopBar() {
   const parcelName = displayName({ farmId, customName: record?.customName ?? null, centroid: record?.centroid ?? null });
   const baseline = useTwinStore((s) => s.baseline);
   const referenceYear = useTwinStore((s) => s.referenceYear);
+  const projection = useTwinStore((s) => s.projection);
   // The chip shows the window actually simulated for this parcel; the requested span only before a run exists
   const ran = baseline?.farm_id === farmId ? baseline : null;
   const start = ran?.start ?? span.start;
@@ -84,7 +86,7 @@ export function TopBar() {
         <label className="date-range" title={pilot ? es.geo.pilotSeason : es.openParcel.seasonTitle}>
           <span aria-hidden>▦</span>
           <span>
-            {referenceYear !== null ? es.topbar.simulatedReference(referenceYear) : pilot ? "Iowa" : es.openParcel.seasonLabel} ·{" "}
+            {projection !== null ? es.topbar.simulatedProjection(scenarioLabel(projection.scenario)) : referenceYear !== null ? es.topbar.simulatedReference(referenceYear) : pilot ? "Iowa" : es.openParcel.seasonLabel} ·{" "}
             {fmtDate(start)} – {fmtDate(end)}
           </span>
           {pilot && (

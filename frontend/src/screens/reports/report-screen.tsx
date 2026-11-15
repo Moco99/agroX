@@ -4,6 +4,7 @@ import { es, fmt, fmtDate, fmtDateTime } from "../../i18n/es";
 import { metricOf, unitSymbol } from "../../lib/climate-view";
 import { cropLabel } from "../../lib/farm-labels";
 import { isPilotFarm } from "../../lib/parcel";
+import { scenarioLabel } from "../../lib/climate-projection";
 import { ndviReading, scoreReading, stressReading } from "../../lib/readings";
 import { useModuleView } from "../../store/module-store";
 import { useParcelStore } from "../../store/parcel-store";
@@ -195,7 +196,9 @@ export function ReportView({ farm, climate, twin, rotation, climateFrom = "twin"
               {es.twinLevelText[twin.twin_level]}
             </p>
             <p className="muted" data-testid="report-twin-meta">
-              {referenceYear !== null ? es.report.twinReference(referenceYear) : es.report.twinObserved}
+              {twin.climate_projection
+                ? es.report.twinProjection(scenarioLabel(twin.climate_projection.scenario), twin.climate_projection.models_used.join(", "))
+                : referenceYear !== null ? es.report.twinReference(referenceYear) : es.report.twinObserved}
               {twin.computed_at && ` · ${es.report.twinComputed} ${fmtDateTime(twin.computed_at)}`}
             </p>
             <ul>

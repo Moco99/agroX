@@ -1094,3 +1094,14 @@ input[type="range"] {
 .crop-plan-date { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:8px; color:var(--text-2); }
 .simulation-period form { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .simulation-period form > :is(p, button, label:nth-of-type(3)) { grid-column:1 / -1; }
+.simulation-period form > :is(fieldset, div) { grid-column:1 / -1; }
+.climate-choice { border:0; padding:0; margin:0; display:flex; flex-direction:column; gap:4px; }
+.climate-choice legend { padding:0; margin-bottom:4px; }
+.climate-choice label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+.projection-data { margin:8px 0; font-size:12px; }
+.projection-data summary { cursor:pointer; font-weight:600; }
+.projection-data dl { display:grid; grid-template-columns:max-content 1fr; gap:4px 10px; margin:8px 0 0; }
+.projection-data dt { color:var(--text-2); }
+.projection-data dd { margin:0; }
+.projection-data ul { margin:0; padding-left:16px; }
+.projection-range { display:block; margin-top:2px; }

@@ -171,7 +171,7 @@ export function FarmDiorama({ farm, projector, views, layer, date, selectedZoneI
   const heightmap = useTwinStore((s) => s.heightmap);
   const pilot = isPilotFarm(farm.farm_id);
   const ndviMissing = useTwinStore((s) =>
-    s.referenceYear !== null || s.rotationPreview !== null ? es.ndviNotObserved : pilot ? undefined : ndviMissingText(stageStatusOf(s.farm, "ndvi")),
+    s.referenceYear !== null || s.projection !== null || s.rotationPreview !== null ? es.ndviNotObserved : pilot ? undefined : ndviMissingText(stageStatusOf(s.farm, "ndvi")),
   );
   const elevation = useElevation(projector);
   const surface = cover?.worldcover_2021 === "suelo desnudo" ? "#b9a77e" : cover?.worldcover_2021 === "bosque" ? "#384f35" : "#777568";
