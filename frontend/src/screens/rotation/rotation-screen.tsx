@@ -6,6 +6,7 @@ import { useModuleView } from "../../store/module-store";
 import { useRotationView } from "../../store/rotation-store";
 import { recommendRotation, type RotationRecommendation, type RotationRequest, type RotationResponse, type RotationWindow } from "./rotation-api";
 import { isRecord } from "../../types/guards";
+import { periodError, rotationPresets, splitPeriod, windowsError } from "../../lib/rotation-dates";
 import "./rotation.css";
 
 const crops: [string, string][] = [
@@ -121,14 +122,9 @@ export default function RotationScreen() {
     const cycleWindows = useWindows ? windows.slice(0, cycles) : undefined;
     const from = cycleWindows?.[0]?.start ?? start;
     const to = cycleWindows?.at(-1)?.end ?? end;
-    if (from > to || (Date.parse(to) - Date.parse(from)) / 86_400_000 >= 731) {
-      setError("El periodo de referencia admite hasta 731 días.");
-      return;
-    }
-    if (cycleWindows?.some((w, i) => !w.start || !w.end || w.start > w.end ||
-      (Date.parse(w.end) - Date.parse(w.start)) / 86_400_000 >= 366 ||
-      (i > 0 && cycleWindows[i - 1]!.end >= w.start))) {
-      setError("Usa ventanas de hasta 366 días, ordenadas y sin solaparse.");
+    const rangeError = cycleWindows ? windowsError(cycleWindows) : periodError(from, to);
+    if (rangeError) {
+      setError(rangeError);
       return;
     }
     if (weights.water + weights.climate + (ph.trim() ? weights.soil : 0) === 0) {
@@ -189,16 +185,29 @@ export default function RotationScreen() {
     <div className="rotation-layout"><form className="rotation-form" onChange={invalidate} onSubmit={(e) => void run(e)}>
       <section className="card"><h2>Datos de la parcela</h2><p className="muted">Se usa el clima disponible para esta ubicación y periodo; la compatibilidad con suelo requiere pH declarado.</p>
         <div className="rotation-grid">{!useWindows && <>
-          <label>Desde<input type="date" required value={start} max={end} onChange={(e) => setStart(e.target.value)} /></label>
-          <label>Hasta<input type="date" required value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></label>
+          <label>Desde<input type="date" required value={start} onChange={(e) => setStart(e.target.value)} /></label>
+          <label>Hasta<input type="date" required value={end} onChange={(e) => setEnd(e.target.value)} /></label>
         </>}
-          <label>Ciclos<select value={cycles} onChange={(e) => setCycles(Number(e.target.value))}><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option></select></label>
+          <label>Ciclos<select value={cycles} onChange={(e) => {
+            const n = Number(e.target.value);
+            // Keep the overall period and re-split it when per-cycle dates are on
+            if (useWindows) setWindows(splitPeriod(windows[0]?.start ?? start, windows[cycles - 1]?.end ?? end, n));
+            setCycles(n);
+          }}><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option></select></label>
           <label>pH declarado (opcional)<input type="number" min={0} max={14} step="0.1" placeholder="Sin declarar" value={ph} onChange={(e) => setPh(e.target.value)} /></label>
           <label>Cultivo anterior<select value={previous} onChange={(e) => setPrevious(e.target.value)}><option value="">No declarado</option>{crops.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
           <label>Cultivo inicial<select value={startCrop} onChange={(e) => setStartCrop(e.target.value)}><option value="">Automático</option>{crops.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label></div>
         <label className="rotation-checkbox"><input type="checkbox" checked={sameFamily} onChange={(e) => setSameFamily(e.target.checked)} /> Evitar familia botánica consecutiva</label><p className="muted">Filtro opcional; su aplicación depende del cultivo y del manejo local.</p>
         <label className="rotation-checkbox"><input type="checkbox" checked={twinOnly} onChange={(e) => setTwinOnly(e.target.checked)} /> Solo cultivos que se pueden simular en el gemelo</label>
-        <label className="rotation-checkbox"><input type="checkbox" checked={useWindows} onChange={(e) => setUseWindows(e.target.checked)} /> Usar fechas distintas por ciclo</label>
+        {!useWindows && <div className="rotation-presets" role="group" aria-label="Periodos rápidos">
+          {rotationPresets(Number(span.start.slice(0, 4)) || new Date().getFullYear(), new Date().toISOString().slice(0, 10)).map((p) =>
+            <button key={p.id} type="button" className="ghost-button" onClick={() => { setStart(p.range.start); setEnd(p.range.end); invalidate(); }}>{p.label}</button>)}
+        </div>}
+        <label className="rotation-checkbox"><input type="checkbox" checked={useWindows} onChange={(e) => {
+          // Start filled with consecutive windows so every cycle has valid, editable dates
+          if (e.target.checked) setWindows(splitPeriod(start, end, cycles));
+          setUseWindows(e.target.checked);
+        }} /> Usar fechas distintas por ciclo</label>
         {useWindows && windows.slice(0, cycles).map((window, index) => (
           <fieldset key={index} className="rotation-window">
             <legend>Ciclo {index + 1}</legend>

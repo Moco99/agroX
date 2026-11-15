@@ -957,3 +957,10 @@ input[type="range"] {
 .parcel-list { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:10px; }
 .parcel-list li { display:flex; flex-direction:column; gap:6px; }
 .parcel-list input { min-width:0; }
+/* Vegetación module */
+.veg-zone { text-align: left; background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 10px; color: inherit; cursor: pointer; font: inherit; }
+.veg-zone.is-selected { border-color: var(--accent); }
+.veg-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: middle; }
+.veg-scale { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 11px; color: var(--text-muted); }
+.veg-scale i { flex: 0 0 160px; height: 8px; border-radius: 4px; }
+.veg-events { margin: 8px 0; padding-left: 18px; line-height: 1.6; }

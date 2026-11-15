@@ -6,7 +6,7 @@ import type { RotationResponse } from "../screens/rotation/rotation-api";
 // Section: Full-page modules (Clima, Informes) and the last rotation comparison shown by the report
 // ─────────────────────────────────────────
 
-export type ModuleId = "climate" | "reports";
+export type ModuleId = "climate" | "reports" | "vegetation";
 
 interface ModuleState {
   active: ModuleId | null;
