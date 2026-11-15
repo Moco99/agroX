@@ -3,7 +3,7 @@
 .rotation-header h1 { font-size: clamp(24px, 2.5vw, 34px); margin: 5px 0; }
 .rotation-header p { color: var(--text-muted); margin: 6px 0; }
 .rotation-disclaimer { padding: 14px 18px; border: 1px solid #77632b; background: #302d20; color: #f3d788; border-radius: 10px; margin-bottom: 18px; line-height: 1.5; }
-.rotation-layout { display: grid; grid-template-columns: minmax(250px, 350px) minmax(0, 1fr); gap: 22px; align-items: start; }
+.rotation-layout { display: grid; grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); gap: 22px; align-items: start; }
 .rotation-form, .rotation-results, .rotation-ranking { display: grid; gap: 14px; min-width: 0; }
 .rotation-form .card, .rotation-results .card, .rotation-card { padding: 20px; }
 .rotation-form h2, .rotation-results h2 { font-size: 18px; }
@@ -36,7 +36,11 @@
 .rotation-inputs dt { font-size: 12px; color: var(--text-muted); }
 .rotation-inputs dd { margin: 4px 0; overflow-wrap: anywhere; }
 .rotation-inputs small { color: var(--text-muted); }
-.rotation-empty { padding: 28px; color: var(--text-2); }
+.rotation-empty { padding: 28px; color: var(--text-2); min-height: 280px; display: grid; align-content: center; gap: 10px; text-align: center; border-style: dashed !important; }
+.rotation-field { display: grid; gap: 8px; margin-top: 12px; color: var(--text-2); font-size: 12px; }
+.rotation-field input { width: 100%; min-width: 0; background: var(--bg-app); border: 1px solid var(--border); border-radius: 6px; padding: 9px; }
+.rotation-notice { padding: 10px 12px; border: 1px solid #77632b; border-radius: 8px; color: #f3d788; font-size: 12px; }
+.rotation-submit-row { position: sticky; bottom: 0; display: grid; gap: 10px; padding: 12px 0; background: var(--bg-app); z-index: 1; }
 @media (max-width: 900px) { .rotation-layout { grid-template-columns: 1fr; } .rotation-header { flex-wrap: wrap; } }
 
 .rotation-window { margin: 12px 0 0; border: 1px solid var(--border); border-radius: 6px; padding: 8px; }

@@ -7,7 +7,7 @@ import { useRotationView } from "../../store/rotation-store";
 import { useHistoryStore } from "../../store/history-store";
 import { openFromHistory } from "../../store/open-parcel";
 import { displayName } from "../../lib/parcel-history";
-import { recommendRotation, type RotationRecommendation, type RotationRequest, type RotationResponse, type RotationWindow } from "./rotation-api";
+import { recommendRotation, startCropOptions, type RotationRecommendation, type RotationRequest, type RotationResponse, type RotationWindow } from "./rotation-api";
 import { isRecord } from "../../types/guards";
 import { periodError, rotationPresets, splitPeriod, windowsError } from "../../lib/rotation-dates";
 import { getWeatherCoverage, type WeatherCoverage } from "../../lib/weather-coverage";
@@ -120,6 +120,8 @@ export default function RotationScreen() {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previous, setPrevious] = useState("");
   const [startCrop, setStartCrop] = useState("");
+  const [startCropNotice, setStartCropNotice] = useState<string | null>(null);
+  const catalog = useParcelStore((s) => s.catalog);
   const [sameFamily, setSameFamily] = useState(false);
   const [ph, setPh] = useState("");
   const [rain, setRain] = useState(0);
@@ -143,7 +145,7 @@ export default function RotationScreen() {
     setLoading(false); setError(null); setPreviewError(null);
     setStart(initialSpan.current.start); setEnd(initialSpan.current.end);
     setBaseline(null); setScenario(null); setSubmitted(null);
-    setPrevious(""); setStartCrop(""); setPh(""); setUseWindows(false); setReferenceYear("");
+    setPrevious(""); setStartCrop(""); setStartCropNotice(null); setPh(""); setUseWindows(false); setReferenceYear("");
     setWindows(Array.from({ length: 4 }, () => ({ start: "", end: "" })));
   }, [farmId]);
 
@@ -155,6 +157,19 @@ export default function RotationScreen() {
       .catch(() => { if (!controller.signal.aborted) setCoverageError(true); });
     return () => controller.abort();
   }, [farmId]);
+
+  const twinIds = catalog ? catalog.crops.map((c) => c.crop_id) : null;
+  const startOptions = startCropOptions(crops, twinIds, twinOnly);
+
+  // A filter change can leave the chosen starting crop invalid; clear it and say why instead of failing on submit.
+  function changeTwinOnly(next: boolean) {
+    setTwinOnly(next);
+    const valid = startCropOptions(crops, twinIds, next);
+    if (startCrop && !valid.some(([id]) => id === startCrop)) {
+      setStartCropNotice(es.rotation.startCropReset(es.rotation.crops[startCrop] ?? startCrop));
+      setStartCrop("");
+    }
+  }
 
   function invalidate() {
     abort.current?.abort();
@@ -247,9 +262,10 @@ export default function RotationScreen() {
         <p className="muted">{es.rotation.farmDataHint}</p>
         {coverage ? <p className="muted">{es.weatherReference.coverage(coverage.start, coverage.end, coverage.available_days, coverage.missing.length)}</p> : <p className="muted">{coverageError ? es.weatherReference.unavailable : es.weatherReference.loading}</p>}
         {coverage && coverage.missing.length > 0 && <details><summary>{es.weatherReference.missingIntervals}</summary><ul>{coverage.missing.map((gap) => <li key={`${gap.start}-${gap.end}`}>{gap.start} — {gap.end}</li>)}</ul></details>}
-        <label>{es.weatherReference.year}
+        <label className="rotation-field">{es.weatherReference.year}
           <input type="number" min={1900} max={coverage ? Number(coverage.end.slice(0, 4)) : undefined} step={1} value={referenceYear} onChange={(e) => setReferenceYear(e.target.value)} placeholder={es.weatherReference.placeholder} />
         </label>
+        {coverage && <p className="muted">{es.weatherReference.yearsWithData(Number(coverage.start.slice(0, 4)), Number(coverage.end.slice(0, 4)))}</p>}
         <p className="muted">{es.weatherReference.explanation}</p>
         <div className="rotation-grid">{!useWindows && <>
           <label>{es.rotation.from}<input type="date" required value={start} onChange={(e) => setStart(e.target.value)} /></label>
@@ -263,9 +279,10 @@ export default function RotationScreen() {
           }}><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option></select></label>
           <label>{es.rotation.ph}<input type="number" min={0} max={14} step="0.1" placeholder={es.rotation.phPlaceholder} value={ph} onChange={(e) => setPh(e.target.value)} /></label>
           <label>{es.rotation.previous}<select value={previous} onChange={(e) => setPrevious(e.target.value)}><option value="">{es.rotation.notDeclared}</option>{crops.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
-          <label>{es.rotation.startCrop}<select value={startCrop} onChange={(e) => setStartCrop(e.target.value)}><option value="">{es.rotation.auto}</option>{crops.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label></div>
+          <label>{es.rotation.startCrop}<select value={startCrop} onChange={(e) => { setStartCrop(e.target.value); setStartCropNotice(null); }}><option value="">{es.rotation.auto}</option>{startOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label></div>
+        {startCropNotice && <p className="rotation-notice" role="status">{startCropNotice}</p>}
         <label className="rotation-checkbox"><input type="checkbox" checked={sameFamily} onChange={(e) => setSameFamily(e.target.checked)} /> {es.rotation.sameFamily}</label><p className="muted">{es.rotation.sameFamilyHint}</p>
-        <label className="rotation-checkbox"><input type="checkbox" checked={twinOnly} onChange={(e) => setTwinOnly(e.target.checked)} /> {es.rotation.twinOnly}</label>
+        <label className="rotation-checkbox"><input type="checkbox" checked={twinOnly} onChange={(e) => changeTwinOnly(e.target.checked)} /> {es.rotation.twinOnly}</label>
         {!useWindows && <div className="rotation-presets" role="group" aria-label={es.rotation.presetsAria}>
           {rotationPresets(Number(span.start.slice(0, 4)) || new Date().getFullYear(), new Date().toISOString().slice(0, 10)).map((p) =>
             <button key={p.id} type="button" className="ghost-button" onClick={() => { setStart(p.range.start); setEnd(p.range.end); invalidate(); }}>{p.label}</button>)}
@@ -303,8 +320,10 @@ export default function RotationScreen() {
         <label className="rotation-slider">{es.rotation.precip} <strong>{rain > 0 ? "+" : ""}{rain} %</strong><input type="range" min={-80} max={50} step={5} value={rain} onChange={(e) => setRain(Number(e.target.value))} /></label>
         <label className="rotation-slider">{es.rotation.temp} <strong>{temperature > 0 ? "+" : ""}{temperature} °C</strong><input type="range" min={-3} max={5} step={0.5} value={temperature} onChange={(e) => setTemperature(Number(e.target.value))} /></label>
       </section>
-      <button className="play-button rotation-submit" type="submit" disabled={loading}>{loading ? es.rotation.calculating : es.rotation.submit}</button>
-      {error && <div className="error-box" role="alert">{error}</div>}
+      <div className="rotation-submit-row">
+        {error && <div className="error-box" role="alert">{error}</div>}
+        <button className="play-button rotation-submit" type="submit" disabled={loading}>{loading ? es.rotation.calculating : es.rotation.submit}</button>
+      </div>
     </form><div className="rotation-results">
       {!baseline && !loading && <div className="card rotation-empty"><h2>{es.rotation.emptyTitle}</h2><p>{es.rotation.emptyBody}</p><DataStateLegend /></div>}
       {loading && <div className="card" role="status">{es.rotation.loading}</div>}

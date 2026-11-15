@@ -76,6 +76,17 @@ function isRecommendation(v: unknown): v is RotationRecommendation {
     Array.isArray(v.cycles) && v.cycles.every(isCycle) && strings(v.warnings) &&
     typeof v.score_type === "string" && typeof v.field_validated === "boolean";
 }
+const VALIDATION_ES: Record<string, string> = {
+  extra_forbidden: "Dato no reconocido", missing: "Falta un dato obligatorio",
+  less_than_equal: "El valor es demasiado alto", greater_than_equal: "El valor es demasiado bajo",
+  date_from_datetime_parsing: "La fecha no es válida", date_parsing: "La fecha no es válida",
+};
+
+// "Cultivo inicial" can only offer crops the active filters keep; the twin filter drops crops without twin parameters.
+export function startCropOptions(all: [string, string][], twinIds: string[] | null, twinOnly: boolean): [string, string][] {
+  return twinOnly && twinIds ? all.filter(([id]) => twinIds.includes(id)) : all;
+}
+
 export async function recommendRotation(request: RotationRequest, signal: AbortSignal): Promise<RotationResponse> {
   const response = await fetch("/api/rotations/recommend", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request), signal,
@@ -87,9 +98,14 @@ export async function recommendRotation(request: RotationRequest, signal: AbortS
     // Pydantic loc is ["body", "weights", "x"]; naming the field makes "Extra inputs..." actionable
     const loc = isRecord(validation) && Array.isArray(validation.loc)
       ? validation.loc.filter((part) => part !== "body").join(".") : "";
+    // Pydantic's own messages are English; only our validators ("Value error, <es-MX>") and string details show as-is.
+    const type = isRecord(validation) && typeof validation.type === "string" ? validation.type : "";
+    const text = isRecord(validation) && typeof validation.msg === "string"
+      ? validation.msg.startsWith("Value error, ") ? validation.msg.slice("Value error, ".length)
+        : (VALIDATION_ES[type] ?? "El dato no es válido")
+      : null;
     const message = typeof detail === "string" ? detail
-      : isRecord(validation) && typeof validation.msg === "string"
-        ? `${validation.msg.replace(/^Value error, /, "")}${loc ? ` (campo: ${loc})` : ""}`
+      : text !== null ? `${text}${loc ? ` (campo: ${loc})` : ""}`
       : `No se pudo calcular el ranking (HTTP ${response.status}).`;
     throw new Error(message);
   }
