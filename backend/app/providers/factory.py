@@ -1,7 +1,8 @@
 """Choose Real*, Live* or Synthetic* adapters from AGROX_DATA_MODE (default `real`).
 
-`live`: weather comes straight from the NASA POWER API (1981 -> today); the other ports stay Real*
-because the pilot parcel, its soil and NDVI are defined by the pipeline.
+`live`: weather (NASA POWER 1981 -> today), Sentinel-2 NDVI per zone (Planetary Computer) and soil
+(SSURGO + SoilGrids cross-check / fallback) come from the source APIs; parcel, catalog, MODIS and SMAP
+stay Real* because the pilot parcel is defined by the pipeline.
 """
 
 from __future__ import annotations
@@ -11,6 +12,8 @@ from functools import lru_cache
 from pathlib import Path
 
 from app.config import DEFAULT_CACHE_DIR, Settings, get_settings
+from app.providers.live.observations import LiveObservationProvider
+from app.providers.live.soil import LiveSoilProvider
 from app.providers.live.weather import LivePowerWeatherProvider
 from app.providers.ports import CropCatalogProvider, FarmProvider, ObservationProvider, SoilProvider, WeatherProvider
 from app.providers.real import read_json
@@ -40,15 +43,19 @@ class Providers:
 @lru_cache(maxsize=8)
 def _build(mode: str, derived_dir: Path, seed: int, cache_dir: Path | None = None) -> Providers:
     if mode in ("real", "live") and RealWeatherProvider.is_available(derived_dir):
-        soil_real = RealSoilProvider(derived_dir)
+        cache = cache_dir or DEFAULT_CACHE_DIR
+        soil_real: SoilProvider = RealSoilProvider(derived_dir)
         weather: WeatherProvider = RealWeatherProvider(derived_dir)
+        observations: ObservationProvider = RealObservationProvider(derived_dir)
         if mode == "live":
+            soil_real = LiveSoilProvider(derived_dir, cache)
+            observations = LiveObservationProvider(derived_dir, cache)
             # Same point as the derived series so both modes describe the same pilot cell
             loc = read_json(derived_dir / WEATHER_META).get("location")
             loc = loc if isinstance(loc, dict) else {}
             weather = LivePowerWeatherProvider(
                 derived_dir,
-                cache_dir or DEFAULT_CACHE_DIR,
+                cache,
                 float(loc.get("lat", 41.995)),
                 float(loc.get("lon", -93.49)),
             )
@@ -58,7 +65,7 @@ def _build(mode: str, derived_dir: Path, seed: int, cache_dir: Path | None = Non
             soil=soil_real,
             catalog=RealCropCatalogProvider(derived_dir),
             farm=RealFarmProvider(derived_dir, soil_real),
-            observations=RealObservationProvider(derived_dir),
+            observations=observations,
         )
     warnings: tuple[str, ...] = ()
     if mode in ("real", "live"):
