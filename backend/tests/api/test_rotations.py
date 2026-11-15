@@ -152,3 +152,31 @@ def test_equal_indices_prefer_fewer_consecutive_family_repetitions(monkeypatch) 
     assert [(-item["score"], item["family_repeats"]) for item in ranked] == sorted(
         (-item["score"], item["family_repeats"]) for item in ranked
     )
+
+
+# Mirrors the body built by frontend rotation-screen.tsx with every optional control filled in
+FRONTEND_BODY = {
+    "farm_id": "story_pilot_farm", "start": "2024-04-01", "end": "2024-10-31", "cycles": 3, "top_k": 3,
+    "exclude_same_family": True, "weights": {"water": 1, "soil": 5, "climate": 10}, "twin_only": True,
+    "scenario": {"temp_delta_c": 1.5, "precip_factor": 0.8}, "previous_crop": "corn", "soil_ph": 6.5,
+    "cycle_windows": [
+        {"start": "2024-04-01", "end": "2024-05-31"},
+        {"start": "2024-06-01", "end": "2024-07-31"},
+        {"start": "2024-08-01", "end": "2024-10-31"},
+    ],
+}
+
+
+def test_exact_frontend_payload_is_accepted() -> None:
+    client = TestClient(create_app())
+    assert client.post("/api/rotations/recommend", json=FRONTEND_BODY).status_code == 200
+    optional = ("previous_crop", "soil_ph", "cycle_windows")
+    without_optionals = {k: v for k, v in FRONTEND_BODY.items() if k not in optional}
+    assert client.post("/api/rotations/recommend", json=without_optionals).status_code == 200
+
+
+def test_unknown_field_is_rejected_with_its_location() -> None:
+    body = {**FRONTEND_BODY, "weights": {"water": 1, "soil": 1, "climate": 1, "agua": 1}}
+    response = TestClient(create_app()).post("/api/rotations/recommend", json=body)
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "weights", "agua"]

@@ -73,8 +73,12 @@ export async function recommendRotation(request: RotationRequest, signal: AbortS
   if (!response.ok) {
     const detail = isRecord(value) ? value.detail : null;
     const validation = Array.isArray(detail) ? detail.find((entry) => isRecord(entry) && typeof entry.msg === "string") : null;
+    // Pydantic loc is ["body", "weights", "x"]; naming the field makes "Extra inputs..." actionable
+    const loc = isRecord(validation) && Array.isArray(validation.loc)
+      ? validation.loc.filter((part) => part !== "body").join(".") : "";
     const message = typeof detail === "string" ? detail
-      : isRecord(validation) && typeof validation.msg === "string" ? validation.msg.replace(/^Value error, /, "")
+      : isRecord(validation) && typeof validation.msg === "string"
+        ? `${validation.msg.replace(/^Value error, /, "")}${loc ? ` (campo: ${loc})` : ""}`
       : `No se pudo calcular el ranking (HTTP ${response.status}).`;
     throw new Error(message);
   }
