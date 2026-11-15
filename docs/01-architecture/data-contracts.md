@@ -2,7 +2,7 @@
 
 > TL;DR: Único dueño del contrato: endpoints, modelos Pydantic base, provenance y reglas. Synthetic* y Real* devuelven exactamente estos modelos.
 > Depende de: [glossary](../00-overview/glossary.md)
-> Estado: draft (endpoints `/api/twin/*`, `/api/observations/*` y modelo por zonas = propuesta)
+> Estado: draft (endpoints `/api/twin/*`, `/api/observations/*`, `/api/farms/*` y modelo por zonas = PROPUESTA implementada en `feat/virtual-twin`)
 > Última revisión: 2026-11-14
 
 ## Endpoints
@@ -16,10 +16,16 @@
 | POST | `/api/rotations/recommend` | ranking + desglose | dossier |
 | POST | `/api/scenarios/simulate` | ranking bajo escenario | dossier |
 | POST | `/api/copilot/explain` | texto explicativo (opcional) | dossier |
-| GET | `/api/twin/state?parcel_id&date` | `TwinState` de un día | **propuesta** |
-| POST | `/api/twin/simulate` | serie de `TwinState` + discrepancias (por zona si se envía `farm`) | **propuesta** |
-| GET | `/api/observations/ndvi?parcel_id&start&end` | serie NDVI (media por parcela/zona) | **propuesta** |
-| GET | `/api/observations/ndvi-overlay?parcel_id&date` | PNG coloreado (escala de [design-tokens](../07-design/design-tokens.md)) + `bounds` + `resolution_m` + `source` | **propuesta** |
+| GET | `/api/farms` · `/api/farms/{farm_id}` | ids de granjas · igual que `analyze` | **PROPUESTA (implementada)** |
+| GET | `/api/twin/config` | supuestos de producto: riego por nivel, presets, umbrales de estrés, siembras ([decisions](../00-overview/decisions.md) ADR-018) | **PROPUESTA (implementada)** |
+| GET | `/api/twin/state?farm_id&date` | `TwinStateResponse`: snapshot por zona (`TwinState` + clase de estrés + NDVI observado ≤ fecha) | **PROPUESTA (implementada)** |
+| POST | `/api/twin/simulate` | `TwinSimulateResponse`: por zona `states`, `summary`, `comparison`, `discrepancies`, `expected_canopy`, `monte_carlo` opcional | **PROPUESTA (implementada)** |
+| GET | `/api/twin/observed-vs-simulated?farm_id&year` | misma respuesta, línea base abr–oct con comparación | **PROPUESTA (implementada)** |
+| GET | `/api/observations/ndvi?farm_id&source=modis_ndvi\|sentinel2&start&end` | `ObservationSeries` NDVI por zona | **PROPUESTA (implementada)** |
+| GET | `/api/observations/ndvi-overlay?farm_id` | PNG base64 coloreado (escala de [design-tokens](../07-design/design-tokens.md)) + `bounds` + `resolution_m` + `source` | **PROPUESTA (implementada)** |
+| GET | `/api/observations/soil-moisture?farm_id&start&end` | `ObservationSeries` SMAP (contexto 9 km) | **PROPUESTA (implementada)** |
+
+Implementados en esta rama: `/api/health`, `/api/crops`, `/api/climate?start&end[&lat&lon]` (lat/lon solo para avisar si se pide fuera del piloto), `/api/farms/analyze` y todos los de la tabla marcados "implementada". Pendientes: `/api/rotations/recommend`, `/api/scenarios/simulate`, `/api/copilot/explain` (la explicación es por plantillas en el frontend). Errores: 404 = granja/zona/fuente inexistente; 422 = parámetros fuera de rango, preset desconocido, periodo fuera de cobertura o que cruza años.
 
 Fechas en query: `YYYY-MM-DD` (el dossier usaba `YYYYMMDD`; se normaliza a ISO).
 
@@ -117,17 +123,22 @@ Salida:
 ```
 Cifras de ejemplo, no reales.
 
-## Ejemplo: `POST /api/twin/simulate` (propuesta)
+## Ejemplo: `POST /api/twin/simulate` (PROPUESTA implementada)
 
 ```json
-{"parcel_id": "story_pilot_01", "crop_id": "corn", "planting_date": "2024-05-05",
- "start": "2024-04-01", "end": "2024-10-31", "scenario": {"precip_factor": 1.0, "temp_delta_c": 0.0}}
+{"farm_id": "story_pilot_farm", "start": "2024-04-01", "end": "2024-10-31",
+ "scenario": {"precip_factor": 1.0, "temp_delta_c": 0.0, "irrigation_level": null, "preset": "moderate_drought"},
+ "fork_date": "2024-07-01", "zone_ids": null, "planting_dates": {"corn": "2024-05-05"},
+ "monte_carlo": {"n": 40, "seed": 20261114}, "include_states": true, "include_comparison": true}
 ```
-Respuesta: `{ "twin_level": "DIGITAL_SHADOW", "states": [TwinState...], "discrepancies": [Discrepancy...], "warnings": [], "provenance": {...} }`.
+Todos los campos son opcionales (por defecto: granja piloto, abr–oct 2024, escenario neutro). `start` y `end` deben caer en el mismo año (una temporada); el motor arranca 30 días antes de la siembra más temprana y recorta la salida. `preset` se expande en el servidor y `scenario_expanded` lo devuelve. `irrigation_level` es un override global (el riego del escenario solo aplica después de `fork_date`). El cultivo de cada zona en el año simulado sale de su historial CDL.
 
-Variante por zonas (PROPUESTA, mockup S3 en [ui-spec](../07-design/ui-spec.md)): en vez de `crop_id` se envía `"farm": {"farm_id": "story_pilot_farm", "zones": [FarmZone...]}` y opcionalmente `"scenario_preset": "moderate_drought"` e `"irrigation_level": "MEDIUM"` (override global). El preset se expande en el servidor a `precip_factor`/`temp_delta_c` (valores TBD, O-14) y la respuesta lo devuelve expandido. Salida: `{"twin_level", "zones": [ZoneResult...], "warnings", "provenance"}`. `stress_class` sale de umbrales sobre `ks` (TBD, O-16); `ndvi` es **observado** (o sintético) a la fecha, con su `ndvi_state`: el gemelo no simula NDVI (bajo escenario, la capa principal del 3D es estrés por `ks`).
+Respuesta: `{"methodology": "twin_v1", "catalog_version", "data_mode", "twin_level", "farm_id", "start", "end", "scenario", "scenario_expanded", "zones": [ZoneResult...], "farm_summary", "warnings", "provenance": {"weather", "crops", "farm_parcel", "farm_terrain", "farm_soil", "twin", "obs_modis_ndvi", "obs_sentinel2", "obs_smap"}}`.
 
-`twin_level` = `DIGITAL_TWIN` solo si hay observaciones independientes comparadas en el periodo.
+- `TwinState.data_state`: `ESTIMATED` (línea base con clima medido), `SIMULATED` (días bifurcados por un escenario), `SYNTHETIC` (modo sintético).
+- `ZoneResult.ndvi` es el **último NDVI observado ≤ `end`** con `ndvi_state`/`ndvi_source`: el gemelo no simula NDVI. `expected_canopy` es el Kc normalizado (forma), no NDVI.
+- `comparison` (siempre contra la línea base): NDVI MODIS y Sentinel-2 como forma normalizada (`correlation`, `mean_abs_delta`, picos, `lag_days` solo si la serie cubre el reverdecimiento) y SMAP como anomalías estandarizadas.
+- `stress_class` sale de umbrales sobre `ks` (ADR-018). `twin_level` = `DIGITAL_SHADOW` con datos reales, `DIGITAL_MODEL` con sintéticos (ADR-017).
 
 ## Versionado
 

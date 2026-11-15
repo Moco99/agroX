@@ -36,7 +36,7 @@ docs:
   - id: decisions
     path: 00-overview/decisions.md
     title: Decisiones (ADRs)
-    summary: ADR-001..011 (incl. R3F vs Streamlit, mockups ilustrativos, tema oscuro/NDVI) y decisiones abiertas O-1..O-17.
+    summary: ADR-001..020 (R3F, mockups, NDVI, pnpm+Zustand, parcela CDL, calidad POWER, balance hídrico, nivel de gemelo, config de producto) y decisiones abiertas O-1..O-17.
     depends_on: [project-brief]
     read_when: Antes de tomar o cuestionar una decisión de arquitectura o alcance.
     audience: [head, reviewer]
