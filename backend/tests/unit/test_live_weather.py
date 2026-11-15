@@ -74,3 +74,16 @@ def test_disk_cache_avoids_second_request(tmp_path: Path) -> None:
     _live(tmp_path, counting).coverage()
     _live(tmp_path, counting).coverage()
     assert len(calls) == 1
+
+
+def test_failed_fetch_is_not_retried_on_every_request(tmp_path: Path) -> None:
+    calls: list[int] = []
+
+    def boom(*_: object) -> PowerJson:
+        calls.append(1)
+        raise OSError("network down")
+
+    live = _live(tmp_path, boom)
+    live.get_daily(START, END)
+    live.get_daily(START, END)
+    assert len(calls) == 1

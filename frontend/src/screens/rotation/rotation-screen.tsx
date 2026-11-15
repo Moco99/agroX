@@ -4,6 +4,9 @@ import { useTwinStore, type RotationPreview } from "../../store/twin-store";
 import { useStageStore } from "../../store/stage-store";
 import { useModuleView } from "../../store/module-store";
 import { useRotationView } from "../../store/rotation-store";
+import { useHistoryStore } from "../../store/history-store";
+import { openFromHistory } from "../../store/open-parcel";
+import { displayName } from "../../lib/parcel-history";
 import { recommendRotation, type RotationRecommendation, type RotationRequest, type RotationResponse, type RotationWindow } from "./rotation-api";
 import { isRecord } from "../../types/guards";
 import { periodError, rotationPresets, splitPeriod, windowsError } from "../../lib/rotation-dates";
@@ -39,6 +42,15 @@ function InputDetails({ inputs }: { inputs: Record<string, unknown> }) {
   })}</dl>;
 }
 
+// The index is (1 − w_rot)·agroclimatic + w_rot·rotation since the rotation component was added; showing only the
+// weighted EcoCrop sum would not add up to the displayed score, so the arithmetic follows the fields the API returns.
+function scoreArithmetic(item: RotationRecommendation): string {
+  const agro = `${item.weights.water.toFixed(2)}·${fmt(item.indicators.water)} + ${item.weights.soil.toFixed(2)}·${fmt(item.indicators.soil)} + ${item.weights.climate.toFixed(2)}·${fmt(item.indicators.climate)}`;
+  if (!item.rotation || item.agroclimatic_score === undefined || item.rotation_weight === undefined) return `${agro} ≈ ${item.overall_score.toFixed(1)}`;
+  const w = item.rotation_weight;
+  return `${es.rotation.agroLabel} = ${agro} ≈ ${item.agroclimatic_score.toFixed(1)} · ${es.rotation.indexLabel} = ${(1 - w).toFixed(2)}·${item.agroclimatic_score.toFixed(1)} + ${w.toFixed(2)}·${item.rotation.index.toFixed(1)} ≈ ${item.overall_score.toFixed(1)}`;
+}
+
 interface RankingProps {
   result: RotationResponse;
   title: string;
@@ -66,7 +78,9 @@ function Ranking({ result, title, canPreview, onPreview }: RankingProps) {
           [es.rotation.water, item.indicators.water, es.meaning.waterFit], [es.rotation.soil, item.indicators.soil, es.meaning.phFit], [es.rotation.climate, item.indicators.climate, es.meaning.tempFit],
         ] as const).map(([label, value, meaning]) => <div key={label} title={meaning}><small>{label}</small><strong>{fmt(value)}</strong><div className="rotation-track"><i style={{ width: `${Math.max(0, Math.min(100, value ?? 0))}%` }} /></div><ReadingChip reading={fitReading(value)} /></div>)}</div>
         <p className="muted">{es.rotation.weights((item.weights.water * 100).toFixed(0), (item.weights.soil * 100).toFixed(0), (item.weights.climate * 100).toFixed(0))}</p>
-        <HowCalculated id="score" current={`${(item.weights.water).toFixed(2)}·${fmt(item.indicators.water)} + ${(item.weights.soil).toFixed(2)}·${fmt(item.indicators.soil)} + ${(item.weights.climate).toFixed(2)}·${fmt(item.indicators.climate)} ≈ ${item.overall_score.toFixed(1)}`} />
+        {item.rotation && item.agroclimatic_score !== undefined && <p className="muted">{es.rotation.components(item.agroclimatic_score.toFixed(1), item.rotation.index.toFixed(1))}</p>}
+        {item.explanation && item.explanation.length > 0 && <ul className="muted">{item.explanation.map((line) => <li key={line}>{line}</li>)}</ul>}
+        <HowCalculated id="score" current={scoreArithmetic(item)} />
         {item.family_repeats !== undefined && <p className="muted">{es.rotation.familyRepeats(item.family_repeats)}</p>}
         <ol className="rotation-cycles">{item.cycles.map((cycle) => <li key={`${cycle.cycle}-${cycle.crop_id}`}><strong>{es.rotation.cycle(cycle.cycle, cycle.name)}</strong><span>{es.rotation.cycleDetail(cycle.family, cycle.rainfall_fit.toFixed(1), cycle.temperature_fit.toFixed(1), cycle.ph_fit !== null ? cycle.ph_fit.toFixed(1) : null)}</span>
           {cycle.window && <span>{es.rotation.window(cycle.window.start, cycle.window.end)}</span>}
@@ -90,6 +104,9 @@ export default function RotationScreen() {
   const twinReady = useTwinStore((s) => s.baseline?.farm_id === farmId && !s.loading && !s.simulating);
   const previewRotation = useTwinStore((s) => s.previewRotation);
   const close = useRotationView((s) => s.close);
+  const parcels = useHistoryStore((s) => s.items);
+  const [parcelError, setParcelError] = useState<string | null>(null);
+  const selected = parcels.find((p) => p.farmId === farmId);
   const [start, setStart] = useState(span.start);
   const [end, setEnd] = useState(span.end);
   const [cycles, setCycles] = useState(3);
@@ -198,7 +215,16 @@ export default function RotationScreen() {
     <div className="rotation-disclaimer">{es.rotation.disclaimer}</div>
     <ModelNote />
     <div className="rotation-layout"><form className="rotation-form" onChange={invalidate} onSubmit={(e) => void run(e)}>
-      <section className="card"><h2>{es.rotation.farmData}</h2><p className="muted">{es.rotation.farmDataHint}</p>
+      <section className="card"><h2>{es.rotation.farmData}</h2>
+        <label>{es.rotation.parcel}<select value={farmId} onChange={(e) => {
+          const rec = parcels.find((p) => p.farmId === e.target.value);
+          setParcelError(null);
+          if (rec && rec.farmId !== farmId) void openFromHistory(rec).then(setParcelError);
+        }}>{!selected && <option value={farmId}>{farm?.farm.name ?? farmId}</option>}
+          {parcels.map((p) => <option key={p.farmId} value={p.farmId}>{displayName(p)}</option>)}</select></label>
+        <p className="muted">{es.rotation.parcelSummary(farm?.farm.name ?? (selected ? displayName(selected) : farmId), (farm?.farm.area_ha ?? selected?.areaHa) != null ? Number(farm?.farm.area_ha ?? selected?.areaHa).toFixed(1) : null)}</p>
+        {parcelError && <div className="error-box" role="alert">{parcelError}</div>}
+        <p className="muted">{es.rotation.farmDataHint}</p>
         <div className="rotation-grid">{!useWindows && <>
           <label>{es.rotation.from}<input type="date" required value={start} onChange={(e) => setStart(e.target.value)} /></label>
           <label>{es.rotation.to}<input type="date" required value={end} onChange={(e) => setEnd(e.target.value)} /></label>
