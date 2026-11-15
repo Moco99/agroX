@@ -14,7 +14,7 @@ from rasterio.enums import Resampling
 from rasterio.transform import Affine, from_bounds
 from rasterio.vrt import WarpedVRT
 
-from app.engine.ndvi import BoolArray, FloatArray, compute_ndvi
+from app.engine.ndvi import BoolArray, FloatArray, compute_ndvi, s2_offset
 from app.storage.ports import ObjectNotFoundError, ObjectStore
 
 Bounds = tuple[float, float, float, float]
@@ -97,4 +97,4 @@ def read_scene_ndvi(store: ObjectStore, scene: S2Scene, grid: Grid) -> tuple[Flo
         scl = read_window(store, scene.keys["SCL"], grid, (1,))[0]
     except KeyError as exc:
         raise ObjectNotFoundError(scene.scene_id) from exc
-    return compute_ndvi(red, nir, scl)
+    return compute_ndvi(red, nir, scl, offset=s2_offset(scene.scene_id))

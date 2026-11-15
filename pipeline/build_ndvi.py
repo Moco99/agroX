@@ -32,12 +32,14 @@ from shapely.geometry import Point, Polygon
 from app.engine.ndvi import (
     CLOUD_FREE_FRACTION,
     MIN_VALID_FRACTION,
+    S2_BASELINE_04_FROM,
     S2_BOA_OFFSET,
     S2_SCALE,
     SCL_KEEP,
     colorize_ndvi,
     zone_stats,
 )
+from app.engine.ndvi import s2_offset as s2_offset
 from app.providers.imagery.rasters import Grid, list_s2_scenes, read_scene_ndvi, s2_grid
 from app.storage.factory import get_store
 from pipeline.common import (
@@ -313,7 +315,8 @@ def build_s2(zones: list[tuple[str, Polygon]]) -> tuple[list[Path], dict[str, An
         "source": "Sentinel-2 L2A (ESA, via Planetary Computer), tile T15TVG, B04/B08/SCL clipped to the area",
         "resolution": "10 m (SCL 20 m)",
         "period": {"start": first, "end": last},
-        "method": f"NDVI=(B08-B04)/(B08+B04) after BOA offset {S2_BOA_OFFSET:+.0f} and scale 1/{S2_SCALE:.0f}; "
+        "method": f"NDVI=(B08-B04)/(B08+B04) after per-product BOA offset {S2_BOA_OFFSET:+.0f} "
+        f"from {S2_BASELINE_04_FROM}, zero before; scale 1/{S2_SCALE:.0f}; "
         f"SCL keep {list(SCL_KEEP)}; per zone mean/p10/p90 over pixel centres; zone NDVI published only when "
         f"valid fraction >= {MIN_VALID_FRACTION}; one scene per date (most valid farm pixels)",
         "overlay_scene": top["scene_id"],

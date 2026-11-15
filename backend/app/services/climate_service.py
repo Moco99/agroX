@@ -64,7 +64,11 @@ def get_climate(p: Providers, start: date, end: date, lat: float | None, lon: fl
             f"precipitation anomaly needs >= 10 reference years (have {len(reference)}): "
             "requires POWER history since 1981 (open item O-7)"
         )
-    warnings.append("SPI not computed: needs >= 30 years of precipitation (POWER since 1981, open item O-7)")
+    cov_start, cov_end = p.weather.coverage()
+    if cov_end.year - cov_start.year + 1 >= 30:
+        warnings.append("SPI not computed yet: the series is long enough (AGROX_DATA_MODE=live) but SPI is pending")
+    else:
+        warnings.append("SPI not computed: needs >= 30 years of precipitation (AGROX_DATA_MODE=live, open item O-7)")
     indicators = ClimateIndicators(
         start=series.days[0].date,
         end=series.days[-1].date,

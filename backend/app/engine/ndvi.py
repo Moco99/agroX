@@ -15,8 +15,9 @@ FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
 RgbaArray = NDArray[np.uint8]
 
-# L2A DN use the BOA offset (-1000) introduced with processing baseline 04.00 (2022-01); all scenes are 2023-2024
+# L2A offset starts at processing baseline 04.00; earlier products carry no offset.
 S2_BOA_OFFSET = -1000.0
+S2_BASELINE_04_FROM = "20220125"
 S2_SCALE = 10000.0
 # SCL classes kept as clear-sky land: 4 vegetation, 5 not vegetated, 6 water (negative NDVI renders as no-data grey)
 SCL_KEEP: tuple[int, ...] = (4, 5, 6)
@@ -48,10 +49,17 @@ class ZoneStats:
     n_pixels: int
 
 
-def compute_ndvi(red_dn: FloatArray, nir_dn: FloatArray, scl: NDArray[np.integer]) -> tuple[FloatArray, BoolArray]:
+def s2_offset(scene_id: str) -> float:
+    generated = scene_id.rsplit("_", 1)[1][:8]
+    return S2_BOA_OFFSET if generated >= S2_BASELINE_04_FROM else 0.0
+
+
+def compute_ndvi(
+    red_dn: FloatArray, nir_dn: FloatArray, scl: NDArray[np.integer], offset: float = S2_BOA_OFFSET
+) -> tuple[FloatArray, BoolArray]:
     """NDVI = (NIR-RED)/(NIR+RED) on BOA reflectance; pixels outside SCL_KEEP or with zero DN become NaN."""
-    red = (red_dn + S2_BOA_OFFSET) / S2_SCALE
-    nir = (nir_dn + S2_BOA_OFFSET) / S2_SCALE
+    red = (red_dn + offset) / S2_SCALE
+    nir = (nir_dn + offset) / S2_SCALE
     denom = nir + red
     with np.errstate(divide="ignore", invalid="ignore"):
         ndvi = np.where(denom != 0, (nir - red) / denom, np.nan)

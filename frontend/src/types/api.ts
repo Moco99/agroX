@@ -7,7 +7,7 @@ export type TwinLevel = "DIGITAL_MODEL" | "DIGITAL_SHADOW" | "DIGITAL_TWIN";
 export type PhenoStage = "PRE_PLANTING" | "INITIAL" | "DEVELOPMENT" | "MID_SEASON" | "LATE_SEASON" | "HARVESTED";
 export type IrrigationLevel = "NONE" | "LOW" | "MEDIUM" | "HIGH";
 export type StressClass = "NONE" | "LOW" | "MEDIUM" | "HIGH";
-export type DataMode = "real" | "synthetic";
+export type DataMode = "real" | "synthetic" | "live";
 
 export interface Provenance {
   source: string;

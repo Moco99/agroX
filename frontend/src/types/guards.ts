@@ -42,7 +42,7 @@ export function isHealth(value: unknown): value is Health {
   return (
     isRecord(value) &&
     value.status === "ok" &&
-    (value.data_mode === "real" || value.data_mode === "synthetic") &&
+    (value.data_mode === "real" || value.data_mode === "synthetic" || value.data_mode === "live") &&
     isDataState(value.data_state)
   );
 }

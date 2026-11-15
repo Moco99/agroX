@@ -77,7 +77,9 @@ def summary(p: Providers, start: date, end: date) -> RegionSummary:
         suitability=None,
         data_state=state,
         provenance=[weather.provenance, series.provenance],
-        warnings=["NDVI summarizes available farm observations, not a whole-region spatial average."]
+        warnings=list(p.warnings)
+        + list(weather.warnings)
+        + ["NDVI summarizes available farm observations, not a whole-region spatial average."]
         + (
             ["Incomplete daily weather coverage; totals represent available days only."]
             if len(current) != count or len(previous) != count

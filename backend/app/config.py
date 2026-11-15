@@ -10,7 +10,8 @@ APP_DIR = Path(__file__).resolve().parent
 DEFAULT_DERIVED_DIR = APP_DIR / "data" / "derived"
 # data/raw lives at the repository root (outside git); LocalStore mirrors the bucket's raw/ prefix
 DEFAULT_RAW_DIR = APP_DIR.parents[1] / "data" / "raw"
-DEFAULT_CACHE_DIR = APP_DIR.parent / ".cache" / "objects"
+# Preserve the live weather cache shared with the hashed object-block cache.
+DEFAULT_CACHE_DIR = APP_DIR.parents[1] / "data" / "cache"
 
 
 @dataclass(frozen=True)
@@ -34,7 +35,7 @@ class Settings:
 def get_settings() -> Settings:
     """Read settings on each call so tests can flip AGROX_DATA_MODE without reloading modules."""
     mode = os.environ.get("AGROX_DATA_MODE", "real").strip().lower()
-    if mode not in {"real", "synthetic"}:
+    if mode not in {"real", "synthetic", "live"}:
         mode = "real"
     derived = Path(os.environ.get("AGROX_DERIVED_DIR", str(DEFAULT_DERIVED_DIR)))
     seed = int(os.environ.get("AGROX_SYNTHETIC_SEED", "20261114"))

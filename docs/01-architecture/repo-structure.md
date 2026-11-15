@@ -21,7 +21,7 @@ agroX/
     pyproject.toml  uv.lock # uv; grupos dev (pytest, ruff, mypy) y pipeline (rasterio, netCDF4…)
     app/
       main.py               # crea FastAPI, CORS, mapea errores (404/422)
-      config.py             # AGROX_DATA_MODE=real|synthetic, AGROX_DERIVED_DIR, AGROX_SYNTHETIC_SEED
+      config.py             # AGROX_DATA_MODE=real|synthetic|live, AGROX_DERIVED_DIR, AGROX_SYNTHETIC_SEED, AGROX_CACHE_DIR
       api/routes.py  deps.py            # routers sin lógica
       schemas/              # contrato Pydantic (common, weather, soil, crops, farm, observations, climate, twin)
       services/             # climate_service, farm_service, twin_service, errors
@@ -29,7 +29,7 @@ agroX/
                             #   indicators, compare, monte_carlo, config (supuestos de producto)
       providers/
         ports.py            # Protocols: Weather/Soil/CropCatalog/Farm/ObservationProvider
-        factory.py          # elige Real*/Synthetic* por AGROX_DATA_MODE (cae a sintético con aviso)
+        factory.py          # elige Real*/Live*/Synthetic* por AGROX_DATA_MODE (cae a sintético con aviso)
         real/               # leen derived/
         synthetic/          # generadores con seed (params.py = "synthetic, not scientific")
       data/derived/         # ~170 KB versionado: weather, parcel, soil, terrain, obs, catalog, manifest.json
