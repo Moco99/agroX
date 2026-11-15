@@ -26,8 +26,8 @@ export const PILOT_BOUNDS: GeoBounds = {
   north: PILOT_CENTER[1] + 0.0065,
 };
 
-// Whole Earth framed over the Americas, like mockup 12; zoom 2 fills a laptop viewport like the mockup
-export const GLOBE_VIEW: CameraView = { center: [-78, 14], zoom: 2, bearing: 0, pitch: 0 };
+// Whole Earth framed over the Americas with breathing room for the atmospheric halo and orbital HUD reticle
+export const GLOBE_VIEW: CameraView = { center: [-82, 16], zoom: 1.42, bearing: 0, pitch: 0 };
 
 // Close enough to read the farm polygon and the four zones over the satellite mosaic
 export const PILOT_VIEW: CameraView = { center: PILOT_CENTER, zoom: 14.6, bearing: 0, pitch: 0 };
@@ -81,6 +81,7 @@ export const ESRI_ATTRIBUTION =
 
 // Low-zoom mosaic stitched from GIBS level 3 (2048 px, Web Mercator) and shipped with the app for offline use
 export const FALLBACK_IMAGE_URL = "/textures/earth/blue-marble-mercator-2k.jpg";
+export const CLOUDS_IMAGE_URL = "/textures/earth/clouds-mercator-2k.png";
 // Web Mercator latitude limit; the stitched fallback covers exactly the square world
 const MERCATOR_LAT = 85.051129;
 
@@ -92,6 +93,7 @@ export const CROSSFADE_END = 6.5;
 export const SOURCE = {
   fallback: "earth-fallback",
   gibs: "gibs-blue-marble",
+  clouds: "earth-clouds",
   esri: "esri-world-imagery",
 } as const;
 
@@ -122,6 +124,16 @@ export function buildGlobeStyle(): StyleSpec {
         maxzoom: GIBS_MAX_ZOOM,
         attribution: GIBS_ATTRIBUTION,
       },
+      [SOURCE.clouds]: {
+        type: "image",
+        url: CLOUDS_IMAGE_URL,
+        coordinates: [
+          [-180, MERCATOR_LAT],
+          [180, MERCATOR_LAT],
+          [180, -MERCATOR_LAT],
+          [-180, -MERCATOR_LAT],
+        ],
+      },
       [SOURCE.esri]: {
         type: "raster",
         tiles: [ESRI_TILE_URL],
@@ -141,7 +153,21 @@ export function buildGlobeStyle(): StyleSpec {
         source: SOURCE.gibs,
         // GIBS tiles are only requested where they are visible, i.e. until the crossfade has finished
         maxzoom: CROSSFADE_END + 0.5,
-        paint: { "raster-fade-duration": 250 },
+        paint: {
+          "raster-fade-duration": 250,
+          "raster-saturation": 0.18,
+          "raster-contrast": 0.08,
+        },
+      },
+      {
+        id: SOURCE.clouds,
+        type: "raster",
+        source: SOURCE.clouds,
+        maxzoom: CROSSFADE_START + 0.8,
+        paint: {
+          "raster-fade-duration": 0,
+          "raster-opacity": ["interpolate", ["linear"], ["zoom"], 0, 0.95, 2.8, 0.9, 4.8, 0],
+        },
       },
       {
         id: SOURCE.esri,
@@ -160,12 +186,12 @@ export function buildGlobeStyle(): StyleSpec {
     light: { anchor: "viewport", position: [1.5, 210, 15] },
     // Atmosphere glow around the globe that blends away as the camera approaches the ground
     sky: {
-      "sky-color": "#0b2a4a",
-      "horizon-color": "#5aa8e6",
-      "fog-color": "#a8d4ff",
-      "sky-horizon-blend": 0.6,
-      "horizon-fog-blend": 0.8,
-      "fog-ground-blend": 0.9,
+      "sky-color": "#040b18",
+      "horizon-color": "#38bdf8",
+      "fog-color": "#bae6fd",
+      "sky-horizon-blend": 0.45,
+      "horizon-fog-blend": 0.75,
+      "fog-ground-blend": 0.85,
       "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 5, 1, 8, 0],
     },
   };

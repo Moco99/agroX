@@ -1373,83 +1373,86 @@ input[type="range"] {
 }
 
 
+
+
 /* ─────────────────────────────────────────
    Section: Orbital Telemetry UI (nuevainterfaz — AGROX × NASA aesthetic)
    ───────────────────────────────────────── */
 
 .app {
-  padding-top: 58px;
-  grid-template-columns: 224px 1fr;
+  padding-top: 60px;
+  grid-template-columns: 222px 1fr;
   background:
-    radial-gradient(ellipse 68% 24% at 54% 0%, rgba(56, 138, 245, 0.24) 0%, rgba(18, 54, 118, 0.1) 52%, transparent 80%),
-    linear-gradient(180deg, #060b16 0%, #040811 100%);
+    url("/textures/earth/horizon-top.png") no-repeat 54% 0 / 480px auto,
+    radial-gradient(ellipse 58% 22% at 54% 0%, rgba(72, 156, 255, 0.28) 0%, rgba(22, 65, 138, 0.12) 52%, transparent 80%),
+    radial-gradient(ellipse 40% 35% at 92% 28%, rgba(42, 105, 195, 0.14) 0%, transparent 72%),
+    linear-gradient(180deg, #040812 0%, #02050b 100%);
 }
 
-/* Full-width orbital header bar across top of viewport on desktop */
+/* Full-width translucent orbital header bar across top of viewport */
 .top-bar-orbital-row {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: 58px;
+  height: 60px;
   z-index: 60;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 22px;
   background:
-    radial-gradient(ellipse 46% 130% at 52% 0%, rgba(76, 158, 255, 0.28) 0%, rgba(28, 78, 166, 0.12) 48%, rgba(5, 10, 20, 0.92) 82%),
-    rgba(5, 10, 20, 0.9);
-  border-bottom: 1px solid rgba(110, 160, 225, 0.22);
-  backdrop-filter: blur(14px);
+    url("/textures/earth/horizon-top.png") no-repeat 53% 0 / 470px auto,
+    radial-gradient(ellipse 42% 140% at 53% 0%, rgba(86, 168, 255, 0.24) 0%, rgba(25, 72, 152, 0.1) 50%, rgba(3, 7, 15, 0.72) 85%),
+    rgba(3, 7, 15, 0.58);
+  border-bottom: 1px solid rgba(175, 208, 248, 0.18);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
 }
 
 .top-bar-brand {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
 }
 
 .brand-agrox {
   display: flex;
   align-items: center;
-  gap: 10px;
 }
 
-.brand-agrox-mark {
-  filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.35));
-}
-
-.brand-agrox-name {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: #ffffff;
+.brand-agrox-img {
+  height: 30px;
+  width: auto;
+  display: block;
+  filter: drop-shadow(0 0 10px rgba(148, 197, 255, 0.25));
 }
 
 .brand-divider {
   width: 1px;
   height: 24px;
-  background: rgba(148, 184, 232, 0.26);
+  background: rgba(185, 212, 245, 0.24);
 }
 
 .brand-collab {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .brand-collab-label {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.16em;
-  color: #b4c6df;
+  letter-spacing: 0.18em;
+  color: rgba(215, 228, 246, 0.82);
   white-space: nowrap;
 }
 
-.nasa-meatball {
+.brand-collab-img {
+  height: 38px;
+  width: auto;
   display: block;
-  filter: drop-shadow(0 2px 8px rgba(11, 61, 145, 0.55));
+  filter: drop-shadow(0 2px 10px rgba(56, 138, 245, 0.35));
 }
 
 /* Search bar row inside .main directly above the globe */
@@ -1461,7 +1464,7 @@ input[type="range"] {
 }
 
 .search-wrap {
-  width: min(560px, 100%);
+  width: min(550px, 100%);
 }
 
 .search {
@@ -1470,23 +1473,25 @@ input[type="range"] {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 14px;
+  padding: 8px 14px;
   border-radius: 999px;
-  background: rgba(11, 20, 37, 0.82);
-  border: 1px solid rgba(110, 160, 225, 0.26);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 6px 20px rgba(0, 0, 0, 0.35);
+  background: rgba(6, 12, 24, 0.52);
+  border: 1px solid rgba(180, 212, 250, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(16px);
   color: var(--text-2);
-  transition: border-color 0.18s, box-shadow 0.18s;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
 }
 
 .search:hover,
 .search[aria-expanded="true"] {
-  border-color: rgba(96, 165, 250, 0.55);
-  box-shadow: 0 0 18px rgba(59, 130, 246, 0.2);
+  background: rgba(10, 20, 38, 0.68);
+  border-color: rgba(147, 197, 253, 0.48);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 0 20px rgba(59, 130, 246, 0.2);
 }
 
 .search-icon {
-  color: #93c5fd;
+  color: rgba(210, 228, 250, 0.85);
   flex-shrink: 0;
 }
 
@@ -1494,27 +1499,27 @@ input[type="range"] {
   flex: 1;
   text-align: left;
   font-size: 13px;
-  color: #9fb3ce;
+  color: rgba(190, 208, 232, 0.78);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .search kbd {
-  background: rgba(30, 48, 78, 0.72);
-  border: 1px solid rgba(130, 175, 235, 0.28);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(190, 216, 250, 0.24);
   border-radius: 6px;
   padding: 2px 7px;
   font-size: 11px;
-  color: #d6e4f7;
+  color: rgba(226, 238, 252, 0.88);
 }
 
 .search-pop {
-  background: rgba(10, 19, 36, 0.96);
-  border: 1px solid rgba(110, 160, 225, 0.32);
+  background: rgba(6, 12, 24, 0.88);
+  border: 1px solid rgba(175, 208, 248, 0.28);
   border-radius: 16px;
-  backdrop-filter: blur(16px);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(22px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.75);
 }
 
 /* Right header pills */
@@ -1524,29 +1529,38 @@ input[type="range"] {
 
 .date-range,
 .chip-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   border-radius: 999px;
-  padding: 6px 13px;
+  padding: 6px 14px;
   font-size: 12.5px;
-  color: #e2ecf9;
-  background: rgba(12, 23, 43, 0.78);
-  border: 1px solid rgba(115, 165, 230, 0.28);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: rgba(235, 243, 255, 0.92);
+  background: rgba(7, 14, 28, 0.52);
+  border: 1px solid rgba(185, 215, 250, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(14px);
+  cursor: pointer;
 }
 
-.date-range select {
-  background: rgba(20, 36, 64, 0.85);
-  border: 1px solid rgba(115, 165, 230, 0.25);
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 11.5px;
-  color: #93c5fd;
+.date-range:hover,
+.chip-button:hover {
+  border-color: rgba(185, 215, 250, 0.42);
+  background: rgba(12, 24, 46, 0.65);
+}
+
+.date-range-select-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .pill-chevron {
-  color: #8da4c4;
+  color: rgba(190, 210, 236, 0.75);
 }
 
 .icon-round,
@@ -1557,23 +1571,25 @@ input[type="range"] {
   border-radius: 50%;
   display: inline-grid;
   place-items: center;
-  background: rgba(12, 23, 43, 0.78);
-  border: 1px solid rgba(115, 165, 230, 0.28);
-  color: #d8e6f8;
+  background: rgba(7, 14, 28, 0.52);
+  border: 1px solid rgba(185, 215, 250, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+  color: rgba(230, 240, 255, 0.9);
   padding: 0;
 }
 
 .icon-round:hover,
 .icon-round.is-active {
-  border-color: #60a5fa;
+  border-color: rgba(147, 197, 253, 0.55);
   color: #ffffff;
-  box-shadow: 0 0 14px rgba(59, 130, 246, 0.32);
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.28);
 }
 
 .icon-round .dot {
   position: absolute;
   top: 5px;
-  right: 6px;
+  right: 5px;
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -1581,13 +1597,14 @@ input[type="range"] {
   box-shadow: 0 0 8px #38bdf8;
 }
 
-/* Left Sidebar */
+/* Left Sidebar with translucent glass & bottom agricultural orbital horizon */
 .sidebar {
   background:
-    radial-gradient(ellipse 120% 28% at 50% 100%, rgba(37, 99, 235, 0.16) 0%, transparent 70%),
-    rgba(6, 11, 22, 0.88);
-  border-right: 1px solid rgba(110, 160, 225, 0.18);
-  padding: 18px 14px 16px;
+    url("/textures/earth/horizon-sidebar.png") no-repeat 50% 100% / 100% auto,
+    linear-gradient(180deg, rgba(5, 10, 20, 0.52) 0%, rgba(4, 8, 16, 0.38) 72%, rgba(4, 9, 18, 0.25) 100%);
+  border-right: 1px solid rgba(175, 208, 248, 0.15);
+  backdrop-filter: blur(14px);
+  padding: 18px 14px 128px;
   gap: 14px;
 }
 
@@ -1595,26 +1612,26 @@ input[type="range"] {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 2px 6px 8px;
-  border-bottom: 1px solid rgba(110, 160, 225, 0.14);
+  padding: 2px 6px 10px;
+  border-bottom: 1px solid rgba(175, 208, 248, 0.14);
 }
 
 .sidebar-eyebrow span {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.15em;
-  color: #8ca3c2;
+  letter-spacing: 0.16em;
+  color: rgba(175, 198, 228, 0.72);
 }
 
 .sidebar nav {
-  gap: 6px;
+  gap: 5px;
 }
 
 .nav-item {
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 11px;
   border: 1px solid transparent;
-  color: #b8cae2;
+  color: rgba(205, 220, 242, 0.82);
   font-size: 13.5px;
   font-weight: 500;
   transition: background 0.16s, border-color 0.16s, color 0.16s, box-shadow 0.16s;
@@ -1625,64 +1642,71 @@ input[type="range"] {
   height: 20px;
   display: inline-grid;
   place-items: center;
-  color: #8eb4e6;
+  color: rgba(195, 216, 244, 0.82);
 }
 
 .nav-item:not(:disabled):hover {
-  background: rgba(22, 39, 68, 0.65);
-  border-color: rgba(110, 160, 225, 0.2);
-  color: #f0f6fc;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(185, 215, 250, 0.16);
+  color: #ffffff;
 }
 
 .nav-item.is-active {
-  background: linear-gradient(90deg, rgba(37, 99, 235, 0.38) 0%, rgba(29, 78, 216, 0.12) 100%);
-  border-color: rgba(96, 165, 250, 0.52);
+  background:
+    radial-gradient(circle at 14% 50%, rgba(96, 165, 250, 0.28), transparent 58%),
+    linear-gradient(90deg, rgba(38, 88, 178, 0.36) 0%, rgba(20, 48, 102, 0.12) 75%, rgba(10, 22, 46, 0.04) 100%);
+  border-color: rgba(165, 208, 255, 0.44);
   color: #ffffff;
-  box-shadow: 0 0 22px rgba(37, 99, 235, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 0 20px rgba(56, 138, 245, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .nav-item.is-active .nav-icon {
-  color: #93c5fd;
+  color: #ffffff;
+  filter: drop-shadow(0 0 6px rgba(147, 197, 253, 0.55));
 }
 
 .ai-card {
+  margin-top: auto;
   background:
-    radial-gradient(circle at 85% 15%, rgba(56, 189, 248, 0.16), transparent 60%),
-    rgba(11, 21, 40, 0.86);
-  border: 1px solid rgba(110, 160, 225, 0.26);
+    radial-gradient(circle at 18% 20%, rgba(96, 165, 250, 0.14), transparent 62%),
+    rgba(6, 12, 24, 0.52);
+  border: 1px solid rgba(180, 212, 250, 0.22);
   border-radius: 14px;
-  padding: 14px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 13px 14px;
+  backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 28px rgba(0, 0, 0, 0.4);
 }
 
 .ai-card-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #f0f6fc;
+  color: #ffffff;
   font-size: 13px;
 }
 
 .ai-spark {
-  color: #60a5fa;
+  color: #bae6fd;
   font-size: 14px;
-  filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.6));
+  filter: drop-shadow(0 0 6px rgba(147, 197, 253, 0.75));
 }
 
 .ai-arrow {
   margin-left: auto;
-  color: #8ca3c2;
+  color: rgba(195, 215, 242, 0.75);
   font-size: 14px;
 }
 
 .ai-card p {
   margin: 8px 0 0;
-  color: #93a8c7;
+  color: rgba(182, 200, 226, 0.78);
   line-height: 1.45;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
-/* Geographic screen: framed globe viewport + glass right panel */
+/* Geographic screen: framed globe viewport + translucent glass right panel */
 .geographic-screen {
   padding: 8px 14px 10px;
   gap: 14px;
@@ -1690,22 +1714,26 @@ input[type="range"] {
 
 .geographic-area {
   border-radius: 16px;
-  border: 1px solid rgba(110, 160, 225, 0.24);
+  border: 1px solid rgba(180, 212, 250, 0.22);
+  background: rgba(3, 7, 16, 0.45);
   overflow: hidden;
-  box-shadow: inset 0 0 60px rgba(15, 36, 74, 0.45), 0 12px 36px rgba(0, 0, 0, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 70px rgba(24, 68, 145, 0.25),
+    0 14px 40px rgba(0, 0, 0, 0.5);
 }
 
 .geographic-map.geographic-map {
   background:
-    radial-gradient(1px 1px at 12% 18%, #fff9, transparent 60%),
-    radial-gradient(1px 1px at 72% 12%, #fffa, transparent 60%),
-    radial-gradient(1.5px 1.5px at 38% 74%, #fff8, transparent 60%),
-    radial-gradient(1px 1px at 86% 64%, #fff9, transparent 60%),
-    radial-gradient(1px 1px at 22% 52%, #fff7, transparent 60%),
-    radial-gradient(1.5px 1.5px at 58% 34%, #fff6, transparent 60%),
-    radial-gradient(1px 1px at 93% 88%, #fff8, transparent 60%),
-    radial-gradient(1px 1px at 6% 90%, #fff7, transparent 60%),
-    radial-gradient(circle at 50% 50%, rgba(28, 76, 158, 0.32) 0%, #071124 52%, #02050d 82%);
+    radial-gradient(1px 1px at 12% 18%, rgba(255, 255, 255, 0.55), transparent 60%),
+    radial-gradient(1px 1px at 72% 12%, rgba(255, 255, 255, 0.6), transparent 60%),
+    radial-gradient(1.5px 1.5px at 38% 74%, rgba(255, 255, 255, 0.45), transparent 60%),
+    radial-gradient(1px 1px at 86% 64%, rgba(255, 255, 255, 0.5), transparent 60%),
+    radial-gradient(1px 1px at 22% 52%, rgba(255, 255, 255, 0.4), transparent 60%),
+    radial-gradient(1.5px 1.5px at 58% 34%, rgba(255, 255, 255, 0.35), transparent 60%),
+    radial-gradient(1px 1px at 93% 88%, rgba(255, 255, 255, 0.45), transparent 60%),
+    radial-gradient(1px 1px at 6% 90%, rgba(255, 255, 255, 0.4), transparent 60%),
+    radial-gradient(circle at 50% 50%, rgba(56, 138, 245, 0.28) 0%, rgba(16, 48, 104, 0.22) 38%, #040915 62%, #02040a 88%);
 }
 
 /* Concentric orbital HUD reticle around the globe */
@@ -1713,8 +1741,8 @@ input[type="range"] {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: min(86%, 540px);
-  height: min(86%, 540px);
+  width: min(88%, 500px);
+  height: min(88%, 500px);
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 2;
@@ -1723,79 +1751,82 @@ input[type="range"] {
 /* Top-left COORDENADAS readout with corner brackets */
 .hud-coords {
   position: absolute;
-  top: 18px;
+  top: 20px;
   left: 58px;
   z-index: 3;
   pointer-events: none;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 12px;
+  padding: 7px 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
-  color: #dce9fa;
+  color: rgba(235, 244, 255, 0.92);
   background:
-    linear-gradient(to right, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 0 0,
-    linear-gradient(to bottom, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 0 0,
-    linear-gradient(to left, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 100% 0,
-    linear-gradient(to bottom, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 100% 0,
-    linear-gradient(to right, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 0 100%,
-    linear-gradient(to top, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 0 100%,
-    linear-gradient(to left, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 100% 100%,
-    linear-gradient(to top, rgba(125, 180, 245, 0.55) 1.5px, transparent 1.5px) 100% 100%;
+    linear-gradient(to right, rgba(185, 215, 250, 0.52) 1.2px, transparent 1.2px) 0 0,
+    linear-gradient(to bottom, rgba(185, 215, 250, 0.52) 1.2px, transparent 1.2px) 0 0,
+    linear-gradient(to left, rgba(185, 215, 250, 0.52) 1.2px, transparent 1.2px) 100% 0,
+    linear-gradient(to bottom, rgba(185, 215, 250, 0.52) 1.2px, transparent 1.2px) 100% 0,
+    linear-gradient(to right, rgba(185, 215, 250, 0.52) 1.2px, transparent 1.2px) 0 100%,
+    linear-gradient(to top, rgba(185, 215, 250, 0.52) 1.2px, transparent 1.2px) 0 100%,
+    linear-gradient(to left, rgba(185, 215, 250, 0.52) 1.2px, transparent 1.2px) 100% 100%,
+    linear-gradient(to top, rgba(185, 215, 250, 0.52) 1.2px, transparent 1.2px) 100% 100%;
   background-repeat: no-repeat;
-  background-size: 7px 7px;
+  background-size: 6px 6px;
 }
 
 .hud-coords-label {
-  font-size: 9.5px;
+  font-size: 9px;
   letter-spacing: 0.16em;
-  color: #8aa5c9;
+  color: rgba(175, 198, 228, 0.72);
   margin-bottom: 2px;
 }
 
 .hud-coords strong {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
 }
 
-/* Top-right source & resolution readout */
+/* Top-right source & resolution readout (pure floating HUD, no heavy box) */
 .geographic-status.geographic-status {
-  top: 16px;
-  right: 18px;
+  top: 18px;
+  right: 20px;
   left: auto;
-  background: rgba(8, 16, 32, 0.65);
-  border: 1px solid rgba(115, 165, 230, 0.2);
-  border-radius: 10px;
-  padding: 8px 12px;
+  background: transparent;
+  border: 0;
+  padding: 4px 6px;
   text-align: right;
-  color: #dce9fa;
-  backdrop-filter: blur(8px);
+  color: rgba(230, 240, 255, 0.9);
 }
 
 .hud-source-row {
   font-size: 12px;
-  color: #f0f6fc;
+  color: rgba(236, 244, 255, 0.92);
+}
+
+.hud-source-row em {
+  font-style: italic;
+  font-weight: 500;
 }
 
 .hud-slashes {
-  color: #60a5fa;
+  color: rgba(175, 205, 245, 0.65);
   letter-spacing: 0.08em;
   margin-right: 4px;
 }
 
 .hud-res-row {
   font-size: 10.5px;
-  color: #8ea6c7;
-  margin-top: 2px;
+  color: rgba(170, 192, 222, 0.72);
+  margin-top: 3px;
 }
 
 /* Bottom-right IMAGERY: NASA readout */
 .hud-imagery-credit {
   position: absolute;
-  right: 18px;
-  bottom: 28px;
+  right: 20px;
+  bottom: 18px;
   z-index: 3;
   pointer-events: none;
   display: flex;
@@ -1803,67 +1834,157 @@ input[type="range"] {
   align-items: flex-end;
   gap: 2px;
   font-size: 10.5px;
-  color: #8ea6c7;
+  color: rgba(175, 198, 228, 0.76);
 }
 
 .hud-imagery-credit strong {
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: 0.14em;
-  color: #b8cce6;
+  color: rgba(210, 226, 248, 0.85);
 }
 
-/* Dark glass MapLibre controls */
+/* Subtle MapLibre attribution & crisp ruler-bracket scale bar */
+.maplibregl-ctrl-attrib {
+  background: transparent !important;
+  color: rgba(160, 182, 212, 0.35) !important;
+  font-size: 8.5px !important;
+  padding: 0 6px 2px !important;
+}
+
+.maplibregl-ctrl-attrib a {
+  color: rgba(160, 182, 212, 0.42) !important;
+}
+
+.maplibregl-ctrl-scale {
+  background: transparent !important;
+  color: rgba(226, 238, 252, 0.88) !important;
+  border: 0 !important;
+  border-bottom: 1.5px solid rgba(215, 232, 252, 0.72) !important;
+  border-left: 1.5px solid rgba(215, 232, 252, 0.72) !important;
+  border-right: 1.5px solid rgba(215, 232, 252, 0.72) !important;
+  border-radius: 0 !important;
+  padding: 0 6px 3px !important;
+  margin: 0 0 16px 18px !important;
+  font-size: 10.5px !important;
+  text-align: center !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dark translucent glass MapLibre controls */
+.maplibregl-ctrl-top-left {
+  top: 14px !important;
+  left: 10px !important;
+}
+
 .maplibregl-ctrl-group {
-  background: rgba(11, 20, 38, 0.85) !important;
-  border: 1px solid rgba(115, 165, 230, 0.26) !important;
+  background: rgba(6, 12, 24, 0.56) !important;
+  border: 1px solid rgba(180, 212, 250, 0.22) !important;
   border-radius: 10px !important;
   overflow: hidden;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: blur(14px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 18px rgba(0, 0, 0, 0.42) !important;
 }
 
 .maplibregl-ctrl-group button {
-  border-bottom-color: rgba(115, 165, 230, 0.18) !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-bottom-color: rgba(180, 212, 250, 0.15) !important;
 }
 
 .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
-  filter: invert(1) brightness(1.1);
+  filter: invert(1) brightness(1.05);
+  opacity: 0.86;
 }
 
-/* Pilot pin on the globe */
+/* Pilot target reticle + connector line + glass pill on the globe */
+.pilot-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+
+.pilot-pin-reticle {
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  position: relative;
+  background:
+    linear-gradient(to right, rgba(255, 255, 255, 0.85) 1.5px, transparent 1.5px) 0 0,
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.85) 1.5px, transparent 1.5px) 0 0,
+    linear-gradient(to left, rgba(255, 255, 255, 0.85) 1.5px, transparent 1.5px) 100% 0,
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.85) 1.5px, transparent 1.5px) 100% 0,
+    linear-gradient(to right, rgba(255, 255, 255, 0.85) 1.5px, transparent 1.5px) 0 100%,
+    linear-gradient(to top, rgba(255, 255, 255, 0.85) 1.5px, transparent 1.5px) 0 100%,
+    linear-gradient(to left, rgba(255, 255, 255, 0.85) 1.5px, transparent 1.5px) 100% 100%,
+    linear-gradient(to top, rgba(255, 255, 255, 0.85) 1.5px, transparent 1.5px) 100% 100%;
+  background-repeat: no-repeat;
+  background-size: 5px 5px;
+}
+
 .pilot-pin-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
   background: #ffffff;
-  border: 2px solid #38bdf8;
-  box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7);
+  border: 2px solid rgba(56, 189, 248, 0.9);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+  animation: none;
+}
+
+.pilot-pin-line {
+  width: 14px;
+  height: 1px;
+  background: rgba(220, 236, 255, 0.72);
 }
 
 .pilot-pin-label {
-  background: rgba(9, 18, 36, 0.9);
-  border: 1px solid rgba(125, 185, 255, 0.55);
-  color: #f0f6fc;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(6, 12, 24, 0.78);
+  border: 1px solid rgba(205, 228, 255, 0.55);
+  color: #ffffff;
   border-radius: 999px;
-  padding: 4px 11px;
+  padding: 4px 12px;
+  font-size: 11.5px;
   font-weight: 500;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
 }
 
-/* Right Panel */
+.pilot-pin-bullet {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+/* Right Panel with translucent smoky crystal glass + satellite & Earth limb art */
 .geographic-screen .panel {
-  width: 430px;
+  width: 426px;
   border-left: 0;
-  border: 1px solid rgba(110, 160, 225, 0.24);
+  border: 1px solid rgba(180, 212, 250, 0.22);
   border-radius: 16px;
   background:
-    radial-gradient(ellipse 90% 35% at 85% 12%, rgba(45, 108, 210, 0.18) 0%, transparent 70%),
-    rgba(9, 16, 30, 0.84);
-  backdrop-filter: blur(16px);
+    url("/textures/earth/horizon-panel.png") no-repeat 100% 0 / 172px auto,
+    radial-gradient(ellipse 80% 35% at 90% 14%, rgba(56, 130, 240, 0.16) 0%, transparent 70%),
+    rgba(5, 10, 20, 0.46);
+  backdrop-filter: blur(18px);
   padding: 20px 18px;
   gap: 12px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 14px 40px rgba(0, 0, 0, 0.48);
 }
 
 .panel-head.has-satellite {
   position: relative;
-  padding-right: 84px;
+  padding-right: 92px;
 }
 
 .eyebrow-row {
@@ -1874,8 +1995,8 @@ input[type="range"] {
 }
 
 .eyebrow {
-  color: #8eb4e6;
-  font-size: 10.5px;
+  color: rgba(185, 208, 238, 0.78);
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.16em;
   white-space: nowrap;
@@ -1884,15 +2005,7 @@ input[type="range"] {
 .eyebrow-line {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, rgba(125, 175, 240, 0.35), transparent);
-}
-
-.panel-satellite-art {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  pointer-events: none;
-  filter: drop-shadow(0 4px 12px rgba(59, 130, 246, 0.25));
+  background: linear-gradient(90deg, rgba(185, 215, 250, 0.28), transparent);
 }
 
 .panel-head h2 {
@@ -1903,17 +2016,20 @@ input[type="range"] {
   margin-bottom: 6px;
 }
 
-/* Right panel cards */
+/* Right panel smoky glass cards */
 .card {
-  background: rgba(13, 24, 45, 0.72);
-  border: 1px solid rgba(110, 160, 225, 0.22);
+  background: rgba(7, 13, 25, 0.48);
+  border: 1px solid rgba(185, 215, 250, 0.2);
   border-radius: 14px;
   padding: 14px 16px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.32);
 }
 
 .card-action-shell {
-  padding: 10px 14px;
+  padding: 11px 15px;
 }
 
 .action-row-button {
@@ -1923,31 +2039,28 @@ input[type="range"] {
   gap: 12px;
   background: transparent;
   border: 0;
-  padding: 4px 2px;
-  color: #f0f6fc;
+  padding: 2px 0;
+  color: #ffffff;
   text-align: left;
 }
 
 .action-row-title {
   flex: 1;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .action-row-chevron {
-  color: #8ca3c2;
+  color: rgba(190, 212, 240, 0.78);
   flex-shrink: 0;
 }
 
-.card-lead-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
+.card-plain-icon {
+  width: 24px;
+  height: 24px;
   display: inline-grid;
   place-items: center;
-  background: rgba(25, 48, 86, 0.65);
-  border: 1px solid rgba(115, 170, 240, 0.3);
-  color: #93c5fd;
+  color: rgba(230, 240, 255, 0.92);
   flex-shrink: 0;
 }
 
@@ -1955,10 +2068,6 @@ input[type="range"] {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-}
-
-.card-icon-header.is-clickable {
-  cursor: pointer;
 }
 
 .card-icon-header-copy {
@@ -1975,13 +2084,7 @@ input[type="range"] {
 
 .card-icon-header-copy p {
   margin: 0;
-}
-
-.pilot-card-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  color: rgba(185, 204, 230, 0.78);
 }
 
 .draw-split-actions {
@@ -1998,47 +2101,121 @@ input[type="range"] {
   gap: 8px;
   padding: 9px 12px;
   border-radius: 10px;
-  background: rgba(18, 33, 60, 0.78);
-  border: 1px solid rgba(115, 165, 230, 0.28);
-  color: #e2ecf9;
+  background: rgba(12, 21, 38, 0.52);
+  border: 1px solid rgba(185, 215, 250, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: rgba(235, 243, 255, 0.94);
   font-size: 12.5px;
   font-weight: 500;
+  transition: background 0.16s, border-color 0.16s, box-shadow 0.16s;
 }
 
 .draw-action-btn:hover:not(:disabled),
 .draw-action-btn[aria-pressed="true"] {
-  background: rgba(37, 99, 235, 0.28);
-  border-color: #60a5fa;
+  background: rgba(32, 68, 132, 0.42);
+  border-color: rgba(165, 208, 255, 0.52);
   color: #ffffff;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.2);
+}
+
+/* Pilot card with 3D wireframe terrain mesh in bottom-right */
+.pilot-card {
+  position: relative;
+  overflow: hidden;
+  background:
+    url("/textures/earth/terrain-mesh.png") no-repeat 100% 100% / 138px auto,
+    rgba(7, 13, 25, 0.48);
+  padding: 14px 16px 12px;
+  gap: 6px;
+}
+
+.pilot-card-button {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.pilot-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pilot-card-subactions {
+  display: flex;
+  justify-content: flex-end;
+  padding-left: 36px;
+}
+
+.pilot-sublink {
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  font-size: 11px;
+  color: rgba(165, 205, 250, 0.82);
+  text-decoration: none;
+}
+
+.pilot-sublink:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.orbital-more {
+  font-size: 11.5px;
+  color: rgba(175, 198, 228, 0.72);
+}
+
+.orbital-more summary {
+  cursor: pointer;
+  padding: 4px 6px;
+  user-select: none;
+}
+
+.orbital-more-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
 }
 
 .play-button {
-  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
-  border: 1px solid rgba(147, 197, 253, 0.45);
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.75) 0%, rgba(37, 99, 235, 0.75) 100%);
+  border: 1px solid rgba(165, 208, 255, 0.45);
   color: #ffffff;
   font-weight: 600;
 }
 
 .explore-cta,
 .twin-cta {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.42), rgba(15, 36, 74, 0.9));
-  border: 1px solid rgba(96, 165, 250, 0.55);
-  color: #f0f6fc;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.42), rgba(10, 22, 46, 0.78));
+  border: 1px solid rgba(165, 208, 255, 0.48);
+  color: #ffffff;
+  backdrop-filter: blur(14px);
 }
 
 .twin-cta small {
-  color: #b4ccf0;
+  color: rgba(190, 212, 240, 0.82);
 }
 
-/* Bottom Bar (Active layers + Sentinel-2 timeline player) */
+/* Bottom Bar: translucent glass + razor-thin glowing timeline */
 .bottom-bar {
   margin: 0 14px 12px;
   border-radius: 16px;
-  border: 1px solid rgba(110, 160, 225, 0.24);
-  background: rgba(8, 15, 29, 0.86);
-  backdrop-filter: blur(14px);
+  border: 1px solid rgba(180, 212, 250, 0.22);
+  background: rgba(5, 10, 20, 0.48);
+  backdrop-filter: blur(18px);
   padding: 10px 18px 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
 .layer-chip {
@@ -2047,29 +2224,34 @@ input[type="range"] {
   gap: 7px;
   padding: 5px 12px;
   border-radius: 999px;
-  background: rgba(15, 28, 52, 0.75);
-  border: 1px solid rgba(110, 160, 225, 0.24);
-  color: #bfd2ec;
+  background: rgba(10, 18, 34, 0.48);
+  border: 1px solid rgba(185, 215, 250, 0.22);
+  color: rgba(205, 220, 242, 0.85);
   font-size: 12px;
+  transition: border-color 0.16s, background 0.16s;
 }
 
 .layer-chip.is-active {
-  background: rgba(26, 54, 98, 0.78);
-  border-color: rgba(125, 180, 245, 0.52);
-  color: #f0f6fc;
-  box-shadow: 0 0 14px rgba(59, 130, 246, 0.18);
+  background: rgba(16, 30, 56, 0.62);
+  border-color: rgba(195, 222, 255, 0.45);
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .layer-chip-icon {
   display: inline-grid;
   place-items: center;
-  color: #93c5fd;
+  color: rgba(220, 236, 255, 0.9);
 }
 
 .layer-chip-close {
-  color: #8ca3c2;
+  color: rgba(185, 206, 234, 0.72);
   font-size: 13px;
   margin-left: 2px;
+}
+
+.timeline {
+  gap: 14px;
 }
 
 .timeline .play-button {
@@ -2079,8 +2261,9 @@ input[type="range"] {
   display: inline-grid;
   place-items: center;
   border-radius: 10px;
-  background: rgba(18, 33, 60, 0.85);
-  border: 1px solid rgba(125, 180, 245, 0.35);
+  background: rgba(12, 22, 40, 0.62);
+  border: 1px solid rgba(185, 215, 250, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   color: #ffffff;
 }
 
@@ -2091,35 +2274,75 @@ input[type="range"] {
   display: inline-grid;
   place-items: center;
   border-radius: 8px;
-  background: rgba(15, 28, 52, 0.78);
-  border: 1px solid rgba(110, 160, 225, 0.25);
-  color: #c8d7eb;
+  background: rgba(10, 18, 34, 0.52);
+  border: 1px solid rgba(185, 215, 250, 0.22);
+  color: rgba(220, 234, 252, 0.88);
 }
 
-.timeline-track input {
-  accent-color: #ffffff;
+/* Custom sleek 2px range slider with glowing white orb thumb */
+.timeline-track {
+  padding-bottom: 12px;
+}
+
+.timeline-track input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 2px;
+  background: rgba(195, 220, 250, 0.26);
+  border-radius: 999px;
+  outline: none;
+  margin: 10px 0;
+}
+
+.timeline-track input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #e0f2fe;
+  box-shadow: 0 0 10px #ffffff, 0 0 20px rgba(96, 165, 250, 0.9);
+  cursor: pointer;
+}
+
+.timeline-track input[type="range"]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #e0f2fe;
+  box-shadow: 0 0 10px #ffffff, 0 0 20px rgba(96, 165, 250, 0.9);
+  cursor: pointer;
+}
+
+.timeline-dots {
+  inset: auto 6px 2px;
 }
 
 .timeline-dots i {
-  background: rgba(125, 160, 210, 0.45);
+  width: 3px;
+  height: 3px;
+  background: rgba(175, 202, 236, 0.35);
 }
 
 .timeline-dots i.is-past {
-  background: #60a5fa;
+  background: rgba(220, 236, 255, 0.72);
 }
 
 .timeline-date {
   text-align: right;
-  min-width: 130px;
+  min-width: 125px;
 }
 
 .timeline-date strong {
   font-size: 13px;
-  color: #f0f6fc;
+  color: #ffffff;
 }
 
 .timeline-date small {
-  color: #8ea6c7;
+  color: rgba(175, 198, 228, 0.75);
 }
 
 /* Responsive adjustments for the orbital theme on tablet & mobile */
@@ -2149,6 +2372,11 @@ input[type="range"] {
     display: none;
   }
 
+  .sidebar {
+    padding-bottom: 10px;
+    background-image: none;
+  }
+
   .sidebar-eyebrow {
     display: none;
   }
@@ -2169,13 +2397,12 @@ input[type="range"] {
 }
 
 @media (max-width: 600px) {
-  .brand-agrox-name {
-    font-size: 16px;
+  .brand-agrox-img {
+    height: 24px;
   }
 
-  .nasa-meatball {
-    width: 32px;
-    height: 26px;
+  .brand-collab-img {
+    height: 30px;
   }
 
   .hud-coords {
@@ -2198,10 +2425,5 @@ input[type="range"] {
 
   .panel-head.has-satellite {
     padding-right: 64px;
-  }
-
-  .panel-satellite-art {
-    width: 68px;
-    height: 50px;
   }
 }
