@@ -19,7 +19,7 @@ from app.engine.scenarios import perturb_series, resolve_irrigation
 from app.schemas.common import DataState, IrrigationLevel, PhenoStage
 from app.schemas.crops import CropParams
 from app.schemas.soil import SoilProfile
-from app.schemas.twin import StageDates, TwinScenario, TwinState, ZoneSummary
+from app.schemas.twin import SeasonOutcome, StageDates, TwinScenario, TwinState, ZoneSummary
 from app.schemas.weather import WeatherDay
 
 
@@ -203,6 +203,29 @@ def summarise(states: list[TwinState], crop: CropParams, planting_date: date) ->
         cold_days=sum(1 for s in scope if s.t_min < crop.t_min),
         stage_dates=stage_dates,
         irrigation_events=sum(1 for s in states if s.irrigation_mm > 0),
+    )
+
+
+def season_outcome(
+    states: list[TwinState], crop: CropParams, planting_date: date, summary: ZoneSummary
+) -> SeasonOutcome:
+    """Cycle completion inside the simulated window, from GDD stages, Ks and frost days only (no yield)."""
+    planted = any(s.stage is not PhenoStage.PRE_PLANTING for s in states)
+    maturity = next((s.date for s in states if s.stage is PhenoStage.HARVESTED), None)
+    in_window = bool(states) and states[0].date <= planting_date <= states[-1].date
+    # Twin outputs from observed weather are ESTIMATED; a cycle verdict is always a model result
+    state = DataState.SYNTHETIC if states and states[-1].data_state is DataState.SYNTHETIC else DataState.SIMULATED
+    return SeasonOutcome(
+        status="COMPLETED" if maturity else ("NOT_MATURE" if planted else "NOT_PLANTED"),
+        planted_in_window=in_window,
+        reached_maturity=maturity is not None,
+        maturity_date=maturity,
+        gdd_accumulated=round(max((s.gdd_cum for s in states), default=0.0), 1),
+        gdd_required=crop.gdd_stages.maturity,
+        stress_days=summary.stress_days if planted else 0,
+        stress_day_ks=STRESS_DAY_KS,
+        frost_days=summary.frost_days if planted else 0,
+        data_state=state,
     )
 
 

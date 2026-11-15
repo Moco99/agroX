@@ -107,6 +107,7 @@ def _plantings(
     zones: list[FarmZone],
     crops: dict[str, CropParams],
     start: date,
+    end: date,
     pt: tuple[float, float] | None,
 ) -> dict[str, tuple[date, DataState]]:
     """Planting date per zone: declared by zone_id, else by crop_id, else the calendar suggestion."""
@@ -119,8 +120,13 @@ def _plantings(
         elif crop_id in declared:
             out[z.zone_id] = (declared[crop_id], DataState.DECLARED)
         elif pt is None:
-            # Pilot: documented US Midwest dates (ADR-018), declared assumptions of the demo
-            out[z.zone_id] = (twin.default_planting(crop_id, start.year, DEFAULT_PLANTING_MMDD), DataState.DECLARED)
+            # Pilot: documented US Midwest dates (ADR-018), declared assumptions of the demo; a window that opens
+            # after that date and still contains it the next year (e.g. Nov-Nov) plants in the following year
+            planting = twin.default_planting(crop_id, start.year, DEFAULT_PLANTING_MMDD)
+            following = twin.default_planting(crop_id, start.year + 1, DEFAULT_PLANTING_MMDD)
+            if planting < start and following <= end:
+                planting = following
+            out[z.zone_id] = (planting, DataState.DECLARED)
         else:
             out[z.zone_id] = (suggested_planting(crop_id, pt[0], start), DataState.ESTIMATED)
     return out
@@ -224,7 +230,7 @@ def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
     year = start.year
     declared_crops = _declared_crops(req)
     crops = {z.zone_id: crop_for_year(z, year, catalog, declared_crops.get(z.zone_id)) for z in zones}
-    planting_info = _plantings(req, zones, crops, start, pt)
+    planting_info = _plantings(req, zones, crops, start, end, pt)
     plantings = {zid: d for zid, (d, _) in planting_info.items()}
     cov_start, _ = weather_src.coverage()
     desired_start = min([start, *(d - timedelta(days=SPIN_UP_DAYS) for d in plantings.values())])
@@ -337,6 +343,7 @@ def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
                 if req.include_states
                 else [],
                 monte_carlo=mc,
+                outcome=twin.season_outcome(trimmed, crop, inputs.planting_date, summary),
                 data_state=zone_state,
                 warnings=zone_warnings,
             )

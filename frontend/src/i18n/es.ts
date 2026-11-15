@@ -16,12 +16,20 @@ export const es = {
     end: "Fin",
     year: "Año histórico de referencia (opcional)",
     placeholder: "Ej. 2024",
+    noReference: "Sin referencia (clima observado)",
+    completeYear: (year: number) => `${year} · completo`,
+    partialYear: (year: number) => `${year} · incompleto (días faltantes: año anterior)`,
+    usableYears: (first: number, last: number, gapDays: number) =>
+      `Años completos disponibles: ${first}–${last}. Los huecos de hasta ${gapDays} días se rellenan con sus días vecinos y quedan marcados.`,
+    yearsWithData: (a: number, b: number) => `Años con datos: ${a}${b > a ? ` a ${b}` : ""}.`,
     loading: "Consultando periodos climáticos disponibles…",
     unavailable: "No se pudo consultar la cobertura climática.",
     coverage: (start: string, end: string, days: number, gaps: number) =>
       `Clima observado: ${start} a ${end} · ${days} días disponibles${gaps ? ` · ${gaps} intervalo(s) sin datos` : ""}.`,
     explanation: "Para fechas futuras, indica un año observado: sus días se trasladan al periodo elegido. Si cruza de año, la referencia también avanza; el 29 de febrero se aproxima al 28 cuando haga falta. Es una simulación, no un pronóstico meteorológico.",
     required: "Para fechas posteriores a las observaciones, elige un año histórico de referencia.",
+    requiredWith: (year: number) =>
+      `Para fechas posteriores a las observaciones, elige un año histórico de referencia; ${year} es el último año completo.`,
     failed: "No se pudo simular el periodo.",
     active: (year: number) => `Escenario simulado con clima histórico de referencia: ${year}. No son observaciones del periodo mostrado.`,
     submit: "Simular periodo",
@@ -228,9 +236,15 @@ export const es = {
     climateWindowClima: "Ventana del módulo Clima",
     climateWindowTwin: "Ventana del gemelo",
     crop: "Cultivo",
-    ndvi: "Último NDVI por zona",
+    ndvi: "Último NDVI observado por zona",
+    ndviIndependent: (date: string) =>
+      `Observación satelital más reciente (${date}). Es independiente del periodo simulado del gemelo.`,
     ndviNone: "Sin NDVI observado para esta parcela.",
-    twin: "Última simulación del gemelo",
+    twin: "Simulación del gemelo",
+    twinPeriod: "Periodo simulado",
+    twinReference: (year: number) => `Clima histórico de referencia: ${year} (simulación, no pronóstico)`,
+    twinObserved: "Clima observado del periodo",
+    twinComputed: "Calculada el",
     twinNone: "Aún no hay simulación del gemelo para esta parcela.",
     rotation: "Comparación de rotaciones",
     rotationNone: "Aún no se ha calculado una comparación de rotaciones para esta parcela. Hazlo en el módulo Rotaciones.",
@@ -279,6 +293,8 @@ export const es = {
     searchResult: "Granja piloto · Story County, Iowa (EE. UU.)",
     season: "Temporada",
     period: "Periodo",
+    simulatedReference: (year: number) => `Simulado · referencia ${year}`,
+    customPeriod: "Otro periodo",
     layers: (n: number) => `Capas (${n})`,
     notifications: "Notificaciones",
     help: "Ayuda",
@@ -1145,8 +1161,9 @@ export const es = {
     submit: "Comparar rotaciones",
     noWeights: "Da prioridad a lluvia o temperatura, o declara el pH para priorizar suelo.",
     failed: "No se pudo obtener el ranking. Revisa las fechas y vuelve a intentar.",
-    emptyTitle: "Compara tres alternativas",
-    emptyBody: "Elige el periodo y tus prioridades y pulsa «Comparar rotaciones». Verás un índice comparativo y su desglose para cada secuencia.",
+    emptyTitle: "Elige tus datos y presiona Comparar rotaciones",
+    emptyBody: "Verás hasta tres alternativas de rotación con un índice comparativo y su desglose para cada secuencia. Revisa el periodo, el cultivo inicial y tus prioridades en el formulario.",
+    startCropReset: (name: string) => `Se quitó «${name}» como cultivo inicial porque no se puede simular en el gemelo. Desmarca «Solo cultivos que se pueden simular en el gemelo» para volver a elegirlo.`,
     loading: "Consultando datos y calculando secuencias…",
     twinPreparing: "El gemelo está preparando la simulación de la parcela.",
     inputsTitle: "Datos utilizados",
@@ -1194,6 +1211,21 @@ export const es = {
     moreIrrigation: (level: string, zone: string, stress: string) => `Aun con riego ${level}, ${zone} mantiene ${stress}: compara con un nivel mayor.`,
     allLow: "Con este escenario el estrés simulado se mantiene bajo en todas las zonas.",
   },
+  seasonOutcome: {
+    title: "Resultado de la temporada",
+    hint: "Veredicto del modelo para cada zona en el periodo simulado: si el cultivo completó su ciclo (grados-día) y cuántos días tuvo estrés hídrico.",
+    note: "Resultado simulado del modelo (calor acumulado y estrés hídrico Ks). No es una predicción de rendimiento.",
+    completed: "El cultivo completó su ciclo sin estrés hídrico relevante.",
+    completedStress: (days: number) => `Completó el ciclo con ${days} días de estrés hídrico.`,
+    notMature: (gdd: string, required: string) =>
+      `No alcanzó la madurez dentro del periodo: faltó calor acumulado (${gdd} de ${required} grados-día).`,
+    alsoStress: (days: number) => `Además tuvo ${days} días de estrés hídrico.`,
+    notPlanted: "No hubo siembra dentro del periodo: la zona quedó como suelo desnudo.",
+    maturity: (date: string) => `Madurez simulada: ${date}.`,
+    frost: (days: number) => `Hubo ${days} días con helada durante el ciclo.`,
+    plantedOutside: "La siembra cae fuera del periodo simulado.",
+    none: "Sin resultado de temporada en esta simulación.",
+  },
   reportCopy: {
     howToRead: "Cómo leer este informe",
     stressLine: "Estrés hídrico medio (Ks ponderado por área)",
@@ -1224,6 +1256,12 @@ export function fmtDate(iso: string | null | undefined): string {
     year: "numeric",
     timeZone: "UTC",
   });
+}
+
+export function fmtDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
 }
 
 export function fmtDateShort(iso: string): string {

@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from "react";
 import { es, fmtDate } from "../i18n/es";
 import { activeRun } from "../lib/derive";
+import { stageMarks } from "../lib/stage-marks";
 import { useTwinStore } from "../store/twin-store";
-import type { PhenoStage } from "../types/api";
 
 // ─────────────────────────────────────────
 // Section: Stage timeline + player (steps through already computed states, never re-simulates)
@@ -36,14 +36,10 @@ export function Timeline() {
     return () => clearInterval(id);
   }, [playing, n, setDayIndex, setPlaying]);
 
-  // First day of each stage of the selected zone becomes a milestone on the track
-  const milestones = useMemo(() => {
-    const out: { index: number; stage: PhenoStage }[] = [];
-    states.forEach((s, i) => {
-      if (s.stage !== "PRE_PLANTING" && (i === 0 || states[i - 1]?.stage !== s.stage)) out.push({ index: i, stage: s.stage });
-    });
-    return out;
-  }, [states]);
+  // First day of each stage of the selected zone of the active run, placed by date inside that run's window
+  const start = run?.start ?? states[0]?.date ?? "";
+  const end = run?.end ?? states.at(-1)?.date ?? "";
+  const milestones = useMemo(() => stageMarks(states, start, end), [states, start, end]);
 
   if (n === 0) return null;
   const current = states[Math.min(dayIndex, n - 1)];
@@ -80,11 +76,13 @@ export function Timeline() {
             <button
               type="button"
               key={`${m.stage}-${m.index}`}
-              className="milestone"
-              style={{ left: `${(m.index / Math.max(1, n - 1)) * 100}%` }}
+              className={`milestone${m.pct > 85 ? " is-end" : ""}`}
+              style={{ left: `${m.pct}%` }}
+              title={`${es.timeline.stages[m.stage]} · ${fmtDate(states[m.index]?.date)}`}
+              aria-label={`${es.timeline.stages[m.stage]} · ${fmtDate(states[m.index]?.date)}`}
               onClick={() => setDayIndex(m.index)}
             >
-              {es.timeline.stages[m.stage]}
+              {m.labelled ? es.timeline.stages[m.stage] : ""}
             </button>
           ))}
         </div>

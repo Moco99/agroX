@@ -9,7 +9,7 @@ import { isPilotFarm } from "../lib/parcel";
 import { displayName } from "../lib/parcel-history";
 import { useHistoryStore } from "../store/history-store";
 import { useParcelStore } from "../store/parcel-store";
-import { SEASONS, useTwinStore } from "../store/twin-store";
+import { SEASONS, seasonRange, useTwinStore } from "../store/twin-store";
 
 // ─────────────────────────────────────────
 // Section: Top bar (search ⌘K, season range, layer count, notifications, help, avatar)
@@ -33,7 +33,14 @@ export function TopBar() {
   // The loaded farm payload is the most accurate area; the history entry covers the time before it arrives
   const areaHa = farm?.farm_id === farmId ? farm.area_ha : (record?.areaHa ?? null);
   const parcelName = displayName({ farmId, customName: record?.customName ?? null, centroid: record?.centroid ?? null });
-  const { start, end } = span;
+  const baseline = useTwinStore((s) => s.baseline);
+  const referenceYear = useTwinStore((s) => s.referenceYear);
+  // The chip shows the window actually simulated for this parcel; the requested span only before a run exists
+  const ran = baseline?.farm_id === farmId ? baseline : null;
+  const start = ran?.start ?? span.start;
+  const end = ran?.end ?? span.end;
+  const season = seasonRange(year);
+  const isSeason = start === season.start && end === season.end;
   // The twin stage always has exactly one active layer (radio); globe/map count their two pilot toggles
   const layerCount = stage === "twin" ? 1 : [mapLayers.ndvi, mapLayers.boundaries].filter(Boolean).length;
 
@@ -77,14 +84,17 @@ export function TopBar() {
         <label className="date-range" title={pilot ? es.geo.pilotSeason : es.openParcel.seasonTitle}>
           <span aria-hidden>▦</span>
           <span>
-            {pilot ? "Iowa" : es.openParcel.seasonLabel} · {fmtDate(start)} – {fmtDate(end)}
+            {referenceYear !== null ? es.topbar.simulatedReference(referenceYear) : pilot ? "Iowa" : es.openParcel.seasonLabel} ·{" "}
+            {fmtDate(start)} – {fmtDate(end)}
           </span>
           {pilot && (
             <select
-              value={year}
+              value={isSeason ? year : ""}
               onChange={(e) => void loadSeason(Number(e.target.value))}
               aria-label={es.geo.pilotSeason}
             >
+              {/* A custom period (e.g. a future window) must not look like one of the observed seasons */}
+              {!isSeason && <option value="" disabled>{es.topbar.customPeriod}</option>}
               {SEASONS.map((y) => (
                 <option key={y} value={y}>
                   {y}

@@ -1,6 +1,6 @@
 import { DataStateBadge } from "../../components/data-state-badge";
 import { ReadingChip } from "../../components/explain/reading-chip";
-import { es, fmt, fmtDate } from "../../i18n/es";
+import { es, fmt, fmtDate, fmtDateTime } from "../../i18n/es";
 import { metricOf, unitSymbol } from "../../lib/climate-view";
 import { cropLabel } from "../../lib/farm-labels";
 import { isPilotFarm } from "../../lib/parcel";
@@ -10,6 +10,7 @@ import { useParcelStore } from "../../store/parcel-store";
 import { useTwinStore } from "../../store/twin-store";
 import type { ClimateResponse, FarmAnalyzeResponse, TwinSimulateResponse } from "../../types/api";
 import type { RotationResponse } from "../rotation/rotation-api";
+import { SeasonOutcomeList } from "../digital-twin/season-outcome";
 import "./report.css";
 
 // ─────────────────────────────────────────
@@ -27,6 +28,8 @@ export interface ReportProps {
   // Zones whose crop the user declared (the pilot counts as declared)
   declaredCrops?: Record<string, string>;
   rotation: { baseline: RotationResponse; scenario: RotationResponse | null } | null;
+  // Historical reference year of the twin run (null = observed weather of the period)
+  referenceYear?: number | null;
   now?: Date;
 }
 
@@ -49,7 +52,7 @@ function RotationList({ label, result }: { label: string; result: RotationRespon
   );
 }
 
-export function ReportView({ farm, climate, twin, rotation, climateFrom = "twin", declaredCrops = {}, now = new Date() }: ReportProps) {
+export function ReportView({ farm, climate, twin, rotation, climateFrom = "twin", declaredCrops = {}, referenceYear = null, now = new Date() }: ReportProps) {
   const f = farm?.farm;
   const pilot = f ? isPilotFarm(f.farm_id) : false;
   return (
@@ -175,7 +178,7 @@ export function ReportView({ farm, climate, twin, rotation, climateFrom = "twin"
               ))}
             </ul>
             <small className="muted">
-              {fmtDate(farm.latest_ndvi_date)} · {es.report.source}: {farm.latest_ndvi_source ?? "—"} · {es.reading.ndvi.note}
+              {es.report.ndviIndependent(fmtDate(farm.latest_ndvi_date))} {es.report.source}: {farm.latest_ndvi_source ?? "—"} · {es.reading.ndvi.note}
             </small>
           </>
         )}
@@ -188,7 +191,12 @@ export function ReportView({ farm, climate, twin, rotation, climateFrom = "twin"
         ) : (
           <>
             <p>
-              {fmtDate(twin.start)} – {fmtDate(twin.end)} · <DataStateBadge state="SIMULATED" compact /> · {es.twinLevelText[twin.twin_level]}
+              {es.report.twinPeriod}: <strong>{fmtDate(twin.start)} – {fmtDate(twin.end)}</strong> · <DataStateBadge state="SIMULATED" compact /> ·{" "}
+              {es.twinLevelText[twin.twin_level]}
+            </p>
+            <p className="muted" data-testid="report-twin-meta">
+              {referenceYear !== null ? es.report.twinReference(referenceYear) : es.report.twinObserved}
+              {twin.computed_at && ` · ${es.report.twinComputed} ${fmtDateTime(twin.computed_at)}`}
             </p>
             <ul>
               <li>
@@ -202,6 +210,9 @@ export function ReportView({ farm, climate, twin, rotation, climateFrom = "twin"
                 {es.reportCopy.irrigationLine}: <strong>{fmt(twin.farm_summary.total_irrigation_mm, 0)} mm</strong>
               </li>
             </ul>
+            <h3>{es.seasonOutcome.title}</h3>
+            <SeasonOutcomeList run={twin} />
+            <br />
             <small className="muted">{es.methodology[twin.methodology] ?? twin.methodology}</small>
           </>
         )}
@@ -236,6 +247,7 @@ export default function ReportScreen() {
   const moduleClimate = useModuleView((s) => s.climate);
   const declaredCrops = useParcelStore((s) => s.declaration.crops);
   const baseline = useTwinStore((s) => s.baseline);
+  const referenceYear = useTwinStore((s) => s.referenceYear);
   const rotation = useModuleView((s) => s.rotation);
   // Everything shown must belong to the selected farm; stale results from another parcel are dropped
   const sameFarm = farm?.farm.farm_id === farmId;
@@ -252,6 +264,7 @@ export default function ReportScreen() {
         climateFrom={moduleClimate?.farmId === farmId ? "clima" : "twin"}
         declaredCrops={declaredCrops}
         twin={baseline?.farm_id === farmId ? baseline : null}
+        referenceYear={referenceYear}
         rotation={rotation?.farmId === farmId ? rotation : null}
       />
     </div>

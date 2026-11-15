@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { DataStateBadge } from "../../components/data-state-badge";
 import { es } from "../../i18n/es";
-import { getWeatherCoverage, type WeatherCoverage } from "../../lib/weather-coverage";
+import { getWeatherCoverage, referenceOptions, type WeatherCoverage } from "../../lib/weather-coverage";
 import { useParcelStore } from "../../store/parcel-store";
 import { useTwinStore } from "../../store/twin-store";
 
@@ -35,11 +35,18 @@ export function SimulationPeriod() {
     return () => controller.abort();
   }, [farmId]);
 
+  // Dates beyond the observations need a reference: preselect the most recent complete year
+  const latestComplete = coverage?.latest_complete_year ?? null;
+  const beyondCoverage = coverage !== null && (start < coverage.start || end > coverage.end);
+  useEffect(() => {
+    if (beyondCoverage && !reference && latestComplete !== null) setReference(String(latestComplete));
+  }, [beyondCoverage, reference, latestComplete]);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    if (coverage && (start < coverage.start || end > coverage.end) && !reference) {
-      setError(es.weatherReference.required);
+    if (beyondCoverage && !reference) {
+      setError(latestComplete !== null ? es.weatherReference.requiredWith(latestComplete) : es.weatherReference.required);
       return;
     }
     try {
@@ -77,8 +84,26 @@ export function SimulationPeriod() {
         </label>
         <label className="field">
           <span>{es.weatherReference.year}</span>
-          <input type="number" min={1900} max={coverage ? Number(coverage.end.slice(0, 4)) : undefined} step={1} value={reference} onChange={(e) => setReference(e.target.value)} placeholder={es.weatherReference.placeholder} />
+          {coverage ? (
+            <select value={reference} onChange={(e) => setReference(e.target.value)}>
+              <option value="">{es.weatherReference.noReference}</option>
+              {/* Keep a year from an earlier run selectable even if it is not in the list */}
+              {reference && !referenceOptions(coverage).some((o) => String(o.year) === reference) && <option value={reference}>{reference}</option>}
+              {referenceOptions(coverage).map((o) => (
+                <option key={o.year} value={o.year}>
+                  {o.complete ? es.weatherReference.completeYear(o.year) : es.weatherReference.partialYear(o.year)}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input type="number" min={1900} step={1} value={reference} onChange={(e) => setReference(e.target.value)} placeholder={es.weatherReference.placeholder} />
+          )}
         </label>
+        {coverage?.complete_years && coverage.complete_years.length > 0 && (
+          <p className="muted">
+            {es.weatherReference.usableYears(coverage.complete_years[0] ?? 0, coverage.complete_years.at(-1) ?? 0, coverage.max_filled_gap_days ?? 0)}
+          </p>
+        )}
         <p className="muted">{es.weatherReference.explanation}</p>
         {error && <p role="alert" className="error-box">{error}</p>}
         <button type="submit" className="ghost-button" disabled={simulating}>

@@ -401,6 +401,10 @@ async function track<T>(key: SourceKey, task: Promise<T>, optional = false): Pro
   }
 }
 
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+}
+
 // Index of the day to open on: mid-season so the first view shows a developed canopy, not bare soil
 function openingDay(baseline: TwinSimulateResponse, pilot: boolean, year: number): number {
   const first = baseline.zones[0]?.states ?? [];
@@ -715,8 +719,9 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
         referenceYear, referenceStartYear: Number(span.start.slice(0, 4)),
         cycles: rotationPreview.cycles.map((cycle, index) => index === rotationPreview.index ? { ...cycle, span } : cycle),
       } : null;
+      // A new period plays from its first day; with reduced motion it only rewinds
       set({ baseline, scenario, span, plan: nextPlan, referenceYear, rotationPreview: nextPreview, simulating: false,
-        dayIndex: openingDay(scenario ?? baseline, false, Number(span.start.slice(0, 4))), canvasTab: "twin" });
+        dayIndex: 0, playing: !prefersReducedMotion(), canvasTab: "twin" });
     } catch (error) {
       if (!controller.signal.aborted) { controller.abort(); set({ simulating: false }); }
       throw error;

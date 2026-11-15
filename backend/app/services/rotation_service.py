@@ -18,6 +18,13 @@ from app.services.errors import InvalidRequestError
 from app.services.farm_load_service import ensure_supported
 from app.services.weather_reference import analogue_weather
 
+# Engine messages are English and internal; the UI shows only these es-MX texts.
+_ENGINE_ERRORS = {
+    "Unknown previous crop": "El cultivo anterior no existe en el catálogo.",
+    "Provide one climate window per cycle": "Indica un periodo climático por ciclo.",
+    "Provide one daily series per cycle": "Indica una serie climática diaria por ciclo.",
+}
+
 
 @lru_cache(maxsize=1)
 def engine() -> RotationEngine:
@@ -129,6 +136,16 @@ def recommend(p: Providers, request: RotationRecommendRequest) -> dict[str, Any]
     if weights["water"] + weights["climate"] + weights["soil"] <= 0:
         raise InvalidRequestError("Declara el pH o asigna peso positivo a agua o clima")
     model = engine()
+    # Explain the filter conflict in Spanish instead of leaking the engine's English message.
+    if request.start_crop is not None:
+        name = next((c["name"] for c in model.PRIMARY_CROPS if c["id"] == request.start_crop), None)
+        if name is None:
+            raise InvalidRequestError("El cultivo inicial elegido no existe en el catálogo.")
+        if request.twin_only and request.start_crop not in twin_crops:
+            raise InvalidRequestError(
+                f"El cultivo inicial «{name}» no se puede simular en el gemelo. "
+                "Elige otro cultivo o desmarca «Solo cultivos que se pueden simular en el gemelo»."
+            )
     families = {crop["id"]: crop["family"] for crop in model.PRIMARY_CROPS}
     legumes = {crop["id"] for crop in model.PRIMARY_CROPS if crop["is_legume"]}
     try:
@@ -151,7 +168,9 @@ def recommend(p: Providers, request: RotationRecommendRequest) -> dict[str, Any]
             exclude_same_crop=not request.allow_consecutive_same_crop,
         )
     except ValueError as exc:
-        raise InvalidRequestError(str(exc)) from exc
+        raise InvalidRequestError(
+            _ENGINE_ERRORS.get(str(exc), "Los datos de la rotación no son válidos. Revisa los filtros elegidos.")
+        ) from exc
     enriched = []
     for rec in all_recs:
         cycles = rec["cycles"]

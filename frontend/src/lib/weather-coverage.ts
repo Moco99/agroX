@@ -6,6 +6,19 @@ export interface WeatherCoverage {
   end: string;
   available_days: number;
   missing: Array<{ start: string; end: string }>;
+  // Calendar years usable as historical reference (optional: older backends omit them)
+  complete_years?: number[];
+  latest_complete_year?: number | null;
+  max_filled_gap_days?: number;
+}
+
+// Reference years offered to the user: complete years (newest first), plus the partial last year whose
+// missing future days the backend takes from the previous year
+export function referenceOptions(coverage: WeatherCoverage): Array<{ year: number; complete: boolean }> {
+  const complete = [...(coverage.complete_years ?? [])].sort((a, b) => b - a);
+  const lastYear = Number(coverage.end.slice(0, 4));
+  const partial = complete.includes(lastYear) ? [] : [{ year: lastYear, complete: false }];
+  return [...partial, ...complete.map((year) => ({ year, complete: true }))];
 }
 
 export async function getWeatherCoverage(farmId: string, signal: AbortSignal): Promise<WeatherCoverage> {

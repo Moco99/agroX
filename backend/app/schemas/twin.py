@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -116,6 +116,25 @@ class ZoneSummary(BaseModel):
     irrigation_events: int
 
 
+class SeasonOutcome(BaseModel):
+    """Did the simulated crop complete its cycle inside the window? Model-derived; never a yield prediction."""
+
+    # COMPLETED = GDD maturity reached; NOT_MATURE = planted but heat ran out; NOT_PLANTED = bare soil all window
+    status: Literal["COMPLETED", "NOT_MATURE", "NOT_PLANTED"]
+    planted_in_window: bool
+    reached_maturity: bool
+    maturity_date: date | None
+    gdd_accumulated: float
+    gdd_required: float
+    # Crop-period days with Ks below stress_day_ks (product threshold, same as ZoneSummary.stress_days)
+    stress_days: int
+    stress_day_ks: float
+    # Crop-period days with t_min below the frost threshold (same as ZoneSummary.frost_days)
+    frost_days: int
+    data_state: DataState
+    note: str = "model outcome of the simulated crop cycle (GDD, Ks); not a yield prediction"
+
+
 class MonteCarloSummary(BaseModel):
     n: int
     seed: int
@@ -152,6 +171,7 @@ class ZoneResult(BaseModel):
     comparison: list[ComparisonMetrics] = Field(default_factory=list)
     expected_canopy: list[dict[str, float | str]] = Field(default_factory=list)
     monte_carlo: MonteCarloSummary | None = None
+    outcome: SeasonOutcome | None = None
     data_state: DataState
     warnings: list[str] = Field(default_factory=list)
 
@@ -211,6 +231,8 @@ class TwinSimulateResponse(BaseModel):
     farm_summary: FarmSummary
     warnings: list[str] = Field(default_factory=list)
     provenance: dict[str, Provenance]
+    # When the run was computed (UTC); start/end are the simulated window, not this
+    computed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ZoneStateSnapshot(BaseModel):
