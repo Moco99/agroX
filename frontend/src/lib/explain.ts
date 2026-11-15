@@ -2,7 +2,7 @@ import { es, fmt, fmtDate } from "../i18n/es";
 import type { TwinSimulateResponse, ZoneResult } from "../types/api";
 
 // ─────────────────────────────────────────
-// Section: Deterministic template explanation (no LLM, only engine outputs)
+// Section: Deterministic template explanation (no LLM, only engine outputs, plain es-MX)
 // ─────────────────────────────────────────
 
 export interface Explanation {
@@ -14,22 +14,20 @@ function cropName(id: string): string {
   return es.crops[id] ?? id;
 }
 
-function zoneSentence(base: ZoneResult, scen: ZoneResult | null): string {
+const T = es.explainTpl;
+
+function zoneSentence(base: ZoneResult, scen: ZoneResult | null, stressDayKs: number | null): string {
   const b = base.summary;
   const crop = cropName(base.crop_id);
+  const ks = stressDayKs === null ? null : fmt(stressDayKs, 2);
   if (!scen) {
-    return (
-      `${base.name} (${crop}, ${fmt(base.area_ha, 0)} ha): Ks medio ${fmt(b.mean_ks, 2)} ` +
-      `(${es.stressClass[b.stress_class].toLowerCase()}), ${b.stress_days} días con Ks < 0.8 y agua mínima ` +
-      `en la zona radicular de ${fmt(b.min_soil_water_fraction * 100, 0)} % de TAW.`
-    );
+    return T.zoneBase(base.name, crop, fmt(base.area_ha, 0), T.verdict[b.stress_class], T.stressDays(b.stress_days, ks), fmt(b.min_soil_water_fraction * 100, 0));
   }
   const s = scen.summary;
+  const change = s.mean_ks < b.mean_ks ? T.change.worse : s.mean_ks > b.mean_ks ? T.change.better : T.change.same;
   return (
-    `${base.name} (${crop}): Ks medio ${fmt(b.mean_ks, 2)} → ${fmt(s.mean_ks, 2)} ` +
-    `(${es.stressClass[s.stress_class].toLowerCase()}); días con estrés ${b.stress_days} → ${s.stress_days}; ` +
-    `agua mínima ${fmt(b.min_soil_water_fraction * 100, 0)} % → ${fmt(s.min_soil_water_fraction * 100, 0)} % de TAW` +
-    (s.total_irrigation_mm > 0 ? `; riego simulado ${fmt(s.total_irrigation_mm, 0)} mm.` : ".")
+    T.zoneScenario(base.name, crop, change, T.verdict[s.stress_class], b.stress_days, s.stress_days, fmt(b.min_soil_water_fraction * 100, 0), fmt(s.min_soil_water_fraction * 100, 0)) +
+    (s.total_irrigation_mm > 0 ? T.irrigation(fmt(s.total_irrigation_mm, 0)) : ".")
   );
 }
 
@@ -37,40 +35,33 @@ export function explain(
   baseline: TwinSimulateResponse,
   scenario: TwinSimulateResponse | null,
   selectedZoneId: string | null,
+  stressDayKs: number | null = null,
 ): Explanation {
   const paragraphs: string[] = [];
   const zones = selectedZoneId ? baseline.zones.filter((z) => z.zone_id === selectedZoneId) : baseline.zones;
   const first = baseline.zones[0];
   if (first) {
-    paragraphs.push(
-      `Periodo ${fmtDate(baseline.start)} – ${fmtDate(baseline.end)}: lluvia observada ${fmt(first.summary.total_precip_mm, 0)} mm ` +
-        `y ET0 ${fmt(first.summary.total_et0_mm, 0)} mm (FAO-56 Penman-Monteith).`,
-    );
+    const rain = first.summary.total_precip_mm;
+    const et0 = first.summary.total_et0_mm;
+    paragraphs.push(T.period(fmtDate(baseline.start), fmtDate(baseline.end), fmt(rain, 0), fmt(et0, 0)) + (rain >= et0 ? T.rainCovers : T.rainShort));
   }
   if (scenario) {
     const e = scenario.scenario_expanded;
     const pct = Math.round((e.precip_factor - 1) * 100);
     paragraphs.push(
-      `Escenario: precipitación ${pct >= 0 ? "+" : ""}${pct} %, temperatura ${e.temp_delta_c >= 0 ? "+" : ""}${fmt(e.temp_delta_c, 1)} °C, ` +
-        `riego ${es.irrigation[e.irrigation_level ?? "NONE"].toLowerCase()}. ${es.app.exploratory}.`,
+      T.scenario(`${pct >= 0 ? "+" : ""}${pct}`, `${e.temp_delta_c >= 0 ? "+" : ""}${fmt(e.temp_delta_c, 1)}`, es.irrigation[e.irrigation_level ?? "NONE"].toLowerCase(), es.app.exploratory),
     );
   }
   for (const z of zones) {
     const sz = scenario?.zones.find((x) => x.zone_id === z.zone_id) ?? null;
-    paragraphs.push(zoneSentence(z, sz));
+    paragraphs.push(zoneSentence(z, sz, stressDayKs));
     const stage = z.summary.stage_dates;
     if (!scenario && stage.mid_season) {
-      paragraphs.push(
-        `Etapas simuladas por grados-día: siembra ${fmtDate(stage.planting)}, media temporada ${fmtDate(stage.mid_season)}, ` +
-          `madurez ${fmtDate(stage.maturity)} (parámetros provisionales).`,
-      );
+      paragraphs.push(T.stages(fmtDate(stage.planting), fmtDate(stage.mid_season), fmtDate(stage.maturity)));
     }
     const modis = z.comparison.find((c) => c.source_id === "modis_ndvi");
     if (!scenario && modis && modis.correlation !== null) {
-      paragraphs.push(
-        `Contraste con MODIS: forma del NDVI observado vs. dosel esperado r = ${fmt(modis.correlation, 2)}` +
-          (modis.lag_days !== null ? `, desfase de reverdecimiento ${modis.lag_days} días.` : "."),
-      );
+      paragraphs.push(T.modis(fmt(modis.correlation, 2), modis.lag_days));
     }
   }
   let suggestion: string | null = null;
@@ -79,12 +70,13 @@ export function explain(
     null,
   );
   if (worst && (worst.summary.stress_class === "MEDIUM" || worst.summary.stress_class === "HIGH")) {
+    const stress = es.reading.stress[worst.summary.stress_class];
     suggestion =
       worst.irrigation_level === "NONE"
-        ? `${worst.name} queda con estrés ${es.stressClass[worst.summary.stress_class].toLowerCase()}: prueba un nivel de riego para ver cuánto lo reduce el modelo.`
-        : `Aun con riego ${es.irrigation[worst.irrigation_level].toLowerCase()}, ${worst.name} mantiene estrés ${es.stressClass[worst.summary.stress_class].toLowerCase()}: compara con un nivel mayor.`;
+        ? T.tryIrrigation(worst.name, stress)
+        : T.moreIrrigation(es.irrigation[worst.irrigation_level].toLowerCase(), worst.name, stress);
   } else if (scenario) {
-    suggestion = "El estrés simulado se mantiene bajo en todas las zonas con este escenario.";
+    suggestion = T.allLow;
   }
   return { paragraphs, suggestion };
 }

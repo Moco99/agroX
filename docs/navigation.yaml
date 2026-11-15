@@ -2,7 +2,7 @@
 # Read this file first, then load only the docs of your task_path (already closed under depends_on and ordered).
 version: 1
 entry: README.md
-last_review: "2026-11-14"
+last_review: "2026-11-15"
 
 rules:
   - "Lee este archivo primero; carga solo los docs de tu task_path, en orden."
@@ -177,12 +177,12 @@ docs:
   - id: ui-spec
     path: 07-design/ui-spec.md
     title: UI spec
-    summary: Layout compartido, pantallas S1-S3 en texto, menú→módulo→vista, elemento UI→endpoint→data_state→prioridad, brecha mockup↔real.
+    summary: Layout compartido, pantallas S1-S3 en texto, menú→módulo→vista, elemento UI→endpoint→data_state→prioridad, brecha mockup↔real, capa de interpretabilidad (lecturas, ¿Cómo se calcula?, glosario, guía rápida).
     depends_on: [data-contracts]
     read_when: Construir o revisar cualquier pantalla o texto de UI; antes de abrir los mockups.
     audience: [builder, reviewer, head]
     status: draft
-    est_tokens: 2500
+    est_tokens: 3300
 
   # ── 03-models ──
   - id: models-catalog
@@ -217,7 +217,7 @@ docs:
   - id: data-guide
     path: 04-data/data-guide.md
     title: Guía de datos
-    summary: Cómo obtener datos (API live con pt_<lat>_<lon> en cualquier lugar, punto.py, scraper), qué fuente hay detrás de cada dato, reglas, límites y pendientes.
+    summary: Cómo obtener datos (API live en cualquier lugar con parcelas dibujadas poly_* (contrato POST /api/farms/polygon) y pt_<lat>_<lon> solo por API, punto.py, scraper), qué fuente hay detrás de cada dato, reglas, límites y pendientes.
     depends_on: [sources]
     read_when: Antes de usar datos en cualquier módulo (UI, Rotation Engine, What If).
     audience: [all]

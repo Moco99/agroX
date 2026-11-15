@@ -1,6 +1,7 @@
 import { useRotationView } from "./store/rotation-store";
 import { lazy, Suspense, useEffect } from "react";
 import { DataBanner } from "./app-shell/data-banner";
+import { GuidePanel } from "./app-shell/guide-panel";
 import { HelpPopover } from "./app-shell/help-popover";
 import { LayerBar } from "./app-shell/layer-bar";
 import { MapLayerBar } from "./app-shell/map-layer-bar";
@@ -24,6 +25,7 @@ import { useTwinStore } from "./store/twin-store";
 
 const RotationScreen = lazy(() => import("./screens/rotation/rotation-screen"));
 const ClimateScreen = lazy(() => import("./screens/climate/climate-screen"));
+const VegetationScreen = lazy(() => import("./screens/vegetation/vegetation-screen"));
 const ReportScreen = lazy(() => import("./screens/reports/report-screen"));
 const GeographicScreen = lazy(() => import("./screens/geographic/geographic-screen"));
 const DigitalTwinScreen = lazy(() =>
@@ -80,6 +82,8 @@ export function App() {
             <Suspense fallback={loadingBox}>
               {moduleActive === "climate" ? (
                 <ClimateScreen />
+              ) : moduleActive === "vegetation" ? (
+                <VegetationScreen />
               ) : moduleActive === "reports" ? (
                 <ReportScreen />
               ) : rotationActive ? (
@@ -121,6 +125,7 @@ export function App() {
         </footer>}
       </div>
       <HelpPopover />
+      <GuidePanel />
     </div>
   );
 }

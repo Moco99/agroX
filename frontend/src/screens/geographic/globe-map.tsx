@@ -186,7 +186,9 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
       report();
     };
 
-    map.on("load", () => {
+    // "load" waits for every initial tile, so on a slow or failing tile server the map stayed "not ready" and every
+    // flight (including "Usar mi ubicación") was silently never played; the style being parsed is enough to act
+    map.once("style.load", () => {
       setReady(map);
       report();
     });

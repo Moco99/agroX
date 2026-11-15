@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { PointSearch } from "../point/point-search";
 import { DataStateBadge } from "../../components/data-state-badge";
+import { ReadingChip } from "../../components/explain/reading-chip";
+import { Term, type GlossaryTermId } from "../../components/explain/term";
+import { ndviReading } from "../../lib/readings";
 import { es, fmt } from "../../i18n/es";
 import { EXPLORE_PLACES } from "../../lib/globe-view";
-import { areaHa, canConfirm, canFinish } from "../../lib/draw";
+import { areaHa, canConfirm, canFinish, overlapsExisting } from "../../lib/draw";
+import { locateMe, type LocateError } from "../../lib/geolocate";
 import { isPilotFarm } from "../../lib/parcel";
 import { useDrawStore } from "../../store/draw-store";
 import { useMapStore } from "../../store/map-store";
@@ -13,6 +17,7 @@ import { useStageStore } from "../../store/stage-store";
 import { useTwinStore } from "../../store/twin-store";
 import type { RegionMetric } from "../../types/api";
 import { DeclarationPanel } from "./declaration-panel";
+import { MyParcels } from "./my-parcels";
 import { LoadProgress, ParcelClimate, ParcelNdvi, ParcelSoil, ParcelWarnings } from "./parcel-panels";
 
 // ─────────────────────────────────────────
@@ -44,32 +49,28 @@ function DrawParcelCard() {
   };
   // Flies to the browser position at a zoom that suits tracing a parcel, drops a marker and turns drawing on
   const locate = () => {
-    if (!("geolocation" in navigator)) {
-      setGeoNote(es.drawParcel.geoUnsupported);
-      return;
-    }
     setLocating(true);
     setGeoNote(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const point = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+    locateMe().then(
+      (point) => {
         setLocating(false);
         setGeoNote(es.drawParcel.located);
         useMapStore.getState().setLocated(point);
         useMapStore.getState().flyTo({ center: [point.lon, point.lat], zoom: LOCATE_ZOOM, bearing: 0, pitch: 0 });
         draw.setActive(true);
       },
-      (err) => {
+      (code: LocateError) => {
         setLocating(false);
         setGeoNote(
-          err.code === err.PERMISSION_DENIED
-            ? es.drawParcel.geoDenied
-            : err.code === err.TIMEOUT
-              ? es.drawParcel.geoTimeout
-              : es.drawParcel.geoUnavailable,
+          code === "unsupported"
+            ? es.drawParcel.geoUnsupported
+            : code === "denied"
+              ? es.drawParcel.geoDenied
+              : code === "timeout"
+                ? es.drawParcel.geoTimeout
+                : es.drawParcel.geoUnavailable,
         );
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
     );
   };
   return (
@@ -140,6 +141,7 @@ function DrawParcelCard() {
               {es.drawParcel.clear}
             </button>
           </div>
+          {overlapsExisting(draw) && <p className="coverage-note is-warn" role="alert">{es.drawParcel.overlap}</p>}
           <small className="muted">
             {es.drawParcel.summary(draw.polygons.length, total, draw.current.length)} <DataStateBadge state="DECLARED" />
           </small>
@@ -168,15 +170,15 @@ function DrawParcelCard() {
 // ─────────────────────────────────────────
 
 function unitLabel(unit: string): string {
-  return unit === "index" ? "índice" : unit;
+  return unit === "index" ? es.units.index : unit;
 }
 
 // One labelled figure with its provenance badge; null values render as "—" instead of a made-up number
-function Metric({ name, item }: { name: string; item: RegionMetric | undefined }) {
+function Metric({ name, item, term, meaning }: { name: string; item: RegionMetric | undefined; term?: GlossaryTermId; meaning?: string }) {
   if (!item) return null;
   return (
-    <div>
-      <small>{name}</small>
+    <div title={meaning}>
+      <small>{term ? <Term id={term}>{name}</Term> : name}</small>
       <strong>
         {item.value === null ? "—" : fmt(item.value, 2)} <small>{unitLabel(item.unit)}</small>
       </strong>
@@ -193,9 +195,9 @@ function SeasonMetrics({ withNdvi }: { withNdvi: boolean }) {
   return (
     <>
       <div className="regional-metrics">
-        {withNdvi && <Metric name={es.globe.ndvi} item={region.ndvi} />}
-        <Metric name={es.globe.precipitation} item={region.precipitation} />
-        <Metric name={es.globe.temperature} item={region.temperature} />
+        {withNdvi && <Metric name={es.globe.ndvi} item={region.ndvi} term="ndvi" meaning={es.meaning.ndvi} />}
+        <Metric name={es.globe.precipitation} item={region.precipitation} term="power" meaning={es.meaning.precipTotal} />
+        <Metric name={es.globe.temperature} item={region.temperature} meaning={es.meaning.tMean} />
         <Metric name={es.globe.radiation} item={region.radiation} />
       </div>
       <small className="muted">
@@ -261,6 +263,7 @@ export function GlobePanel() {
       </section>
 
       <DrawParcelCard />
+      <MyParcels />
       {phase !== "idle" && phase !== "ready" && !isPilotFarm(farmId) && <LoadProgress />}
 
       <section className="card pilot-card">
@@ -353,7 +356,10 @@ export function FarmPanel() {
       {pilot ? (
         <>
           <section className="card">
-            <h3>{es.geo.zoneNdvi}</h3>
+            <h3>
+              <Term id="ndvi">{es.geo.zoneNdvi}</Term>
+            </h3>
+            <p className="meaning">{es.meaning.ndvi}</p>
             {zones.some((z) => z.ndvi !== null) ? (
               <ul className="zone-ndvi-list">
                 {zones.map((z) => (
@@ -363,7 +369,8 @@ export function FarmPanel() {
                       <small className="muted"> · {es.crops[z.crop_id] ?? z.crop_id}</small>
                     </span>
                     <span>
-                      <strong>{z.ndvi === null ? "—" : fmt(z.ndvi, 2)}</strong> <DataStateBadge state={z.ndvi_state} compact />
+                      <strong>{z.ndvi === null ? "—" : fmt(z.ndvi, 2)}</strong>{" "}
+                      {z.ndvi !== null && <ReadingChip reading={ndviReading(z.ndvi)} />} <DataStateBadge state={z.ndvi_state} compact />
                       {z.ndvi_date && <small className="muted"> {z.ndvi_date}</small>}
                     </span>
                   </li>

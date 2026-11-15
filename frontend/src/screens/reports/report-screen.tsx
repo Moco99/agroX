@@ -1,6 +1,10 @@
 import { DataStateBadge } from "../../components/data-state-badge";
+import { ReadingChip } from "../../components/explain/reading-chip";
 import { es, fmt, fmtDate } from "../../i18n/es";
-import { metricOf } from "../../lib/climate-view";
+import { metricOf, unitSymbol } from "../../lib/climate-view";
+import { cropLabel } from "../../lib/farm-labels";
+import { isPilotFarm } from "../../lib/parcel";
+import { ndviReading, scoreReading, stressReading } from "../../lib/readings";
 import { useModuleView } from "../../store/module-store";
 import { useParcelStore } from "../../store/parcel-store";
 import { useTwinStore } from "../../store/twin-store";
@@ -18,11 +22,16 @@ export interface ReportProps {
   farm: FarmAnalyzeResponse | null;
   climate: ClimateResponse | null;
   twin: TwinSimulateResponse | null;
+  // Which window the climate section shows; drives its caption
+  climateFrom?: "clima" | "twin";
+  // Zones whose crop the user declared (the pilot counts as declared)
+  declaredCrops?: Record<string, string>;
   rotation: { baseline: RotationResponse; scenario: RotationResponse | null } | null;
   now?: Date;
 }
 
 function RotationList({ label, result }: { label: string; result: RotationResponse }) {
+  const scores = result.recommendations.map((r) => r.overall_score);
   return (
     <div>
       <h3>
@@ -31,7 +40,8 @@ function RotationList({ label, result }: { label: string; result: RotationRespon
       <ol>
         {result.recommendations.map((item) => (
           <li key={item.sequence.join("-")}>
-            {item.cycles.map((c) => c.name).join(" → ")}: índice <strong>{fmt(item.overall_score, 1)} / 100</strong>
+            {item.cycles.map((c) => c.name).join(" → ")}: {es.reportCopy.index} <strong>{fmt(item.overall_score, 1)} / 100</strong>{" "}
+            <ReadingChip reading={scoreReading(item.overall_score, scores)} />
           </li>
         ))}
       </ol>
@@ -39,8 +49,9 @@ function RotationList({ label, result }: { label: string; result: RotationRespon
   );
 }
 
-export function ReportView({ farm, climate, twin, rotation, now = new Date() }: ReportProps) {
+export function ReportView({ farm, climate, twin, rotation, climateFrom = "twin", declaredCrops = {}, now = new Date() }: ReportProps) {
   const f = farm?.farm;
+  const pilot = f ? isPilotFarm(f.farm_id) : false;
   return (
     <article className="report">
       <header>
@@ -56,6 +67,19 @@ export function ReportView({ farm, climate, twin, rotation, now = new Date() }: 
         {es.report.disclaimer}
       </p>
 
+      <section className="report-howto" data-testid="report-howto">
+        <h2>{es.reportCopy.howToRead}</h2>
+        <p>{es.modelNote.body}</p>
+        <p>{es.modelNote.score}</p>
+        <ul>
+          {(["MEASURED", "DECLARED", "ESTIMATED", "SIMULATED", "SYNTHETIC"] as const).map((st) => (
+            <li key={st}>
+              <DataStateBadge state={st} compact /> {es.dataStateHelp[st]}
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section>
         <h2>{es.report.farm}</h2>
         {!farm || !f ? (
@@ -70,6 +94,7 @@ export function ReportView({ farm, climate, twin, rotation, now = new Date() }: 
                 <tr>
                   <th>{es.report.zones}</th>
                   <th>{es.report.area}</th>
+                  <th>{es.report.crop}</th>
                   <th>{es.report.soil}</th>
                   <th>{es.report.terrain}</th>
                 </tr>
@@ -81,6 +106,16 @@ export function ReportView({ farm, climate, twin, rotation, now = new Date() }: 
                       {z.name} <DataStateBadge state={z.data_state} compact />
                     </td>
                     <td>{fmt(z.area_ha, 1)} ha</td>
+                    <td>
+                      {(() => {
+                        const c = cropLabel(z.crop_id, pilot || Boolean(declaredCrops[z.zone_id]));
+                        return (
+                          <>
+                            {c.text} <DataStateBadge state={c.state} compact />
+                          </>
+                        );
+                      })()}
+                    </td>
                     <td>
                       {z.soil.texture ?? "—"} · {fmt(z.soil.awc_mm_per_m, 0)} mm/m <DataStateBadge state={z.soil.provenance.data_state} compact />
                       <small className="muted"> {z.soil.provenance.source}</small>
@@ -103,6 +138,7 @@ export function ReportView({ farm, climate, twin, rotation, now = new Date() }: 
         ) : (
           <>
             <small className="muted">
+              {climateFrom === "clima" ? es.report.climateWindowClima : es.report.climateWindowTwin}:{" "}
               {fmtDate(climate.series.days[0]?.date)} – {fmtDate(climate.series.days.at(-1)?.date)} · {es.report.source}: {climate.series.provenance.source}
             </small>
             <ul>
@@ -112,7 +148,7 @@ export function ReportView({ farm, climate, twin, rotation, now = new Date() }: 
                   <li key={k}>
                     {es.climateModule.labels[k]}:{" "}
                     <strong>
-                      {fmt(m?.value, k.endsWith("_days") ? 0 : 1)} {m?.unit}
+                      {fmt(m?.value, k.endsWith("_days") ? 0 : 1)} {unitSymbol(m?.unit)}
                     </strong>{" "}
                     <DataStateBadge state={m?.data_state ?? null} compact />
                     {m?.source && <small className="muted"> {m.source}</small>}
@@ -133,12 +169,13 @@ export function ReportView({ farm, climate, twin, rotation, now = new Date() }: 
             <ul>
               {f.zones.map((z) => (
                 <li key={z.zone_id}>
-                  {z.name}: <strong>{fmt(farm.latest_ndvi[z.zone_id], 2)}</strong> <DataStateBadge state="MEASURED" compact />
+                  {z.name}: <strong>{fmt(farm.latest_ndvi[z.zone_id], 2)}</strong>{" "}
+                  <ReadingChip reading={ndviReading(farm.latest_ndvi[z.zone_id])} /> <DataStateBadge state="MEASURED" compact />
                 </li>
               ))}
             </ul>
             <small className="muted">
-              {fmtDate(farm.latest_ndvi_date)} · {es.report.source}: {farm.latest_ndvi_source ?? "—"}
+              {fmtDate(farm.latest_ndvi_date)} · {es.report.source}: {farm.latest_ndvi_source ?? "—"} · {es.reading.ndvi.note}
             </small>
           </>
         )}
@@ -151,20 +188,21 @@ export function ReportView({ farm, climate, twin, rotation, now = new Date() }: 
         ) : (
           <>
             <p>
-              {fmtDate(twin.start)} – {fmtDate(twin.end)} · <DataStateBadge state="SIMULATED" compact /> · {twin.twin_level}
+              {fmtDate(twin.start)} – {fmtDate(twin.end)} · <DataStateBadge state="SIMULATED" compact /> · {es.twinLevelText[twin.twin_level]}
             </p>
             <ul>
               <li>
-                Estrés hídrico medio (Ks, ponderado por área): <strong>{fmt(twin.farm_summary.mean_ks_area_weighted, 2)}</strong> ({twin.farm_summary.stress_class})
+                {es.reportCopy.stressLine}: <strong>{fmt(twin.farm_summary.mean_ks_area_weighted, 2)}</strong>{" "}
+                <ReadingChip reading={stressReading(twin.farm_summary.stress_class)} /> <small className="muted">({es.units.ks})</small>
               </li>
               <li>
-                Precipitación del periodo: <strong>{fmt(twin.farm_summary.total_precip_mm, 0)} mm</strong>
+                {es.reportCopy.precipLine}: <strong>{fmt(twin.farm_summary.total_precip_mm, 0)} mm</strong>
               </li>
               <li>
-                Riego aplicado: <strong>{fmt(twin.farm_summary.total_irrigation_mm, 0)} mm</strong>
+                {es.reportCopy.irrigationLine}: <strong>{fmt(twin.farm_summary.total_irrigation_mm, 0)} mm</strong>
               </li>
             </ul>
-            <small className="muted">{twin.methodology}</small>
+            <small className="muted">{es.methodology[twin.methodology] ?? twin.methodology}</small>
           </>
         )}
       </section>
@@ -175,9 +213,11 @@ export function ReportView({ farm, climate, twin, rotation, now = new Date() }: 
           <p className="muted">{es.report.rotationNone}</p>
         ) : (
           <>
-            <RotationList label="Línea base" result={rotation.baseline} />
-            {rotation.scenario && <RotationList label="Escenario" result={rotation.scenario} />}
-            <small className="muted">Índice comparativo, no una probabilidad. {rotation.baseline.methodology}</small>
+            <RotationList label={es.reportCopy.baseline} result={rotation.baseline} />
+            {rotation.scenario && <RotationList label={es.reportCopy.scenario} result={rotation.scenario} />}
+            <small className="muted">
+              {es.reportCopy.rotationNote} {rotation.baseline.methodology}
+            </small>
           </>
         )}
       </section>
@@ -192,7 +232,9 @@ export function ReportView({ farm, climate, twin, rotation, now = new Date() }: 
 export default function ReportScreen() {
   const farmId = useParcelStore((s) => s.farmId);
   const farm = useTwinStore((s) => s.farm);
-  const climate = useTwinStore((s) => s.climate);
+  const twinClimate = useTwinStore((s) => s.climate);
+  const moduleClimate = useModuleView((s) => s.climate);
+  const declaredCrops = useParcelStore((s) => s.declaration.crops);
   const baseline = useTwinStore((s) => s.baseline);
   const rotation = useModuleView((s) => s.rotation);
   // Everything shown must belong to the selected farm; stale results from another parcel are dropped
@@ -206,7 +248,9 @@ export default function ReportScreen() {
       </div>
       <ReportView
         farm={sameFarm ? farm : null}
-        climate={sameFarm ? climate : null}
+        climate={sameFarm ? (moduleClimate?.farmId === farmId ? moduleClimate.data : twinClimate) : null}
+        climateFrom={moduleClimate?.farmId === farmId ? "clima" : "twin"}
+        declaredCrops={declaredCrops}
         twin={baseline?.farm_id === farmId ? baseline : null}
         rotation={rotation?.farmId === farmId ? rotation : null}
       />

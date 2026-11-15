@@ -8,10 +8,14 @@ import { makeProjector } from "../../lib/geo";
 import { isPilotFarm } from "../../lib/parcel";
 import { navigateTo } from "../../app-shell/sidebar";
 import { DataStateBadge } from "../../components/data-state-badge";
+import { DataStateLegend } from "../../components/explain/data-state-legend";
+import { ModelNote } from "../../components/explain/model-note";
+import { Term } from "../../components/explain/term";
 import { useParcelStore } from "../../store/parcel-store";
 import { hasWebGL } from "../../lib/webgl";
 import { FarmDiorama } from "../../scene/farm-diorama";
 import { useTwinStore } from "../../store/twin-store";
+import { cropLabel, fallbackNote, ndviMissingText, stageStatusOf } from "../../lib/farm-labels";
 import { ExplanationBox } from "./explanation-box";
 import { KpiTiles } from "./kpi-tiles";
 import { SimulationPanel } from "./simulation-panel";
@@ -35,7 +39,8 @@ export function DigitalTwinScreen() {
   const modis = useTwinStore((s) => s.modis);
   const sentinel2 = useTwinStore((s) => s.sentinel2);
   const smap = useTwinStore((s) => s.smap);
-  const imageryMeta = useTwinStore((s) => s.imageryMeta);
+  const terrainImagery = useTwinStore((s) => s.terrainImagery);
+  const contextLoaded = useTwinStore((s) => s.contextLoaded);
   const heightmap = useTwinStore((s) => s.heightmap);
   const plan = useTwinStore((s) => s.plan);
   const declaration = useParcelStore((s) => s.declaration);
@@ -57,7 +62,7 @@ export function DigitalTwinScreen() {
       await previewRotation({ ...rotation, index, precipPct: controls.precipPct, tempDelta: controls.tempDelta });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
-      setPreviewError(error instanceof Error ? error.message : "No se pudo simular el ciclo.");
+      setPreviewError(error instanceof Error ? error.message : es.twinCopy.cycleFailed);
     }
   }
 
@@ -73,8 +78,11 @@ export function DigitalTwinScreen() {
   const scenZone = scenario?.zones.find((z) => z.zone_id === selected?.zone.zone_id) ?? null;
   const date = selected?.state?.date;
   const pFraction = selected?.state && selected.state.taw_mm > 0 ? selected.state.raw_mm / selected.state.taw_mm : null;
+  // Declared before zoneStyles: Object.fromEntries runs its callback eagerly (TDZ otherwise crashes the screen)
+  const pilotFarm = isPilotFarm(farm.farm.farm_id);
+  const ndviMissing = pilotFarm ? undefined : ndviMissingText(stageStatusOf(farm, "ndvi"));
   const zoneStyles = Object.fromEntries(
-    views.map((v) => [v.zone.zone_id, { fill: layerColor(v, layer), label: layerLabel(v, layer) }]),
+    views.map((v) => [v.zone.zone_id, { fill: layerColor(v, layer), label: layerLabel(v, layer, ndviMissing) }]),
   );
   const map2d = (
     <FarmMap2D
@@ -86,6 +94,7 @@ export function DigitalTwinScreen() {
     />
   );
   const show3d = canvasTab === "twin" && webgl;
+  const fallbackMsg = fallbackNote(terrainImagery, Boolean(heightmap), contextLoaded);
   const mc = scenZone?.monte_carlo ?? baseZone?.monte_carlo ?? null;
 
   return (
@@ -117,13 +126,13 @@ export function DigitalTwinScreen() {
           )}
         </div>
         {!webgl && canvasTab === "twin" && <div className="canvas-notice">{es.twin.noWebgl}</div>}
-        {show3d && !isPilotFarm(farm.farm.farm_id) && (!imageryMeta || !heightmap) && (
+        {show3d && !isPilotFarm(farm.farm.farm_id) && fallbackMsg && (
           <div className="canvas-notice is-info" role="status" data-testid="twin-fallback-note">
-            {!imageryMeta ? es.openParcel.twinNoImagery : es.openParcel.twinNoRelief}
+            {fallbackMsg}
           </div>
         )}
         <div className="canvas-legend">
-          <LayerLegend layer={layer} note={es.app.illustrative} />
+          <LayerLegend layer={layer} note={es.app.illustrative} ndviStatus={views.some((v) => v.ndvi) ? undefined : ndviMissing} />
         </div>
       </div>
 
@@ -131,23 +140,24 @@ export function DigitalTwinScreen() {
         <div className="panel-head">
           <h2>{es.twin.panelTitle}</h2>
           <small className="muted">
-            {farm.farm.name} · {fmt(farm.farm.area_ha, 0)} ha · {farm.farm.zones.length} zonas
+            {farm.farm.name} · {fmt(farm.farm.area_ha, 0)} ha · {es.twinCopy.zonesCount(farm.farm.zones.length)}
           </small>
         </div>
+        <ModelNote withScore={false} />
         {rotation && (
           <section className="card declared-summary">
             <div className="card-head">
-              <h3>Ensayo de rotación</h3>
+              <h3>{es.twinCopy.rotationTrial}</h3>
               <DataStateBadge state={baseline.data_mode === "synthetic" ? "SYNTHETIC" : "SIMULATED"} compact />
             </div>
             <p className="muted">{rotation.cycles.map((cycle) => cycle.name).join(" → ")}</p>
-            <p className="muted">Cada ciclo se simula por separado en todas las zonas de la parcela.</p>
+            <p className="muted">{es.twinCopy.rotationTrialHint}</p>
             <label className="field">
-              <span>Ciclo en el gemelo</span>
+              <span>{es.twinCopy.cycleInTwin}</span>
               <select disabled={simulating} value={rotation.index} onChange={(e) => void changeCycle(Number(e.target.value))}>
                 {rotation.cycles.map((cycle, index) => (
                   <option key={index} value={index} disabled={!cycle.supported}>
-                    {index + 1} · {cycle.name}{cycle.supported ? "" : " · Sin parámetros"}
+                    {index + 1} · {cycle.name}{cycle.supported ? "" : ` · ${es.twinCopy.noParams}`}
                   </option>
                 ))}
               </select>
@@ -155,7 +165,7 @@ export function DigitalTwinScreen() {
             <p className="muted">{fmtDate(baseline.start)} a {fmtDate(baseline.end)}</p>
             {previewError && <p className="error-box" role="alert">{previewError}</p>}
             <button type="button" className="ghost-button" disabled={simulating} onClick={() => void clearRotationPreview()}>
-              Volver a los cultivos de la parcela
+              {es.twinCopy.backToCrops}
             </button>
           </section>
         )}
@@ -186,13 +196,14 @@ export function DigitalTwinScreen() {
                         }}
                       >
                         {!declaration.crops[z.zone_id] && !catalog?.crops.some((c) => c.crop_id === crop) && (
-                          <option value={crop}>{es.unconfirmedCrop}</option>
+                          <option value={crop}>{cropLabel(crop, false).text}</option>
                         )}
                         {(catalog?.crops ?? []).map((c) => (
                           <option key={c.crop_id} value={c.crop_id}>{c.name_es}</option>
                         ))}
                       </select>
                     </label>
+                    <DataStateBadge state={cropLabel(crop, Boolean(declaration.crops[z.zone_id])).state} compact />
                     <span>
                       {planting ? fmtDate(planting) : "—"} <DataStateBadge state={declaredDate ? "DECLARED" : "ESTIMATED"} compact />
                     </span>
@@ -215,11 +226,12 @@ export function DigitalTwinScreen() {
           <small className="muted">{es.twin.zoneHint}</small>
           <KpiTiles view={selected} hasScenario={scenario !== null} config={config} />
           {mc && (
-            <p className="chart-note">
-              Monte Carlo (n={mc.n}): Ks medio p10–p90 {fmt(mc.mean_ks_p10, 2)}–{fmt(mc.mean_ks_p90, 2)}; días con
-              estrés p10–p90 {fmt(mc.stress_days_p10, 0)}–{fmt(mc.stress_days_p90, 0)}.
+            <p className="chart-note" data-testid="monte-carlo">
+              <Term id="monteCarlo" />:{" "}
+              {es.twinCopy.monteCarlo(mc.n, fmt(mc.mean_ks_p10, 2), fmt(mc.mean_ks_p90, 2), fmt(mc.stress_days_p10, 0), fmt(mc.stress_days_p90, 0))}
             </p>
           )}
+          <DataStateLegend />
         </section>
         <ExplanationBox baseline={baseline} scenario={scenario} selectedZoneId={selected?.zone.zone_id ?? null} />
         {baseZone && (

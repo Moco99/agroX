@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { es } from "../i18n/es";
 import { ApiError, api } from "../services/api";
-import { openDrawn } from "./open-parcel";
+import { openDrawn, openFromHistory } from "./open-parcel";
 import { useParcelStore } from "./parcel-store";
 import { useStageStore } from "./stage-store";
 import { useTwinStore } from "./twin-store";
@@ -28,5 +28,14 @@ describe("openDrawn", () => {
   it("explains a 405 as an outdated backend", async () => {
     vi.spyOn(api, "registerPolygonFarm").mockRejectedValue(new ApiError("Method Not Allowed", 405));
     expect(await openDrawn([TRIANGLE])).toBe(es.drawParcel.outdatedBackend);
+  });
+
+  it("re-registers stored polygons when reopening a drawn parcel from the history", async () => {
+    const register = vi.spyOn(api, "registerPolygonFarm").mockResolvedValue({ farm_id: FARM_ID, area_ha: 46 });
+    vi.spyOn(useTwinStore.getState(), "init").mockResolvedValue();
+    const rec = { farmId: FARM_ID, customName: null, createdAt: 1, openedAt: 1, areaHa: 46, zoneCount: 1, centroid: null, polygons: [TRIANGLE] };
+    expect(await openFromHistory(rec)).toBeNull();
+    expect(register).toHaveBeenCalledWith([TRIANGLE]);
+    expect(useParcelStore.getState().farmId).toBe(FARM_ID);
   });
 });

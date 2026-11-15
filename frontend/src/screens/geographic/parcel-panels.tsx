@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { DataStateBadge } from "../../components/data-state-badge";
+import { ReadingChip } from "../../components/explain/reading-chip";
+import { Term } from "../../components/explain/term";
+import { ndviReading } from "../../lib/readings";
 import { es, fmt, fmtDate } from "../../i18n/es";
 import { isPilotFarm } from "../../lib/parcel";
-import { cancelOpen, openPilot, retryActive } from "../../store/open-parcel";
+import { cancelOpen, canReregister, openPilot, reregisterActive, retryActive } from "../../store/open-parcel";
 import { SOURCE_KEYS, useParcelStore } from "../../store/parcel-store";
 import { useTwinStore } from "../../store/twin-store";
 import { color } from "../../styles/tokens";
@@ -14,6 +17,21 @@ import type { DataState, FarmZone } from "../../types/api";
 // ─────────────────────────────────────────
 
 const SPIN: Record<string, string> = { pending: "◌", ok: "✓", error: "✕", skipped: "–", idle: "·" };
+
+// A poly_ id the restarted backend no longer knows: offer to register the polygons kept in the history again
+function ReregisterOffer() {
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div className="coverage-note is-warn" role="alert">
+      <strong>{es.history.unknownTitle}</strong>
+      <p>{es.history.unknownHint}</p>
+      <button type="button" className="play-button" onClick={() => void reregisterActive().then(setError)}>
+        {es.history.reregister}
+      </button>
+      {error && <p>{es.history.openFailed(error)}</p>}
+    </div>
+  );
+}
 
 export function LoadProgress() {
   const phase = useParcelStore((s) => s.phase);
@@ -46,6 +64,7 @@ export function LoadProgress() {
           <small className="muted">{es.openParcel.elapsed(seconds)}</small>
         </>
       )}
+      {phase === "error" && canReregister(farmId) && <ReregisterOffer />}
       <ul className="load-sources">
         {SOURCE_KEYS.map((k) => {
           const st = sources[k];
@@ -158,7 +177,10 @@ export function ParcelNdvi() {
 
   return (
     <section className="card">
-      <h3>{es.openParcel.ndviTitle}</h3>
+      <h3>
+        <Term id="ndvi">{es.openParcel.ndviTitle}</Term>
+      </h3>
+      <p className="meaning">{es.meaning.ndvi}</p>
       {rows.length === 0 ? (
         <p className="muted">
           {ndviStage === "running" || ndviStage === "pending" ? es.openParcel.ndviLoading : es.openParcel.ndviNone}
@@ -175,7 +197,8 @@ export function ParcelNdvi() {
                     <i className="zone-dot" style={{ background: ZONE_COLORS[i % ZONE_COLORS.length] }} aria-hidden /> {z.name}
                   </span>
                   <span>
-                    <strong>{obs ? fmt(obs.value, 2) : "—"}</strong> <DataStateBadge state="MEASURED" compact />
+                    <strong>{obs ? fmt(obs.value, 2) : "—"}</strong> {obs && <ReadingChip reading={ndviReading(obs.value)} />}{" "}
+                    <DataStateBadge state="MEASURED" compact />
                     {obs && <small className="muted"> {obs.date}</small>}
                   </span>
                 </li>
@@ -220,7 +243,9 @@ export function ParcelClimate() {
   const state: DataState = climate?.series.provenance.data_state ?? "MEASURED";
   return (
     <section className="card">
-      <h3>{es.openParcel.climateTitle}</h3>
+      <h3>
+        <Term id="power">{es.openParcel.climateTitle}</Term>
+      </h3>
       {summary ? (
         <>
           <div className="regional-metrics">
@@ -275,10 +300,13 @@ export function ParcelSoil() {
       <h3>{es.openParcel.soilTitle}</h3>
       <div className="regional-metrics">
         <div>
-          <small>{es.openParcel.soilAwc}</small>
+          <small>
+            <Term id="awc">{es.openParcel.soilAwc}</Term>
+          </small>
           <strong>
-            {fmt(first.soil.awc_mm_per_m, 0)} <small>mm/m</small>
+            {fmt(first.soil.awc_mm_per_m, 0)} <small title={es.units.mmPerM}>mm/m</small>
           </strong>
+          <small className="muted">{es.meaning.awc}</small>
           <DataStateBadge state={first.soil.provenance.data_state} compact />
         </div>
         <div>

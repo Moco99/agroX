@@ -35,6 +35,29 @@ describe("ReportView", () => {
     expect(html).toContain("Aún no se ha calculado una comparación de rotaciones");
   });
 
+  it("names the climate window and flags the assumed crop", () => {
+    const f = { ...farm, farm: { ...farm.farm, zones: [{ ...farm.farm.zones[0], crop_id: "corn" }] } } as unknown as FarmAnalyzeResponse;
+    const html = renderToStaticMarkup(<ReportView farm={f} climate={climate} climateFrom="clima" twin={null} rotation={null} />);
+    expect(html).toContain("Ventana del módulo Clima");
+    expect(html).toContain("Maíz (supuesto, sin declarar)");
+    expect(renderToStaticMarkup(<ReportView farm={f} climate={climate} twin={null} rotation={null} />)).toContain("Ventana del gemelo");
+  });
+
+  it("tells the reader how to read the report and spells every verdict", () => {
+    const twin = {
+      start: "2024-05-01", end: "2024-09-30", twin_level: "DIGITAL_SHADOW", methodology: "twin_v1",
+      farm_summary: { mean_ks_area_weighted: 0.9, stress_class: "LOW", total_precip_mm: 400, total_irrigation_mm: 0 },
+    } as unknown as Parameters<typeof ReportView>[0]["twin"];
+    const html = renderToStaticMarkup(<ReportView farm={farm} climate={climate} twin={twin} rotation={null} />);
+    expect(html).toContain("Cómo leer este informe");
+    expect(html).toContain("modelos de proceso públicos");
+    expect(html).toContain("Sombra digital");
+    expect(html).not.toContain(">DIGITAL_SHADOW<");
+    expect(html).toContain("estrés leve");
+    expect(html).toContain("Gemelo v1");
+    expect(html).toContain("vegetación densa");
+  });
+
   it("degrades to empty-state messages without data", () => {
     const html = renderToStaticMarkup(<ReportView farm={null} climate={null} twin={null} rotation={null} />);
     expect(html).toContain("Sin datos climáticos");

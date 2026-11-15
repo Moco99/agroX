@@ -47,7 +47,8 @@ const ITEMS: NavItem[] = [
   },
   {
     label: es.nav.vegetation,
-    stage: "map",
+    stage: null,
+    module: "vegetation",
     icon: (
       <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden>
         <path d="M10 17V9.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />

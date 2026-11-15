@@ -2,6 +2,10 @@ import { es } from "../i18n/es";
 import { layerRamp } from "../lib/derive";
 import type { Layer } from "../store/twin-store";
 
+// ─────────────────────────────────────────
+// Section: Colour legend of the active map layer (ramp + ticks + one-sentence meaning + spelled unit)
+// ─────────────────────────────────────────
+
 const UNITS: Record<Layer, string> = {
   ndvi: "NDVI",
   stress: "Ks",
@@ -16,7 +20,7 @@ function label(layer: Layer, v: number): string {
   return `${v}`;
 }
 
-export function LayerLegend({ layer, note }: { layer: Layer; note?: string }) {
+export function LayerLegend({ layer, note, ndviStatus }: { layer: Layer; note?: string; ndviStatus?: string }) {
   const ramp = layerRamp(layer);
   const first = ramp[0]?.value ?? 0;
   const last = ramp[ramp.length - 1]?.value ?? 1;
@@ -25,12 +29,23 @@ export function LayerLegend({ layer, note }: { layer: Layer; note?: string }) {
     <div className="legend">
       <div className="legend-title">
         {es.layers[layer]} ({UNITS[layer]})
+        {layer === "ndvi" && ndviStatus && <small className="muted"> · {ndviStatus}</small>}
       </div>
       <div className="legend-bar" style={{ background: `linear-gradient(90deg, ${gradient})` }} />
       <div className="legend-ticks">
         {ramp.map((s) => (
           <span key={s.value}>{label(layer, s.value)}</span>
         ))}
+      </div>
+      {layer === "ndvi" && (
+        <div className="legend-classes" aria-hidden>
+          {es.legend.ndvi.map((c) => (
+            <span key={c}>{c}</span>
+          ))}
+        </div>
+      )}
+      <div className="legend-meaning" data-testid="legend-meaning">
+        {es.legend.meaning[layer]} <small className="muted">({es.legend.unitsLong[layer]})</small>
       </div>
       {note && <div className="legend-note">{note}</div>}
     </div>
