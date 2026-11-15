@@ -44,7 +44,7 @@ class RotationRecommendRequest(StrictRequest):
     @model_validator(mode="after")
     def validate_period(self) -> RotationRecommendRequest:
         if self.end < self.start or (self.end - self.start).days > 730:
-            raise ValueError("Period must be ordered and at most 731 days")
+            raise ValueError("El periodo debe ser ordenado y durar como máximo 731 días")
         if self.cycle_windows is not None:
             if len(self.cycle_windows) != self.cycles:
                 raise ValueError("Indica exactamente un periodo por ciclo")

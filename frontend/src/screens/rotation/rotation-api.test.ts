@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { recommendRotation, type RotationRequest } from "./rotation-api";
+import { recommendRotation, startCropOptions, type RotationRequest } from "./rotation-api";
 
 const request: RotationRequest = {
   farm_id: "story_pilot_farm", start: "2024-04-01", end: "2024-10-31", cycles: 2,
@@ -31,7 +31,18 @@ describe("rotation API", () => {
   it("names the offending field of a 422 validation error", async () => {
     const detail = [{ type: "extra_forbidden", loc: ["body", "weights", "agua"], msg: "Extra inputs are not permitted" }];
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail }), { status: 422 })));
-    await expect(recommendRotation(request, new AbortController().signal)).rejects.toThrow("Extra inputs are not permitted (campo: weights.agua)");
+    await expect(recommendRotation(request, new AbortController().signal)).rejects.toThrow("Dato no reconocido (campo: weights.agua)");
+  });
+  it("never shows raw English validation messages", async () => {
+    const detail = [{ type: "int_parsing", loc: ["body", "cycles"], msg: "Input should be a valid integer" }];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail }), { status: 422 })));
+    await expect(recommendRotation(request, new AbortController().signal)).rejects.toThrow("El dato no es válido (campo: cycles)");
+  });
+  it("offers only twin-simulatable starting crops when the filter is on", () => {
+    const all: [string, string][] = [["corn", "Maíz"], ["sorghum", "Sorgo"]];
+    expect(startCropOptions(all, ["corn"], true)).toEqual([["corn", "Maíz"]]);
+    expect(startCropOptions(all, ["corn"], false)).toEqual(all);
+    expect(startCropOptions(all, null, true)).toEqual(all);
   });
   it("rejects malformed ranking data", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ recommendations: [{ overall_score: "alto" }] }), { status: 200 })));

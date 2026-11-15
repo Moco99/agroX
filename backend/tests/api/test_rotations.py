@@ -288,3 +288,16 @@ def test_upstream_timeout_is_503_not_500(monkeypatch) -> None:
     response = TestClient(create_app(), raise_server_exceptions=False).post("/api/rotations/recommend", json=BASE)
     assert response.status_code == 503
     assert "reintenta" in response.json()["detail"]
+
+
+def test_start_crop_outside_twin_filter_gets_spanish_error() -> None:
+    client = TestClient(create_app())
+    body = {**BASE, "cycles": 3, "twin_only": True, "start_crop": "sorghum"}
+    bad = client.post("/api/rotations/recommend", json=body)
+    assert bad.status_code == 422
+    detail = bad.json()["detail"]
+    assert "Sorgo" in detail and "gemelo" in detail and "start_crop" not in detail
+    # The same crop is fine once the twin filter is off
+    assert client.post("/api/rotations/recommend", json={**body, "twin_only": False}).status_code == 200
+    unknown = client.post("/api/rotations/recommend", json={**BASE, "start_crop": "not_a_crop"})
+    assert "catálogo" in unknown.json()["detail"]
