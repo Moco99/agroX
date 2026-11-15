@@ -1,6 +1,6 @@
 # Guía de datos: cómo trabajar con los datos de AGROX
 
-> **TL;DR:** hay tres formas de obtener datos. Para construir pantallas o el motor de rotaciones, usa la **API del backend** en modo `live`, que funciona en cualquier punto del mundo con `farm_id = pt_<lat>_<lon>`. Todo dato trae su fuente y su `data_state`. El cultivo y la fecha de siembra **los declara el usuario**: no existe un mapa global de cultivo por parcela.
+> **TL;DR:** hay tres formas de obtener datos. Para construir pantallas o el motor de rotaciones, usa la **API del backend** en modo `live`, que funciona en cualquier punto del mundo con `farm_id = poly_…` (parcela dibujada) o `pt_<lat>_<lon>` (solo API). Todo dato trae su fuente y su `data_state`. El cultivo y la fecha de siembra **los declara el usuario**: no existe un mapa global de cultivo por parcela.
 
 ---
 
@@ -37,7 +37,27 @@ Si una API falla en modo `live`, la parcela piloto usa `derived/` y lo avisa en 
 
 `farm_id` puede ser:
 - **`story_pilot_farm`**: la parcela piloto en Iowa (CDL, SSURGO, 4 zonas de 36 ha).
-- **`pt_<lat>_<lon>`** (solo en `live`): una parcela de **36 ha con 4 zonas de 9 ha** centrada en el punto. Por ejemplo `pt_18.83_-96.78` (Veracruz) o `pt_30.8_75.55` (Punjab). Latitud válida de −60 a 75.
+- **`poly_<lat>_<lon>_<hash>`** (solo en `live`): la parcela que el usuario **dibuja** en el mapa (flujo de la UI: «Dibujar parcela» → clics para poner vértices → clic en el primer vértice o «Terminar polígono» → «Confirmar»). **Cada polígono dibujado es una zona** (`zone_1`, `zone_2`, …, en el orden dibujado). Se registra con `POST /api/farms/polygon` y después se abre con `GET /api/farms/{farm_id}` como cualquier otra parcela.
+- **`pt_<lat>_<lon>`** (solo en `live`, **solo por API**; la UI ya no ofrece «clic en un punto»): una parcela de **36 ha con 4 zonas de 9 ha** centrada en el punto. Por ejemplo `pt_18.83_-96.78` (Veracruz) o `pt_30.8_75.55` (Punjab). Latitud válida de −60 a 75.
+
+#### Contrato `POST /api/farms/polygon`
+
+Cuerpo: `{"polygons": [[{"lat": .., "lon": ..}, ...], ...]}`. Cada polígono lista los vértices en orden; cerrar el anillo es opcional. Respuesta `201`: `{farm_id, zone_count, zone_area_ha[], area_ha, data_state: "DECLARED"}`.
+
+| Regla | Límite | Si se incumple |
+|---|---|---|
+| Polígonos por parcela | 1 a 12 | 422 |
+| Vértices por polígono | 3 a 100 | 422 |
+| Latitud / longitud | −60 a 75 / −180 a 180, finitas | 422 |
+| Polígono simple | sin aristas que se crucen | 422 «polygon k crosses itself» |
+| Sin traslapes entre polígonos | cruce de aristas o un vértice dentro de otro polígono; compartir una arista o un vértice **sí** se permite | 422 «polygons i and j overlap» |
+| Área mínima por polígono | 0.05 ha | 422 |
+| Área total | máximo 2000 ha | 422 |
+| Extensión de todos los polígonos | máximo ~6 km (la imagen se recorta a su caja) | 422 |
+
+- **Formato del id:** `poly_<lat>_<lon>_<12 hex>`; `lat`/`lon` (4 decimales) son el centro de la caja de todos los polígonos y los 12 hex son el hash SHA-256 de la geometría redondeada a 6 decimales: el mismo dibujo da siempre el mismo id (registro idempotente). La geometría se guarda en disco y sobrevive reinicios. Un id con formato válido pero no registrado da 404; con formato inválido, 422.
+- **Área aproximada:** shoelace sobre una proyección equirrectangular local (error << 1 % a escala de parcela). No es una medida catastral: es `DECLARED` y el aviso «límite aproximado» aplica.
+- **Zonas = polígonos dibujados:** el gemelo, el NDVI y el suelo se calculan por zona; un solo polígono es una parcela de una zona.
 
 | Endpoint | Para qué |
 |---|---|
@@ -122,7 +142,7 @@ make derived                          # data/raw -> backend/app/data/derived
 | No hay mapa global de qué cultivo hay en cada parcela | Solo CDL (EE.UU.) lo publica | Cultivo `DECLARED` |
 | SoilGrids es lento y a veces no responde | Límite de ISRIC (~5 consultas/min) | Reintento; si no, 150 mm/m provisional `ESTIMATED` (sin caché) |
 | SMAP, ECOSTRESS, IMERG y GEDI no van en vivo | Tardan minutos por pedido | Solo por lotes para la zona piloto |
-| La parcela `pt_` es un cuadro, no un predio | No hay catastro global | Aviso en `farm.warnings` |
+| La parcela `pt_` es un cuadro, no un predio; la `poly_` es lo que el usuario dibuja, no un límite catastral | No hay catastro global | Aviso en `farm.warnings` |
 | GRACE (agua subterránea) no está | Pendiente | Ver §8 |
 
 ---
@@ -133,7 +153,7 @@ make derived                          # data/raw -> backend/app/data/derived
 |---|---|---|
 | **Rotation Engine** (`POST /api/rotations/recommend`, 3 estrategias con puntuación y explicación) | Clima, anomalía y SPI, suelo, terreno, NDVI, aptitud GAEZ (vía `punto.py`) | 🔴 Por hacer. Ver [rotation-engine](../02-modules/rotation-engine.md) |
 | Frijol y un cultivo de cobertura en el catálogo | Aptitud GAEZ de frijol disponible | 🔴 Faltan parámetros verificados |
-| UI: elegir un punto en el mapa → `pt_<lat>_<lon>` | API lista | 🟡 Frontend |
+| UI: dibujar la parcela en el mapa → `poly_…` | API y UI listas | ✅ Hecho |
 | UI: declarar cultivo y fecha de siembra | `planting_dates` ya existe | 🟡 Frontend |
 | Periodos de suelo desnudo a partir del NDVI | ~150–300 fechas de NDVI por zona (según nubosidad; 158 medidas en el piloto) | 🟡 Cálculo pendiente |
 | GRACE / GRACE-FO | — | ⚪ Opcional |

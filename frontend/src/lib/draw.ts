@@ -41,6 +41,48 @@ export function isSimplePolygon(pts: LatLon[]): boolean {
   return true;
 }
 
+// Ray casting; a point on the boundary does not count so parcels may share an edge (same rule as the backend)
+function strictlyInside(pt: Pt, ring: Pt[]): boolean {
+  const [x, y] = pt;
+  const eps = 1e-12;
+  for (let i = 0; i < ring.length; i += 1) {
+    const [xi, yi] = ring[i]!;
+    const [xj, yj] = ring[(i + 1) % ring.length]!;
+    const onLine = Math.abs((xj - xi) * (y - yi) - (yj - yi) * (x - xi)) < eps;
+    if (onLine && x >= Math.min(xi, xj) - eps && x <= Math.max(xi, xj) + eps && y >= Math.min(yi, yj) - eps && y <= Math.max(yi, yj) + eps) {
+      return false;
+    }
+  }
+  let hit = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i]!;
+    const [xj, yj] = ring[j]!;
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
+  }
+  return hit;
+}
+
+const toRing = (pts: LatLon[]): Pt[] => pts.map((p) => [p.lon, p.lat]);
+
+// True when two polygons share area: an edge crossing or one containing a vertex of the other
+export function polygonsOverlap(a: LatLon[], b: LatLon[]): boolean {
+  const ra = toRing(a);
+  const rb = toRing(b);
+  const same = ra.length === rb.length && ra.every(([x, y]) => rb.some(([u, v]) => u === x && v === y));
+  if (same) return true;
+  for (let i = 0; i < ra.length; i += 1) {
+    for (let j = 0; j < rb.length; j += 1) {
+      if (cross(ra[i]!, ra[(i + 1) % ra.length]!, rb[j]!, rb[(j + 1) % rb.length]!)) return true;
+    }
+  }
+  return ra.some((p) => strictlyInside(p, rb)) || rb.some((p) => strictlyInside(p, ra));
+}
+
+// True when the polygon in progress overlaps a finished one (the backend rejects it too)
+export function overlapsExisting(s: DrawState): boolean {
+  return s.current.length >= 3 && s.polygons.some((p) => polygonsOverlap(s.current, p));
+}
+
 // Approximate area (ha): shoelace on a local equirectangular projection, as in the backend
 export function areaHa(pts: LatLon[]): number {
   if (pts.length < 3) return 0;
@@ -56,7 +98,7 @@ export function areaHa(pts: LatLon[]): number {
 }
 
 export function canFinish(s: DrawState): boolean {
-  return s.current.length >= 3 && isSimplePolygon(s.current) && s.polygons.length < MAX_POLYGONS;
+  return s.current.length >= 3 && isSimplePolygon(s.current) && !overlapsExisting(s) && s.polygons.length < MAX_POLYGONS;
 }
 
 export function finishPolygon(s: DrawState): DrawState {
