@@ -34,8 +34,8 @@ Histórico (O-12): se planeó Leaflet; desde ADR-021 el mapa de granja es MapLib
 | Suelo | Textura de surcos procedural; el color oscurece con `soil_water_fraction` (más húmedo = más oscuro, solo metáfora) y se tiñe con la capa activa | `TwinState.soil_water_fraction`, capa |
 | Plantas | Un `InstancedMesh` por zona con un arquetipo procedural por `crop_id` (`plant-geometry.ts`: `tall_grass` maíz/sorgo, `bush` soya/frijol, `small_grain` trigo/centeno/avena, `sunflower`, `cover`). El shader (`plant-material.ts`) anima altura, órganos reproductivos, senescencia, tinte de capa y viento con uniformes suavizados; también en el paso de sombras | `expected_canopy`, `TwinState.stage` (`PRE_PLANTING` suelo desnudo → … → `HARVESTED` rastrojo) |
 | Edificios observados | Huellas OSM extruidas (`buildings-layer.tsx`), techo y muros con materiales distintos; altura exagerada ×3 | footprints del backend |
-| Árboles, cerca, camino, estanque, granero/silo | `InstancedMesh` con seed fija (`props.tsx`); solo en la parcela piloto. El granero solo se dibuja en un sitio sin edificio observado | decorativo |
-| Riego | Pivote central (`CenterPivot`) solo si `irrigation_level ≠ NONE`; gira y rocía solo los días con `irrigation_mm > 0` o con la capa Riego activa | `irrigation_level`, `TwinState.irrigation_mm` |
+| Árboles, cerca, camino, estanque, granero/silo | Árboles y cerca son `InstancedMesh`; camino, estanque y granja (granero, silo, depósitos, casa) son mallas sueltas; todo con seed fija y solo en la parcela piloto (`props.tsx`). La granja es decoración: solo se dibuja si la descarga de huellas OSM tuvo éxito y queda un sitio candidato sobre la losa que no se solape con ninguna huella (`pickFarmsteadSite` en `lib/scene-layout.ts`); si la descarga falla o no hay sitio, no aparece | decorativo |
+| Riego | Pivote central (`CenterPivot`) solo si `irrigation_level ≠ NONE`; gira y rocía solo los días con `irrigation_mm > 0` o con la capa Riego activa. Es una metáfora del nivel de riego del escenario, no el sistema real de la parcela: la etiqueta de la zona lo dice (`es.twin.pivotIllustrative`) | `irrigation_level`, `TwinState.irrigation_mm` |
 | Etiquetas de zona | drei `Html` (DOM): nombre, cultivo, ha, valor de la capa activa + insignia `data_state` | `ZoneResult` |
 | Cielo e iluminación | Gradiente de pantalla completa (`SceneBackdrop`), sol direccional con sombras PCF, luz de borde fría y entorno IBL local con `Lightformer` (sin HDR descargado) (`scene-environment.tsx`) | — |
 | Post-proceso | N8AO (oclusión ambiental), SMAA, bloom y viñeta sutiles, según nivel de calidad | — |
@@ -44,7 +44,7 @@ Geometría **procedural sin assets** (sin glTF ni Blender), determinista por see
 
 ### Niveles de calidad y degradación
 
-`lib/scene-quality.ts` (puro, con tests) elige `high | medium | low` a partir de la GPU (`UNMASKED_RENDERER_WEBGL`, `MAX_TEXTURE_SIZE`, núcleos, memoria, móvil, `prefers-reduced-motion`). `?quality=high|medium|low` fija el nivel para demos. Cada nivel define `dpr`, sombras y tamaño del mapa, AO, bloom, viñeta, densidad e instancias máximas por zona, viento y `frameloop`. Un vigilante de cuadros (`frame-watchdog.tsx`) baja un nivel si la media cae de 26 fps dos ventanas seguidas; la pérdida de contexto WebGL también baja un nivel; nunca se sube solo. El atributo `data-quality` del `.diorama` expone el nivel activo. Sin WebGL, la pestaña cae al mapa 2D como antes.
+`lib/scene-quality.ts` (puro, con tests) elige `high | medium | low` a partir de la GPU (`UNMASKED_RENDERER_WEBGL`, `MAX_TEXTURE_SIZE`, núcleos, memoria, móvil, `prefers-reduced-motion`). `?quality=high|medium|low` fija el nivel para demos. Cada nivel define `dpr`, sombras y tamaño del mapa, AO, bloom, viñeta, densidad e instancias máximas por zona, viento y animación. El lienzo siempre está en `frameloop="demand"`: con animación activa, `SceneTicker` pide cuadros continuos solo mientras hay interacción con el lienzo (4 s), la línea de tiempo se reproduce o un pivote riega; en reposo o con la pestaña oculta solo se redibuja al cambiar el estado (batería). La cámara ortográfica se ajusta al tamaño de la parcela (`fittedZoom`, acotado a los límites de `OrbitControls`) hasta que el usuario toca los controles. Un vigilante de cuadros (`frame-watchdog.tsx`) baja un nivel si la media cae de 26 fps dos ventanas seguidas (descarta cuadros > 250 ms y reinicia al cambiar de pestaña, para que un alt-tab no degrade); la pérdida de contexto WebGL también baja un nivel (salvo la que provoca el propio desmontaje del lienzo); nunca se sube solo. El atributo `data-quality` del `.diorama` expone el nivel activo. Sin WebGL, la pestaña cae al mapa 2D como antes.
 
 ### Capas de color
 
@@ -87,10 +87,12 @@ props.tsx             # slab strata, pond, road, trees, farmstead, fence, centre
 scene-environment.tsx # backdrop, sun/sky/IBL lights, post-processing
 terrain-sampler.ts    # shared scene scale and elevation sampler
 frame-watchdog.tsx    # fps watchdog that lowers the quality tier
+plant-instances.ts    # instance matrices/colours writer (testable without WebGL)
 use-scene-quality.ts  # quality state (probe, URL override, degrade)
 quality-context.ts    # React context for the quality settings
 ../lib/crop-visuals.ts   # crop_id -> growth form, stage -> visual, row layout, soil tone (pure, tested)
 ../lib/scene-quality.ts  # quality tiers (pure, tested)
+../lib/scene-layout.ts   # camera fit and farmstead placement (pure, tested)
 ```
 
 ## Presupuesto
