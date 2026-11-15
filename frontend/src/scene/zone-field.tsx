@@ -1,12 +1,13 @@
 import { Line } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { growthFormFor, rowLayout, rowsRunAlongY, soilTone, stageVisual } from "../lib/crop-visuals";
 import { hashString, insidePolygon, type Projector } from "../lib/geo";
 import { color as tokens } from "../styles/tokens";
 import type { PhenoStage } from "../types/api";
 import { canopyColors, plantGeometry } from "./plant-geometry";
+import { SOIL_LIFT, syncPlantMesh } from "./plant-instances";
 import { createPlantMaterials, createPlantUniforms } from "./plant-material";
 import { useQuality } from "./quality-context";
 import { SCENE_SCALE, useElevation, type Elevation } from "./terrain-sampler";
@@ -22,8 +23,6 @@ export { SCENE_SCALE };
 // the diorama is illustrative and must stay light enough for a laptop.
 const ROW_SPACING_M = 14;
 const PLANT_SPACING_M = 9;
-// Soil sits this far above the terrain so it never z-fights the imagery
-const SOIL_LIFT = 0.012;
 const SOIL_GRID = 28;
 // How strongly the active layer colour tints plants and soil. Soil and outline carry the layer;
 // plants keep most of their natural colour so corn still reads as corn under a blue moisture ramp.
@@ -233,6 +232,17 @@ function ZoneSoil({
   const overlay = useMemo(() => new THREE.Color(fill), [fill]);
 
   useEffect(() => invalidate(), [target, invalidate]);
+  // Snap to the goal only when a material mounts (switching between the furrowed and overlay
+  // branches creates a new one). No `color` prop afterwards: it would re-apply the target on every
+  // render and the eased lerp below would never be visible.
+  useLayoutEffect(() => {
+    const m = materialRef.current;
+    if (!m) return;
+    m.color.copy(furrowed ? target : overlay);
+    if (furrowed) m.roughness = tone.roughness;
+    invalidate();
+    // Mount-only per branch on purpose: later target changes are eased in useFrame
+  }, [furrowed]);
   // Ease the soil colour so a rain day darkens the field gradually while the timeline plays
   useFrame((_, delta) => {
     const m = materialRef.current;
@@ -241,7 +251,7 @@ function ZoneSoil({
     if (m.color.equals(goal)) return;
     m.color.lerp(goal, 1 - Math.exp(-delta * 6));
     if (Math.abs(m.color.r - goal.r) + Math.abs(m.color.g - goal.g) + Math.abs(m.color.b - goal.b) < 0.003) m.color.copy(goal);
-    m.roughness = tone.roughness;
+    if (furrowed) m.roughness = tone.roughness;
     invalidate();
   });
 
@@ -255,10 +265,10 @@ function ZoneSoil({
       }}
     >
       {furrowed ? (
-        <meshStandardMaterial ref={materialRef} map={getFurrowTexture()} color={target} roughness={tone.roughness} metalness={0} />
+        <meshStandardMaterial ref={materialRef} map={getFurrowTexture()} metalness={0} />
       ) : (
         // No declared crop: a translucent layer tint keeps the real imagery visible underneath
-        <meshStandardMaterial ref={materialRef} color={overlay} transparent opacity={0.28} depthWrite={false} roughness={1} />
+        <meshStandardMaterial ref={materialRef} transparent opacity={0.28} depthWrite={false} roughness={1} />
       )}
     </mesh>
   );
@@ -286,6 +296,11 @@ function CropRows({
   const quality = useQuality();
   const invalidate = useThree((s) => s.invalidate);
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const [mesh, setMesh] = useState<THREE.InstancedMesh | null>(null);
+  const attachMesh = useCallback((m: THREE.InstancedMesh | null) => {
+    meshRef.current = m;
+    setMesh(m);
+  }, []);
   const form = growthFormFor(cropId);
   const geometry = useMemo(() => plantGeometry(form, cropId), [form, cropId]);
   useEffect(() => () => geometry.dispose(), [geometry]);
@@ -310,32 +325,16 @@ function CropRows({
     });
   }, [ring, zoneId, quality.plantDensity, quality.maxPlantsPerZone]);
 
+  // The write is keyed on the mesh object itself: a crop change (new form or geometry) or a new plant
+  // count makes R3F build a fresh InstancedMesh, which starts with identity matrices (every plant
+  // at the origin). Tracking the instance through a callback ref re-runs the write for each new
+  // mesh, whatever prop caused the rebuild.
   useLayoutEffect(() => {
-    const mesh = meshRef.current;
     if (!mesh) return;
-    const m = new THREE.Matrix4();
-    const q = new THREE.Quaternion();
-    const up = new THREE.Vector3(0, 1, 0);
-    const pos = new THREE.Vector3();
-    const scale = new THREE.Vector3();
-    const c = new THREE.Color();
-    const sizeBoost = 1 + (1 - quality.plantDensity) * 0.5;
-    spots.forEach((s, i) => {
-      pos.set(s.x * SCENE_SCALE, elevation(s.x, s.y) + SOIL_LIFT, -s.y * SCENE_SCALE);
-      q.setFromAxisAngle(up, s.heading);
-      scale.setScalar(s.scale * sizeBoost);
-      m.compose(pos, q, scale);
-      mesh.setMatrixAt(i, m);
-      // Per-plant brightness jitter; hue comes from the stage colours in the shader
-      const v = 0.86 + ((s.scale - 0.82) / 0.36) * 0.22;
-      mesh.setColorAt(i, c.setRGB(v, v, v));
-    });
-    mesh.count = spots.length;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mesh.computeBoundingSphere();
+    // Lower tiers draw fewer, slightly larger plants so the field still reads as covered
+    syncPlantMesh(mesh, spots, elevation, 1 + (1 - quality.plantDensity) * 0.5);
     invalidate();
-  }, [spots, elevation, quality.plantDensity, invalidate]);
+  }, [mesh, spots, elevation, quality.plantDensity, invalidate]);
 
   // Targets for the eased uniforms
   const colors = canopyColors(form);
@@ -370,16 +369,16 @@ function CropRows({
       moving = true;
     }
     if (quality.wind) uniforms.uTime.value += dt;
-    const mesh = meshRef.current;
+    const live = meshRef.current;
     // Skip drawing fully collapsed plants (pre-planting) instead of rendering degenerate triangles
-    if (mesh) mesh.visible = uniforms.uGrowth.value > 0.002;
+    if (live) live.visible = uniforms.uGrowth.value > 0.002;
     if (moving) invalidate();
   });
 
   return (
     <instancedMesh
       key={`${form}:${spots.length}`}
-      ref={meshRef}
+      ref={attachMesh}
       args={[geometry, material, Math.max(spots.length, 1)]}
       customDepthMaterial={depth}
       castShadow={quality.shadows}
