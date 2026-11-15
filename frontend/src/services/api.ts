@@ -1,6 +1,7 @@
 import type {
   ClimateResponse,
   FarmAnalyzeResponse,
+  FarmLoadStatus,
   Health,
   Heightmap,
   ImageryMeta,
@@ -17,6 +18,7 @@ import {
   isClimateResponse,
   isCropCatalog,
   isFarmAnalyzeResponse,
+  isFarmLoadStatus,
   isHealth,
   isNdviOverlay,
   isObservationSeries,
@@ -86,6 +88,11 @@ export const api = {
   // GET /api/farms/{id} opens (and on first call builds) any pt_<lat>_<lon> parcel as well as the pilot
   farm: (farmId: string, signal?: AbortSignal) =>
     request<FarmAnalyzeResponse>(`/api/farms/${enc(farmId)}`, isFarmAnalyzeResponse, undefined, signal),
+  // POST starts the background load (202); GET reports per-source progress
+  prepare: (farmId: string, signal?: AbortSignal) =>
+    request<FarmLoadStatus>(`/api/farms/${enc(farmId)}/prepare`, isFarmLoadStatus, { method: "POST" }, signal),
+  status: (farmId: string, signal?: AbortSignal) =>
+    request<FarmLoadStatus>(`/api/farms/${enc(farmId)}/status`, isFarmLoadStatus, undefined, signal),
   simulate: (body: TwinSimulateRequest, signal?: AbortSignal) =>
     request<TwinSimulateResponse>(
       "/api/twin/simulate",

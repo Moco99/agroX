@@ -21,7 +21,7 @@ export function LoadProgress() {
   const startedAt = useParcelStore((s) => s.startedAt);
   const farmId = useParcelStore((s) => s.farmId);
   const error = useTwinStore((s) => s.error);
-  const stages = useTwinStore((s) => s.farm?.load_status?.stages) ?? [];
+  const stages = useTwinStore((s) => s.loadStatus?.stages ?? s.farm?.load_status?.stages) ?? [];
   const [now, setNow] = useState(() => Date.now());
 
   // One timer while loading so the elapsed counter proves the app is alive; cleared when the load ends

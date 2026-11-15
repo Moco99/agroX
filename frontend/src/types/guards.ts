@@ -1,4 +1,5 @@
 import type {
+  FarmLoadStatus,
   AptitudeEntry,
   BasemapInfo,
   ClimateResponse,
@@ -52,6 +53,10 @@ export function isFarmAnalyzeResponse(value: unknown): value is FarmAnalyzeRespo
   if (!isRecord(value) || !isRecord(value.farm)) return false;
   const farm = value.farm;
   return hasArray(farm, "zones") && isRecord(value.latest_ndvi) && typeof value.catalog_version === "string";
+}
+
+export function isFarmLoadStatus(value: unknown): value is FarmLoadStatus {
+  return isRecord(value) && hasArray(value, "stages") && typeof value.progress === "number";
 }
 
 export function isTwinSimulateResponse(value: unknown): value is TwinSimulateResponse {

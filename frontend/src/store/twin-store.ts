@@ -7,6 +7,7 @@ import { useParcelStore, type SourceKey } from "./parcel-store";
 import type {
   ClimateResponse,
   FarmAnalyzeResponse,
+  FarmLoadStatus,
   Health,
   Heightmap,
   ImageryMeta,
@@ -90,6 +91,8 @@ interface TwinStore {
   health: Health | null;
   config: TwinConfig | null;
   farm: FarmAnalyzeResponse | null;
+  // Live per-source progress from GET /api/farms/{id}/status while a new parcel loads
+  loadStatus: FarmLoadStatus | null;
   baseline: TwinSimulateResponse | null;
   scenario: TwinSimulateResponse | null;
   modis: ObservationSeries | null;
@@ -182,6 +185,23 @@ function stageUsable(farm: FarmAnalyzeResponse | null, name: string): boolean {
 // The first farm response of a new live parcel returns at once with load_status: poll (cheap, cached upstream) until
 // the required stages (terrain, soil, weather) are final, publishing each answer so the panel shows real progress
 async function fetchFarmWhenReady(farmId: string, signal: AbortSignal): Promise<FarmAnalyzeResponse> {
+  // Start the backend's background load and follow its per-source status (non-pilot parcels only). An older
+  // backend without these endpoints (404/405) falls through to the farm polling below.
+  if (!isPilotFarm(farmId)) {
+    try {
+      let status = await api.prepare(farmId, signal);
+      for (;;) {
+        useTwinStore.setState({ loadStatus: status });
+        const failed = status.stages.find((s) => s.required && s.stage !== "soil" && s.status === "failed");
+        if (failed) throw new Error(`${failed.stage}: ${failed.message ?? "falló"}`);
+        if (status.stages.filter((s) => s.required && s.stage !== "soil").every((s) => FINAL_STATUS.has(s.status))) break;
+        await sleep(Math.max(POLL_MIN_S, status.poll_after_s ?? 3) * 1000, signal);
+        status = await api.status(farmId, signal);
+      }
+    } catch (e) {
+      if (!(e instanceof ApiError && (e.status === 404 || e.status === 405))) throw e;
+    }
+  }
   for (;;) {
     const farm = await api.farm(farmId, signal);
     const status = farm.load_status;
@@ -234,6 +254,7 @@ function errorMessage(e: unknown): string {
 // Fields that belong to one parcel; cleared whenever the active parcel changes so no stale data is ever shown
 const PARCEL_RESET = {
   farm: null,
+  loadStatus: null,
   baseline: null,
   scenario: null,
   modis: null,
@@ -257,11 +278,11 @@ const PARCEL_RESET = {
 };
 
 // Declared / suggested planting dates and crop overrides ride along every request of a non-pilot parcel
-function planExtras(plan: RunPlan | null): Pick<TwinSimulateRequest, "planting_dates" | "zone_crops"> {
+function planExtras(plan: RunPlan | null): Pick<TwinSimulateRequest, "planting_dates" | "crop_overrides"> {
   if (!plan) return {};
-  const out: Pick<TwinSimulateRequest, "planting_dates" | "zone_crops"> = {};
+  const out: Pick<TwinSimulateRequest, "planting_dates" | "crop_overrides"> = {};
   if (Object.keys(plan.plantingDates).length) out.planting_dates = plan.plantingDates;
-  if (Object.keys(plan.cropOverrides).length) out.zone_crops = plan.cropOverrides;
+  if (Object.keys(plan.cropOverrides).length) out.crop_overrides = plan.cropOverrides;
   return out;
 }
 
@@ -360,6 +381,7 @@ export const useTwinStore = create<TwinStore>((set, get) => ({
   health: null,
   config: null,
   farm: null,
+  loadStatus: null,
   baseline: null,
   scenario: null,
   modis: null,
