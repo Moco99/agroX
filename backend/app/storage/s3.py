@@ -13,11 +13,22 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
-import rasterio
-from botocore.config import Config
-from botocore.exceptions import BotoCoreError, ClientError
-from rasterio._vsiopener import FileContainer
-from rasterio.io import DatasetReader
+try:
+    import rasterio
+    from rasterio._vsiopener import FileContainer
+    from rasterio.io import DatasetReader
+except ImportError:
+    rasterio = None  # type: ignore
+    FileContainer = object  # type: ignore
+    DatasetReader = object  # type: ignore
+
+try:
+    from botocore.config import Config
+    from botocore.exceptions import BotoCoreError, ClientError
+except ImportError:
+    Config = object  # type: ignore
+    BotoCoreError = Exception  # type: ignore
+    ClientError = Exception  # type: ignore
 
 from app.storage.block_cache import BlockCache
 from app.storage.ports import ObjectInfo, ObjectNotFoundError, StoreUnavailableError, record_transfer

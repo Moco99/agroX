@@ -6,8 +6,12 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-import rasterio
-from rasterio.io import DatasetReader
+try:
+    import rasterio
+    from rasterio.io import DatasetReader
+except ImportError:
+    rasterio = None  # type: ignore
+    DatasetReader = object  # type: ignore
 
 from app.storage.ports import ObjectInfo, ObjectNotFoundError
 
