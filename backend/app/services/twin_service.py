@@ -123,11 +123,18 @@ def _plantings(
     return out
 
 
+def _declared_crops(req: TwinSimulateRequest) -> dict[str, str]:
+    # crop_overrides is the frontend name of zone_crops; both mean DECLARED, the newer one wins
+    return {**(req.zone_crops or {}), **(req.crop_overrides or {})}
+
+
 def _validate_declared(req: TwinSimulateRequest, farm: Farm, catalog: CropCatalog) -> None:
     zone_ids = {z.zone_id for z in farm.zones}
-    for zid, crop_id in (req.zone_crops or {}).items():
+    for zid, crop_id in _declared_crops(req).items():
         if zid not in zone_ids:
-            raise DataNotFoundError(f"zone_crops: unknown zone '{zid}' (zones: {', '.join(sorted(zone_ids))})")
+            raise DataNotFoundError(
+                f"zone_crops/crop_overrides: unknown zone '{zid}' (zones: {', '.join(sorted(zone_ids))})"
+            )
         if catalog.get(crop_id) is None:
             raise InvalidRequestError(_unsupported(crop_id, zid, catalog))
     crop_ids = {c.crop_id for c in catalog.crops}
@@ -208,7 +215,7 @@ def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
         zones = [z for z in zones if z.zone_id in req.zone_ids]
 
     year = start.year
-    declared_crops = req.zone_crops or {}
+    declared_crops = _declared_crops(req)
     crops = {z.zone_id: crop_for_year(z, year, catalog, declared_crops.get(z.zone_id)) for z in zones}
     planting_info = _plantings(req, zones, crops, start, pt)
     plantings = {zid: d for zid, (d, _) in planting_info.items()}
@@ -303,8 +310,7 @@ def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
                 discrepancies=discrepancies if req.include_states else [],
                 comparison=comparison,
                 expected_canopy=[
-                    {"date": d.isoformat(), "value": round(v, 4)}
-                    for d, v in expected_canopy_series(base_trim, crop)
+                    {"date": d.isoformat(), "value": round(v, 4)} for d, v in expected_canopy_series(base_trim, crop)
                 ]
                 if req.include_states
                 else [],
@@ -338,9 +344,9 @@ def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
     for series in (modis, s2, smap):
         if series is not None:
             provenance[f"obs_{series.source_id}"] = series.provenance
-    if req.zone_crops or req.planting_dates:
+    if _declared_crops(req) or req.planting_dates:
         provenance["declared_inputs"] = Provenance(
-            source="user request (zone_crops / planting_dates)",
+            source="user request (zone_crops / crop_overrides / planting_dates)",
             data_state=DataState.DECLARED,
             method="declared by the user; not observed",
         )
