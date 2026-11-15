@@ -1,4 +1,5 @@
 import { es } from "../i18n/es";
+import { useGuideStore } from "../store/guide-store";
 import { useStageStore } from "../store/stage-store";
 
 // ─────────────────────────────────────────
@@ -28,6 +29,16 @@ export function HelpPopover() {
           <kbd>?stage=globe|map|twin</kbd> {es.help.deepLink}
         </li>
       </ul>
+      <button
+        type="button"
+        className="ghost-button wide-button"
+        onClick={() => {
+          setOpen(false);
+          useGuideStore.getState().setOpen(true);
+        }}
+      >
+        {es.guide.title}
+      </button>
       <h4>{es.globe.credits}</h4>
       <p>{es.globe.creditsBody}</p>
     </div>

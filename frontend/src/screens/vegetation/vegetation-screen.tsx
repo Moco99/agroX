@@ -1,7 +1,14 @@
 import { useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { DataStateBadge } from "../../components/data-state-badge";
-import { fmt, fmtDate, fmtDateShort } from "../../i18n/es";
+import { DataStateLegend } from "../../components/explain/data-state-legend";
+import { HowCalculated } from "../../components/explain/how-calculated";
+import { ModelNote } from "../../components/explain/model-note";
+import { ReadingChip } from "../../components/explain/reading-chip";
+import { Term } from "../../components/explain/term";
+import { navigateTo } from "../../app-shell/sidebar";
+import { es, fmt, fmtDate, fmtDateShort } from "../../i18n/es";
+import { ndviReading } from "../../lib/readings";
 import { analyzeSeason, clearPoints, compareWithPreviousYears, EVENT_LABELS, VEG_PARAMS, verdictText } from "../../lib/vegetation";
 import { useTwinStore } from "../../store/twin-store";
 import { color, NDVI_RAMP, rampColor } from "../../styles/tokens";
@@ -58,8 +65,12 @@ export default function VegetationScreen() {
   if (!farm) {
     return (
       <div className="module-screen">
-        <header><h1>Vegetación de la parcela</h1></header>
-        <div className="loading">Cargando la parcela…</div>
+        <header><h1>{es.vegetation.title}</h1></header>
+        <div className="loading" role="status">{es.vegetation.loading}</div>
+        <div className="card empty-state">
+          <p>{es.states.noFarm}</p>
+          <button type="button" className="ghost-button" onClick={() => navigateTo("globe")}>{es.states.goExplore}</button>
+        </div>
       </div>
     );
   }
@@ -69,21 +80,25 @@ export default function VegetationScreen() {
   return (
     <div className="module-screen vegetation-screen">
       <header>
-        <h1>Vegetación de la parcela</h1>
-        <p className="muted">{farm.farm.name} · NDVI por zona (Sentinel-2{modis ? " y MODIS" : ""}). Las observaciones nubladas se descartan cuando la fuente informa su fracción válida.</p>
+        <h1>{es.vegetation.title}</h1>
+        <p className="muted">{es.vegetation.subtitle(farm.farm.name, Boolean(modis))}</p>
+        <p className="meaning"><Term id="ndvi" />: {es.glossary.ndvi.text}</p>
       </header>
+      <ModelNote withScore={false} compact />
       {!primary || primary.points.length === 0 ? (
-        <div className="card">
-          <p>Todavía no hay observaciones de NDVI para esta parcela. Si se está descargando, vuelve en unos minutos.</p>
+        <div className="card empty-state" role="status">
+          <p>{es.vegetation.empty}</p>
+          <button type="button" className="ghost-button" onClick={() => navigateTo("map")}>{es.states.goExplore}</button>
           {warnings.length > 0 && <ul className="climate-warnings">{warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
         </div>
       ) : (
         <>
           <section className="card">
             <div className="card-head">
-              <h3>NDVI actual por zona</h3>
-              <small className="muted">última observación clara de cada zona</small>
+              <h3>{es.vegetation.current}</h3>
+              <small className="muted">{es.vegetation.currentSub}</small>
             </div>
+            <p className="meaning">{es.meaning.ndvi}</p>
             <div className="climate-kpis">
               {zones.map((z) => {
                 const last = zonePoints(primary, z.zone_id).at(-1);
@@ -92,21 +107,26 @@ export default function VegetationScreen() {
                     onClick={() => { setZoneId(z.zone_id); selectZone(z.zone_id); }} aria-pressed={z.zone_id === activeId}>
                     <small>{z.name}</small>
                     <strong><i className="veg-swatch" style={{ background: rampColor(NDVI_RAMP, last?.value ?? null) }} aria-hidden /> {fmt(last?.value ?? null, 2)}</strong>
-                    <small className="muted">{last ? `${fmtDate(last.date)} · ${primary.source_id}` : "Sin observación clara"}</small>
+                    {last && <ReadingChip reading={ndviReading(last.value)} />}
+                    <small className="muted">{last ? `${fmtDate(last.date)} · ${primary.source_id}` : es.vegetation.noClear}</small>
                     <DataStateBadge state={primary.provenance.data_state} compact />
                   </button>
                 );
               })}
             </div>
-            <div className="veg-scale" aria-label="Escala de color NDVI">
-              <span>0,2 o menos</span>
+            <div className="veg-scale" aria-label={es.vegetation.scaleAria}>
+              <span>{es.vegetation.scaleLow}</span>
               <i style={{ background: `linear-gradient(90deg, ${NDVI_RAMP.map((s) => s.hex).join(", ")})` }} />
-              <span>0,8 o más</span>
+              <span>{es.vegetation.scaleHigh}</span>
             </div>
+            <div className="legend-classes" aria-hidden>{es.legend.ndvi.map((c) => <span key={c}>{c}</span>)}</div>
+            <small className="muted">{es.reading.ndvi.note}</small>
+            <HowCalculated id="ndvi" />
           </section>
 
           <section className="card">
-            <h3>Serie de NDVI</h3>
+            <h3>{es.vegetation.series}</h3>
+            <p className="meaning">{es.vegetation.seriesHelp}</p>
             <div className="chart-box">
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
@@ -116,23 +136,23 @@ export default function VegetationScreen() {
                   <Tooltip contentStyle={tooltipStyle} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   {zones.map((z, i) => <Line key={z.zone_id} dataKey={z.zone_id} name={`${z.name} (${primary.source_id})`} stroke={ZONE_COLORS[i % ZONE_COLORS.length]} dot={{ r: 2 }} connectNulls />)}
-                  {modisPoints.length > 0 && <Line dataKey="modis" name={`${active?.name ?? "Zona"} (${modis?.source_id})`} stroke={color.text.muted} strokeDasharray="4 3" dot={false} connectNulls />}
+                  {modisPoints.length > 0 && <Line dataKey="modis" name={`${active?.name ?? es.vegetation.zoneFallback} (${modis?.source_id})`} stroke={color.text.muted} strokeDasharray="4 3" dot={false} connectNulls />}
                 </LineChart>
               </ResponsiveContainer>
             </div>
             <p className="chart-note">
               {primary.source_id} · {primary.resolution_m} m <DataStateBadge state={primary.provenance.data_state} compact />
-              {modis && primary !== modis && <> · MODIS {modis.resolution_m} m <DataStateBadge state={modis.provenance.data_state} compact /> (solo contexto: pocos píxeles por zona)</>}
+              {modis && primary !== modis && <> · MODIS {modis.resolution_m} m <DataStateBadge state={modis.provenance.data_state} compact /> {es.vegetation.modisContext}</>}
             </p>
           </section>
 
           <section className="card">
             <div className="card-head">
-              <h3>Eventos de temporada · {active?.name}</h3>
+              <h3><Term id="greenUp">{es.vegetation.events(active?.name ?? es.vegetation.zoneFallback)}</Term></h3>
               <DataStateBadge state="ESTIMATED" />
             </div>
             <p className="muted">
-              Estimados a partir de la serie, no observados en campo. Método: máximo = observación más alta del año; inicio de verdor y de senescencia = fecha en que el NDVI cruza el {Math.round(VEG_PARAMS.amplitudeFraction * 100)} % de la amplitud (mínimo a máximo) antes y después del máximo, interpolada entre observaciones; suelo desnudo = observaciones con NDVI de {fmt(VEG_PARAMS.bareSoilMax, 2)} o menos. Los umbrales son parámetros de producto, no valores agronómicos validados.
+              {es.vegetation.eventsMethod(String(Math.round(VEG_PARAMS.amplitudeFraction * 100)), fmt(VEG_PARAMS.bareSoilMax, 2))}
             </p>
             {season && season.events.length > 0 ? (
               <ul className="veg-events">
@@ -142,17 +162,17 @@ export default function VegetationScreen() {
             {season?.note && <p className="muted">{season.note}</p>}
             {season && season.bareSoil.length > 0 ? (
               <ul className="veg-events">
-                {season.bareSoil.map((b) => <li key={b.start}><strong>Posible suelo desnudo</strong>: {b.start === b.end ? fmtDate(b.start) : `${fmtDate(b.start)} a ${fmtDate(b.end)}`} ({b.observations} {b.observations === 1 ? "observación" : "observaciones"}) <DataStateBadge state="ESTIMATED" compact /></li>)}
+                {season.bareSoil.map((b) => <li key={b.start}><strong>{es.vegetation.bareSoil}</strong>: {b.start === b.end ? fmtDate(b.start) : es.vegetation.range(fmtDate(b.start), fmtDate(b.end))} ({es.vegetation.observations(b.observations)}) <DataStateBadge state="ESTIMATED" compact /></li>)}
               </ul>
-            ) : season && !season.note && <p className="muted">No se detectaron observaciones de suelo desnudo en {season.year}.</p>}
+            ) : season && !season.note && <p className="muted">{es.vegetation.noBare(season.year)}</p>}
           </section>
 
           <section className="card">
-            <h3>Comparación con años anteriores</h3>
+            <h3>{es.vegetation.compare}</h3>
             <p><strong>{verdictText(comparison)}</strong></p>
             {comparison && comparison.mean !== null && (
               <p className="muted">
-                Hoy {fmt(comparison.current, 2)} ({fmtDate(comparison.currentDate)}) frente a un promedio de {fmt(comparison.mean, 2)} en {comparison.previous.map((p) => p.year).join(", ")}. Se usa la observación más cercana a la misma fecha (±{VEG_PARAMS.sameDateWindowDays} días); el margen de "usual" es ±{fmt(VEG_PARAMS.usualBand, 2)} de NDVI (parámetro de producto). <DataStateBadge state="ESTIMATED" compact />
+                {es.vegetation.compareDetail(fmt(comparison.current, 2), fmtDate(comparison.currentDate), fmt(comparison.mean, 2), comparison.previous.map((p) => p.year).join(", "), VEG_PARAMS.sameDateWindowDays, fmt(VEG_PARAMS.usualBand, 2))} <DataStateBadge state="ESTIMATED" compact />
               </p>
             )}
             {yearly.years.length > 1 && (
@@ -172,11 +192,12 @@ export default function VegetationScreen() {
           </section>
 
           <section className="card">
-            <h3>Fuentes y avisos</h3>
+            <h3>{es.vegetation.sources}</h3>
             <p className="muted">
               {[sentinel2, modis].filter((s): s is ObservationSeries => Boolean(s)).map((s) => `${s.provenance.source} (${s.source_id}, ${s.resolution_m} m)`).join(" · ")}
             </p>
             {warnings.length > 0 && <ul className="climate-warnings">{warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
+            <DataStateLegend />
           </section>
         </>
       )}
