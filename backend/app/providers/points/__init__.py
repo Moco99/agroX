@@ -6,6 +6,7 @@ import importlib.util
 import threading
 from functools import lru_cache
 from pathlib import Path
+from types import ModuleType
 from typing import Protocol, cast
 
 from app.storage.ports import StoreUnavailableError
@@ -18,14 +19,27 @@ class Consult(Protocol):
 
 
 @lru_cache(maxsize=1)
-def _consult() -> Consult:
+def _module() -> ModuleType:
     path = Path(__file__).resolve().parents[4] / "scraper" / "punto.py"
     spec = importlib.util.spec_from_file_location("agrox_point_scraper", path)
     if spec is None or spec.loader is None:
         raise StoreUnavailableError("Point query provider unavailable")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return cast(Consult, module.consultar)
+    return module
+
+
+def _consult() -> Consult:
+    return cast(Consult, _module().consultar)
+
+
+def land_cover(lat: float, lon: float) -> dict[str, object]:
+    """Only the land-cover section of the scraper (WorldCover 2021 + IO LULC), ~2-5 s, global."""
+    module = _module()
+    result = module.cobertura(module._sesion(), lat, lon)
+    if not isinstance(result, dict):
+        raise ValueError("land cover: unexpected response")
+    return cast(dict[str, object], result)
 
 
 def query(lat: float, lon: float, start: str, end: str, refresh: bool) -> dict[str, object]:

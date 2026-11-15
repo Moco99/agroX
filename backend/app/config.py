@@ -12,6 +12,8 @@ DEFAULT_DERIVED_DIR = APP_DIR / "data" / "derived"
 DEFAULT_RAW_DIR = APP_DIR.parents[1] / "data" / "raw"
 # Preserve the live weather cache shared with the hashed object-block cache.
 DEFAULT_CACHE_DIR = APP_DIR.parents[1] / "data" / "cache"
+# Artifacts built for point farms (soil cells, land cover, imagery): git-ignored, bounded by live_cache_max_mb
+DEFAULT_LIVE_CACHE_DIR = APP_DIR.parent / ".cache" / "live"
 
 
 @dataclass(frozen=True)
@@ -30,6 +32,8 @@ class Settings:
     s3_bucket: str | None = None
     aws_profile: str | None = None
     aws_region: str = "us-east-1"
+    live_cache_dir: Path = DEFAULT_LIVE_CACHE_DIR
+    live_cache_max_mb: int = 256
 
 
 def get_settings() -> Settings:
@@ -60,4 +64,6 @@ def get_settings() -> Settings:
         s3_bucket=os.environ.get("AGROX_S3_BUCKET") or None,
         aws_profile=os.environ.get("AWS_PROFILE") or None,
         aws_region=os.environ.get("AWS_REGION") or "us-east-1",
+        live_cache_dir=Path(os.environ.get("AGROX_LIVE_CACHE_DIR") or DEFAULT_LIVE_CACHE_DIR),
+        live_cache_max_mb=int(os.environ.get("AGROX_LIVE_CACHE_MAX_MB") or 256),
     )

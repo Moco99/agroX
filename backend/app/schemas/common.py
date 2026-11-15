@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from enum import Enum
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # ─────────────────────────────────────────
 # Section: Enums
@@ -66,6 +66,15 @@ class RecommendationStatus(str, Enum):
 # ─────────────────────────────────────────
 
 
+class StrictRequest(BaseModel):
+    """Base of every request body: a misspelled field (e.g. `precip_change_pct`) must fail with 422.
+
+    Silently ignoring unknown keys made a typo look like a valid scenario that returned the baseline.
+    """
+
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+
 class Provenance(BaseModel):
     source: str = Field(description="e.g. 'NASA POWER', 'synthetic:weather_v1'")
     data_state: DataState
@@ -80,7 +89,7 @@ class Location(BaseModel):
     lon: float = Field(ge=-180, le=180)
 
 
-class Weights(BaseModel):
+class Weights(StrictRequest):
     water: float = Field(ge=0)
     soil: float = Field(ge=0)
     climate: float = Field(ge=0)

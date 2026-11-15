@@ -13,7 +13,7 @@ from typing import TypeVar
 try:
     from rasterio.io import DatasetReader
 except ImportError:
-    DatasetReader = object  # type: ignore
+    DatasetReader = object
 
 from app.config import Settings, get_settings
 from app.storage.block_cache import BlockCache
