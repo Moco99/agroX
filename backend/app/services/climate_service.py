@@ -7,7 +7,8 @@ from datetime import date
 from app.engine.indicators import period_indicators, precip_anomaly_pct
 from app.engine.spi import MIN_YEARS as SPI_MIN_YEARS
 from app.engine.spi import spi
-from app.providers.factory import Providers
+from app.providers.factory import Providers, weather_at
+from app.providers.ports import WeatherProvider
 from app.schemas.climate import ClimateIndicators, ClimateResponse
 from app.schemas.common import DataState, Metric
 from app.services.errors import InvalidRequestError
@@ -20,9 +21,9 @@ COLD_THRESHOLD_C = 0.0
 MAX_POINT_OFFSET_DEG = 0.25
 
 
-def _same_period_other_years(p: Providers, start: date, end: date) -> list[float]:
+def _same_period_other_years(w: WeatherProvider, start: date, end: date) -> list[float]:
     """Totals of the same calendar window in every other complete year the provider covers."""
-    cov_start, cov_end = p.weather.coverage()
+    cov_start, cov_end = w.coverage()
     totals: list[float] = []
     for year in range(cov_start.year, cov_end.year + 1):
         if year == start.year:
@@ -33,7 +34,7 @@ def _same_period_other_years(p: Providers, start: date, end: date) -> list[float
             continue
         if s < cov_start or e > cov_end:
             continue
-        totals.append(sum(d.precip for d in p.weather.get_daily(s, e).days))
+        totals.append(sum(d.precip for d in w.get_daily(s, e).days))
     return totals
 
 
@@ -42,9 +43,11 @@ def get_climate(p: Providers, start: date, end: date, lat: float | None, lon: fl
         raise InvalidRequestError("end must be on or after start")
     if (end - start).days > 800:
         raise InvalidRequestError("period longer than 800 days")
-    series = p.weather.get_daily(start, end)
+    # In live mode a requested point gets its own NASA POWER series; otherwise the pilot series answers
+    w = weather_at(p, lat, lon) if lat is not None and lon is not None and p.mode == "live" else p.weather
+    series = w.get_daily(start, end)
     if not series.days:
-        cov = p.weather.coverage()
+        cov = w.coverage()
         raise InvalidRequestError(f"no weather data in {start}..{end}; coverage is {cov[0]}..{cov[1]}")
     warnings = list(p.warnings) + list(series.warnings)
     if lat is not None and lon is not None:
@@ -58,7 +61,7 @@ def get_climate(p: Providers, start: date, end: date, lat: float | None, lon: fl
     # Derived from measured inputs through a model => ESTIMATED (SYNTHETIC propagates)
     derived = DataState.SYNTHETIC if state is DataState.SYNTHETIC else DataState.ESTIMATED
     src = series.provenance.source
-    reference = _same_period_other_years(p, series.days[0].date, series.days[-1].date)
+    reference = _same_period_other_years(w, series.days[0].date, series.days[-1].date)
     # Fewer than 10 reference years cannot define a climatology: the anomaly is withheld rather than overstated
     anomaly = precip_anomaly_pct(ind.precip_total, reference) if len(reference) >= 10 else None
     if anomaly is None:

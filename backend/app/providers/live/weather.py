@@ -20,6 +20,7 @@ from collections.abc import Callable
 from datetime import date, timedelta
 from pathlib import Path
 
+from app.providers.ports import DataNotFoundError
 from app.providers.real.weather import CORE_COLUMNS, RealWeatherProvider
 from app.schemas.common import DataState, Location, Provenance
 from app.schemas.weather import WeatherDay, WeatherSeries
@@ -154,8 +155,11 @@ class LivePowerWeatherProvider(RealWeatherProvider):
         lon: float,
         fetcher: Fetcher = fetch_power,
         today: Callable[[], date] = date.today,
+        allow_fallback: bool = True,
     ) -> None:
         super().__init__(derived_dir)
+        # Point farms must never fall back to the pilot series: that would be weather from somewhere else
+        self._allow_fallback = allow_fallback
         self._cache_dir = cache_dir
         self._lat, self._lon = lat, lon
         self._fetcher = fetcher
@@ -190,7 +194,11 @@ class LivePowerWeatherProvider(RealWeatherProvider):
 
     def _days(self) -> tuple[WeatherDay, ...]:
         self._load()
-        return self._live[0] if self._live else super()._days()
+        if self._live:
+            return self._live[0]
+        if not self._allow_fallback:
+            raise DataNotFoundError(f"NASA POWER unavailable for {self._lat}, {self._lon}: {self._error}")
+        return super()._days()
 
     def get_daily(self, start: date, end: date) -> WeatherSeries:
         series = super().get_daily(start, end)

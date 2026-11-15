@@ -17,8 +17,8 @@ from app.engine.config import (
 )
 from app.engine.monte_carlo import run_monte_carlo
 from app.engine.scenarios import expand_scenario, perturb_series, resolve_irrigation
-from app.providers.factory import Providers
-from app.providers.ports import DataNotFoundError
+from app.providers.factory import Providers, weather_for
+from app.providers.ports import DataNotFoundError, WeatherProvider
 from app.schemas.common import DataState, Provenance, TwinLevel
 from app.schemas.crops import CropCatalog, CropParams
 from app.schemas.farm import FarmZone
@@ -58,12 +58,12 @@ def crop_for_year(zone: FarmZone, year: int, catalog: CropCatalog) -> CropParams
     return crop
 
 
-def _validate_period(p: Providers, start: date, end: date) -> None:
+def _validate_period(weather: WeatherProvider, start: date, end: date) -> None:
     if end < start:
         raise InvalidRequestError("end must be on or after start")
     if start.year != end.year:
         raise InvalidRequestError("start and end must fall in the same calendar year (one season per run)")
-    cov_start, cov_end = p.weather.coverage()
+    cov_start, cov_end = weather.coverage()
     if start < cov_start or end > cov_end:
         raise InvalidRequestError(f"period {start}..{end} outside weather coverage {cov_start}..{cov_end}")
 
@@ -117,7 +117,8 @@ def _is_neutral(s: TwinScenario) -> bool:
 
 
 def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
-    _validate_period(p, req.start, req.end)
+    weather_src = weather_for(p, req.farm_id)
+    _validate_period(weather_src, req.start, req.end)
     try:
         scenario = expand_scenario(req.scenario)
     except ValueError as exc:
@@ -139,9 +140,9 @@ def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
         or twin.default_planting(crop_for_year(z, year, catalog).crop_id, year, DEFAULT_PLANTING_MMDD)
         for z in zones
     }
-    cov_start, _ = p.weather.coverage()
+    cov_start, _ = weather_src.coverage()
     run_start = max(cov_start, min([req.start, *(d - timedelta(days=SPIN_UP_DAYS) for d in plantings.values())]))
-    weather = p.weather.get_daily(run_start, req.end)
+    weather = weather_src.get_daily(run_start, req.end)
     if not weather.days:
         raise InvalidRequestError("no weather days in the requested period")
     output_state = _output_state(weather)
@@ -302,7 +303,7 @@ def baseline_year(p: Providers, farm_id: str, year: int) -> TwinSimulateResponse
     """Whole-year baseline run (cached per providers instance) used by the state snapshot."""
     key = (id(p), farm_id, year)
     if key not in _BASELINE_CACHE:
-        cov_start, cov_end = p.weather.coverage()
+        cov_start, cov_end = weather_for(p, farm_id).coverage()
         start = max(date(year, 1, 1), cov_start)
         end = min(date(year, 12, 31), cov_end)
         _BASELINE_CACHE[key] = simulate(
@@ -312,7 +313,7 @@ def baseline_year(p: Providers, farm_id: str, year: int) -> TwinSimulateResponse
 
 
 def state_on(p: Providers, farm_id: str, day: date) -> TwinStateResponse:
-    cov_start, cov_end = p.weather.coverage()
+    cov_start, cov_end = weather_for(p, farm_id).coverage()
     if not cov_start <= day <= cov_end:
         raise InvalidRequestError(f"date {day} outside weather coverage {cov_start}..{cov_end}")
     run = baseline_year(p, farm_id, day.year)
