@@ -5,10 +5,10 @@ import { DataStateBadge } from "../../components/data-state-badge";
 import { es, fmt } from "../../i18n/es";
 import { defaultPointRange, EXPLORE_PLACES, insideBounds, PILOT_BOUNDS } from "../../lib/globe-view";
 import { areaHa, canConfirm, canFinish } from "../../lib/draw";
-import { isPilotFarm, parcelIdFromPoint } from "../../lib/parcel";
+import { isPilotFarm } from "../../lib/parcel";
 import { useDrawStore } from "../../store/draw-store";
 import { useMapStore } from "../../store/map-store";
-import { canOpenAt, openDrawn, openParcelAt, openPilot, selectPilot } from "../../store/open-parcel";
+import { openDrawn, openPilot, selectPilot } from "../../store/open-parcel";
 import { useParcelStore } from "../../store/parcel-store";
 import { usePointStore } from "../../store/point-store";
 import { useStageStore } from "../../store/stage-store";
@@ -33,11 +33,16 @@ function coverageVerdict(
 // Section: Draw your own parcel (any simple polygon; several polygons = several zones)
 // ─────────────────────────────────────────
 
+// Close enough to trace field edges over the satellite mosaic
+const LOCATE_ZOOM = 16;
+
 function DrawParcelCard() {
   const draw = useDrawStore();
   const capability = useParcelStore((s) => s.capability);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [geoNote, setGeoNote] = useState<string | null>(null);
   const total = draw.polygons.reduce((s, p) => s + areaHa(p), 0);
   const confirm = async () => {
     setSending(true);
@@ -51,10 +56,44 @@ function DrawParcelCard() {
     draw.clear();
     draw.setActive(false);
   };
+  // Flies to the browser position at a zoom that suits tracing a parcel, drops a marker and turns drawing on
+  const locate = () => {
+    if (!("geolocation" in navigator)) {
+      setGeoNote(es.drawParcel.geoUnsupported);
+      return;
+    }
+    setLocating(true);
+    setGeoNote(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const point = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        setLocating(false);
+        setGeoNote(es.drawParcel.located);
+        useMapStore.getState().setLocated(point);
+        useMapStore.getState().flyTo({ center: [point.lon, point.lat], zoom: LOCATE_ZOOM, bearing: 0, pitch: 0 });
+        draw.setActive(true);
+      },
+      (err) => {
+        setLocating(false);
+        setGeoNote(
+          err.code === err.PERMISSION_DENIED
+            ? es.drawParcel.geoDenied
+            : err.code === err.TIMEOUT
+              ? es.drawParcel.geoTimeout
+              : es.drawParcel.geoUnavailable,
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+    );
+  };
   return (
     <section className="card" data-testid="draw-parcel">
       <h3>{es.drawParcel.title}</h3>
       <p className="muted">{draw.active ? es.drawParcel.activeHint : es.drawParcel.hint}</p>
+      <button type="button" className="ghost-button wide-button" onClick={locate} disabled={locating}>
+        {locating ? es.drawParcel.locating : es.drawParcel.locate}
+      </button>
+      {geoNote && <p className="coverage-note" role="status" data-testid="geo-note">{geoNote}</p>}
       <button type="button" className="ghost-button wide-button" aria-pressed={draw.active}
         onClick={() => draw.setActive(!draw.active)}>
         {draw.active ? es.drawParcel.stop : es.drawParcel.start}
@@ -145,7 +184,6 @@ export function GlobePanel() {
   const selected = useMapStore((s) => s.selected);
   const pointLoading = usePointStore((s) => s.loading);
   const pointResult = usePointStore((s) => s.result);
-  const capability = useParcelStore((s) => s.capability);
   const phase = useParcelStore((s) => s.phase);
   const farmId = useParcelStore((s) => s.farmId);
   const inPilot = selected ? insideBounds(selected, PILOT_BOUNDS) : false;
@@ -153,22 +191,7 @@ export function GlobePanel() {
     if (!selected) return;
     void usePointStore.getState().query({ ...selected, ...defaultPointRange() });
   };
-  // Re-evaluated on every render so a late /api/health answer updates the button and its note
-  const verdict = selected && !inPilot ? canOpenAt(selected) : null;
   const crop = selected ? coverageVerdict(pointResult, selected) : null;
-  const note =
-    verdict && !verdict.ok
-      ? verdict.reason === "latitude-south"
-        ? es.openParcel.latSouth
-        : verdict.reason === "latitude-north"
-          ? es.openParcel.latNorth
-          : verdict.reason === "unsupported"
-            ? es.openParcel.unsupported
-            : es.openParcel.invalid
-      : null;
-  // Only the parcel already loading blocks its own button; choosing another one cancels the load in flight
-  const loadingNow = phase === "loading";
-  const busy = loadingNow && (inPilot ? isPilotFarm(farmId) : verdict?.ok === true && verdict.farmId === farmId);
   return (
     <aside className="panel" aria-label={es.geo.title}>
       <div className="panel-head">
@@ -192,38 +215,17 @@ export function GlobePanel() {
               {inPilot ? es.geo.insidePilot : es.geo.outsidePilot}
             </p>
             {inPilot ? (
-              <button type="button" className="play-button wide-button" onClick={openPilot} disabled={busy}>
+              <button type="button" className="play-button wide-button" onClick={openPilot}>
                 {es.openParcel.openPilot}
               </button>
             ) : (
               <>
-                {verdict?.ok && (
-                  <small className="muted">
-                    {es.openParcel.parcelId}: <code>{parcelIdFromPoint(selected)}</code>
-                  </small>
-                )}
-                {capability === "unknown" && verdict?.ok && <small className="muted">{es.openParcel.capabilityUnknown}</small>}
                 {crop === false && (
                   <p className="coverage-note is-warn" role="alert">
                     {es.openParcel.notCrop}
                   </p>
                 )}
                 {crop === true && <small className="muted">{es.openParcel.coverageOk}</small>}
-                {crop === null && verdict?.ok && <small className="muted">{es.openParcel.coverageUnknown}</small>}
-                <button
-                  type="button"
-                  className="play-button wide-button"
-                  disabled={!verdict?.ok || busy}
-                  onClick={() => openParcelAt(selected)}
-                >
-                  {es.openParcel.open} ↗
-                </button>
-                {note && (
-                  <p className="coverage-note is-warn" role="alert" data-testid="open-note">
-                    {note}
-                  </p>
-                )}
-                {verdict?.ok && <small className="muted">{es.openParcel.openHint}</small>}
               </>
             )}
             <button type="button" className="ghost-button wide-button" onClick={analyze} disabled={pointLoading}>

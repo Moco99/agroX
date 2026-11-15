@@ -316,6 +316,17 @@ export function GlobeMap({ onStatus }: { onStatus: (s: MapStatus) => void }) {
     };
   }, [selected, ready]);
 
+  // ── The user's own location (set by "Usar mi ubicación") ──
+  const located = useMapStore((s) => s.located);
+  useEffect(() => {
+    const map = ready;
+    if (!map || !located) return;
+    const marker = new Marker({ color: "#4da3ff" }).setLngLat([located.lon, located.lat]).addTo(map);
+    return () => {
+      marker.remove();
+    };
+  }, [located, ready]);
+
   // ── Pilot pin at globe scale: the "you can dive here" hint; click starts the cinematic flight ──
   useEffect(() => {
     const map = ready;
