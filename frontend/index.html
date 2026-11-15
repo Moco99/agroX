@@ -1,53 +1,486 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#111820"><meta name="description" content="AGROX: exploración geoespacial e inteligencia agrícola."><title>AGROX — Exploración</title><link rel="stylesheet" href="/styles.css"></head>
-<body>
-<aside class="sidebar">
-  <a class="brand" href="/" aria-label="AGROX inicio"><svg viewBox="0 0 40 40"><path d="M4 33C8 13 21 7 35 5 26 15 18 22 4 33Z" fill="#a8d98f"/><path d="M8 34 29 18 35 34Z" fill="#6d9b68"/></svg>AGROX</a>
-  <nav aria-label="Navegación principal">
-    <button class="nav-item active" data-view="Exploración"><i data-icon="map"></i><span>Exploración</span></button>
-    <button class="nav-item" data-view="Vegetación"><i data-icon="leaf"></i><span>Vegetación</span></button>
-    <button class="nav-item" data-view="Clima"><i data-icon="cloud"></i><span>Clima</span></button>
-    <button class="nav-item" data-view="Rotaciones"><i data-icon="rotate"></i><span>Rotaciones</span></button>
-    <button class="nav-item" data-view="Escenarios"><i data-icon="layers"></i><span>Escenarios</span></button>
-    <button class="nav-item" data-view="Informes"><i data-icon="chart"></i><span>Informes</span></button>
-  </nav>
-  <div class="sidebar-rule"></div>
-  <button class="ai-button" id="ai"><i data-icon="sparkles"></i><span><strong>AGROX AI</strong><small>Análisis y recomendaciones</small></span><i data-icon="chevron"></i></button>
-  <div class="sidebar-footer"><span class="status-dot"></span> Inteligencia que da frutos <small>Vista de demostración · v1.0</small></div>
-</aside>
-<main>
-  <header class="topbar">
-    <div class="search-wrap"><i data-icon="search"></i><input id="search" placeholder="Buscar ubicación, establecimiento o área…" aria-label="Buscar región" autocomplete="off"><kbd>⌘K</kbd><div id="search-results" class="popover search-results" hidden></div></div>
-    <div class="date-wrap"><button id="date-button" class="toolbar-button"><i data-icon="calendar"></i><span id="date-label">1 ene 2025 – 28 feb 2025</span><i data-icon="down"></i></button><form id="date-form" class="popover" hidden><strong>Periodo de análisis</strong><label>Desde<input type="date" id="date-start" value="2025-01-01" required></label><label>Hasta<input type="date" id="date-end" value="2025-02-28" required></label><button class="primary" type="submit">Aplicar periodo</button></form></div>
-    <button class="toolbar-button" id="layers-button"><i data-icon="layers"></i><span>Capas (<b class="layer-count">4</b>)</span><i data-icon="down"></i></button>
-    <div class="header-actions"><button class="icon-button notification" id="notifications" aria-label="Notificaciones"><i data-icon="bell"></i><b></b></button><button class="icon-button" id="help" aria-label="Ayuda"><i data-icon="help"></i></button><button class="avatar" id="profile" aria-label="Perfil de demostración">A</button></div>
-  </header>
-  <section class="workspace" aria-label="Explorador geoespacial">
-    <div class="stars" aria-hidden="true"></div>
-    <div class="map-controls"><div class="zoom-group"><button class="icon-button" id="zoom-in" aria-label="Acercar"><i data-icon="plus"></i></button><button class="icon-button" id="zoom-out" aria-label="Alejar"><i data-icon="minus"></i></button></div><button class="icon-button" id="locate" aria-label="Centrar región"><i data-icon="locate"></i></button><button class="icon-button" id="fullscreen" aria-label="Pantalla completa"><i data-icon="expand"></i></button></div>
-    <div class="map-caption"><span class="status-dot"></span> VISTA SATELITAL <span>Arrastra para explorar</span></div>
-    <section class="analysis-panel">
-      <header class="panel-heading"><div class="region-icon"><i data-icon="mountain"></i></div><div class="heading-text"><h1>Análisis de región</h1><label>Región seleccionada: <select id="region" aria-label="Región seleccionada"><option value="argentina">Centro-Norte de Argentina</option><option value="mexico">Bajío de México</option><option value="iowa">Iowa, Estados Unidos</option></select></label></div><button id="bookmark" class="icon-button" aria-label="Guardar región" aria-pressed="false"><i data-icon="bookmark"></i></button><button id="more" class="icon-button" aria-label="Exportar análisis"><i data-icon="more"></i></button></header>
-      <div class="metrics">
-        <article><i data-icon="leaf" class="green"></i><span>NDVI (prom.)</span><strong id="ndvi-value">0,72</strong><b class="positive">▲ +8,2 %</b><small>vs. periodo anterior</small></article>
-        <article><i data-icon="rain"></i><span>Precipitación</span><strong id="rain-value">186 <em>mm</em></strong><b class="positive">▲ +12,4 %</b><small>vs. promedio histórico</small></article>
-        <article><i data-icon="temperature"></i><span>Temperatura</span><strong id="temp-value">24,1 <em>°C</em></strong><b class="negative">▲ +1,3 °C</b><small>vs. promedio histórico</small></article>
-        <article><i data-icon="sun" class="yellow"></i><span>Radiación solar</span><strong id="solar-value">21,3 <em>MJ/m²</em></strong><b class="positive">▲ +5,6 %</b><small>vs. periodo anterior</small></article>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#04070c">
+  <meta name="description" content="AGROX: Centro de Mando Aeroespacial y Telemetría Agroclimática Orbital">
+  <title>AGROX // ORBITAL RADIOMETRY & EARTH OBSERVATION</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/vendor/maplibre/maplibre-gl.css">
+  <link rel="stylesheet" href="/satellite.css">
+</head>
+<body class="mission-control">
+
+  <!-- Retícula de fondo y marcas tácticas -->
+  <div class="hud-overlay-grid" aria-hidden="true">
+    <div class="hud-corner top-left">+ 00° 00' 00"</div>
+    <div class="hud-corner top-right">ORBITAL TRACK // LAT-LON</div>
+    <div class="hud-corner bottom-left">RAD: 6,371 KM</div>
+    <div class="hud-corner bottom-right">SEC-SYS: ONLINE</div>
+  </div>
+
+  <!-- Barra Superior Táctica (Header de Mando) -->
+  <header class="topbar-hud">
+    <div class="brand-tactical">
+      <div class="brand-radar">
+        <svg viewBox="0 0 32 32" class="radar-svg">
+          <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.3"/>
+          <circle cx="16" cy="16" r="8" fill="none" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+          <line x1="16" y1="2" x2="16" y2="30" stroke="currentColor" stroke-width="1" opacity="0.4"/>
+          <line x1="2" y1="16" x2="30" y2="16" stroke="currentColor" stroke-width="1" opacity="0.4"/>
+          <line x1="16" y1="16" x2="27" y2="7" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round" class="radar-sweep"/>
+          <circle cx="16" cy="16" r="2.5" fill="#38bdf8"/>
+        </svg>
       </div>
-      <section class="chart-card"><header><h2><i data-icon="leaf"></i>Evolución del NDVI</h2><select id="chart-period" aria-label="Periodo del gráfico"><option value="6">Últimos 6 meses</option><option value="3">Últimos 3 meses</option></select></header><div class="chart"><svg id="ndvi-chart" viewBox="0 0 490 192" role="img" aria-label="Evolución del NDVI de septiembre de 2024 a febrero de 2025"></svg></div></section>
-      <section class="crops-card"><header><h2><i data-icon="sprout"></i>Compatibilidad de cultivos <button class="inline-help" id="crop-help" aria-label="Acerca de la compatibilidad"><i data-icon="info"></i></button></h2></header><div id="crop-list"></div></section>
-      <footer class="panel-footer"><span class="status-dot"></span> Datos ilustrativos <span>Última actualización: <b id="updated-date">28 feb 2025</b></span></footer>
+      <div class="brand-text">
+        <div class="brand-title">AGROX <span>// FIRESIGHT</span></div>
+        <div class="brand-subtitle">ORBITAL RADIOMETRY &amp; EARTH OBSERVATION</div>
+      </div>
+    </div>
+
+    <!-- Navegación de misión -->
+    <nav class="nav-tactical" aria-label="Navegación de mando">
+      <button class="nav-tab active" data-view="Exploración">
+        <span class="tab-indicator"></span>
+        <span class="tab-code">[01]</span>
+        <span>MAPA DE OPERACIONES</span>
+      </button>
+      <button class="nav-tab" data-view="Sensores">
+        <span class="tab-indicator"></span>
+        <span class="tab-code">[02]</span>
+        <span>SENSORES ORBITALES</span>
+      </button>
+      <button class="nav-tab" data-view="Gemelo">
+        <span class="tab-indicator"></span>
+        <span class="tab-code">[03]</span>
+        <span>GEMELO DIGITAL</span>
+      </button>
+    </nav>
+
+    <!-- Telemetría en vivo -->
+    <div class="telemetry-bar">
+      <div class="telemetry-item">
+        <span class="tel-label">TIEMPO UTC</span>
+        <span class="tel-value" id="clock-utc">00:00:00 UTC</span>
+      </div>
+      <div class="telemetry-item">
+        <span class="tel-label">COORDENADAS CURSOR</span>
+        <span class="tel-value tel-cyan" id="cursor-coords">20°37'N 101°15'W</span>
+      </div>
+      <div class="telemetry-item">
+        <span class="tel-label">ENLACE SATELITAL</span>
+        <span class="tel-value tel-green"><b class="pulse-dot"></b> ACTIVO · SENTINEL-2A</span>
+      </div>
+    </div>
+
+    <!-- Controles rápidos -->
+    <div class="header-hud-actions">
+      <div class="search-hud">
+        <svg viewBox="0 0 24 24" class="hud-icon"><path d="M21 21l-5-5m2-6a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"/></svg>
+        <input id="search" placeholder="LOCALIZAR OBJETIVO…" aria-label="Buscar región" autocomplete="off">
+        <kbd>⌘K</kbd>
+        <div id="search-results" class="popover search-results" hidden></div>
+      </div>
+      <button class="hud-btn" id="notifications" title="Bitácora de alertas">
+        <svg viewBox="0 0 24 24" class="hud-icon"><path d="M5 17h14l-2-4V9a5 5 0 0 0-10 0v4l-2 4Zm5 4h4"/></svg>
+        <span class="hud-badge"></span>
+      </button>
+      <button class="hud-btn" id="fullscreen" title="Modo Pantalla Completa">
+        <svg viewBox="0 0 24 24" class="hud-icon"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg>
+      </button>
+      <button class="hud-btn" id="help" title="Manual de Operaciones">
+        <svg viewBox="0 0 24 24" class="hud-icon"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3m0 3.5h.01"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Espacio Principal de la Misión (Globo + HUDs) -->
+  <main class="workspace-mission" aria-label="Explorador geoespacial">
+
+    <!-- Fondo de espacio profundo y halo atmosférico -->
+    <div class="cosmic-backdrop" aria-hidden="true">
+      <div class="stars-deep"></div>
+      <div class="atmosphere-limb"></div>
+    </div>
+
+    <!-- Widget Satelital en Órbita (Inspirado en la referencia) -->
+    <aside class="satellite-orbit-widget" aria-label="Estado del satélite orbital">
+      <div class="orbit-sat-header">
+        <span class="orbit-tag">ORBITAL PASS</span>
+        <span class="orbit-sat-id">SAT-01 // SENTINEL-2A</span>
+      </div>
+      <div class="orbit-sat-body">
+        <div class="sat-visual-wrap">
+          <!-- Modelo vectorial del Satélite con paneles solares y apertura -->
+          <svg viewBox="0 0 120 70" class="satellite-model-svg">
+            <defs>
+              <linearGradient id="solarGlint" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.9"/>
+                <stop offset="50%" stop-color="#0284c7" stop-opacity="0.6"/>
+                <stop offset="100%" stop-color="#0f172a" stop-opacity="0.8"/>
+              </linearGradient>
+            </defs>
+            <!-- Trayectoria orbital curva -->
+            <path d="M 5 65 Q 60 15 115 5" fill="none" stroke="#38bdf8" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+            <!-- Panel solar izquierdo -->
+            <rect x="12" y="24" width="30" height="16" rx="1.5" fill="url(#solarGlint)" stroke="#38bdf8" stroke-width="0.8"/>
+            <line x1="22" y1="24" x2="22" y2="40" stroke="#38bdf8" stroke-width="0.5" opacity="0.7"/>
+            <line x1="32" y1="24" x2="32" y2="40" stroke="#38bdf8" stroke-width="0.5" opacity="0.7"/>
+            <!-- Brazo de soporte solar -->
+            <line x1="42" y1="32" x2="48" y2="32" stroke="#94a3b8" stroke-width="2"/>
+            <!-- Cuerpo principal del satélite (Bus central) -->
+            <rect x="48" y="22" width="24" height="20" rx="2" fill="#1e293b" stroke="#e2e8f0" stroke-width="1.2"/>
+            <circle cx="60" cy="32" r="4" fill="#38bdf8" opacity="0.8"/>
+            <circle cx="60" cy="32" r="1.5" fill="#f8fafc"/>
+            <!-- Brazo derecho -->
+            <line x1="72" y1="32" x2="78" y2="32" stroke="#94a3b8" stroke-width="2"/>
+            <!-- Panel solar derecho -->
+            <rect x="78" y="24" width="30" height="16" rx="1.5" fill="url(#solarGlint)" stroke="#38bdf8" stroke-width="0.8"/>
+            <line x1="88" y1="24" x2="88" y2="40" stroke="#38bdf8" stroke-width="0.5" opacity="0.7"/>
+            <line x1="98" y1="24" x2="98" y2="40" stroke="#38bdf8" stroke-width="0.5" opacity="0.7"/>
+            <!-- Antena de comunicaciones / haz sensor -->
+            <line x1="60" y1="42" x2="60" y2="52" stroke="#fbbf24" stroke-width="1.2"/>
+            <polygon points="56,52 64,52 60,56" fill="#fbbf24"/>
+            <!-- Haz de escaneo hacia la tierra -->
+            <path d="M 52 56 L 38 68 L 82 68 Z" fill="#38bdf8" opacity="0.12"/>
+          </svg>
+        </div>
+        <div class="sat-specs-grid">
+          <div><small>ALTITUD</small><b>786 KM</b></div>
+          <div><small>INCLINACIÓN</small><b>98.62°</b></div>
+          <div><small>VELOCIDAD</small><b>7.5 KM/S</b></div>
+          <div><small>SWATH</small><b>290 KM</b></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Panel de Radiometría Orbital: MODIS vs VIIRS (Inspirado en la imagen 1) -->
+    <aside class="radiometry-card" aria-label="Comparativa de radiometría orbital">
+      <div class="card-bracket-header">
+        <span class="bracket-tag">// ORBITAL RADIOMETRY</span>
+        <h2 class="radiometry-title">MODIS vs VIIRS Multi-Sensor</h2>
+      </div>
+
+      <!-- Sensor MODIS (Ámbar) -->
+      <div class="sensor-row modis-row">
+        <div class="sensor-tag-line">
+          <span class="sensor-badge modis-badge">MODIS</span>
+          <span class="sensor-platform">TERRA / AQUA</span>
+        </div>
+        <div class="sensor-stats-bar">
+          <div class="stat-pill">
+            <span class="pill-label">RESOLUCIÓN</span>
+            <strong class="pill-value">1 km</strong>
+          </div>
+          <div class="stat-pill">
+            <span class="pill-label">DETECCIONES</span>
+            <strong class="pill-value tel-amber">1,420</strong>
+          </div>
+          <div class="stat-pill">
+            <span class="pill-label">ÁREA RAD.</span>
+            <strong class="pill-value">2,330 <em>km²</em></strong>
+          </div>
+        </div>
+        <div class="sensor-progress-track">
+          <div class="sensor-progress-fill modis-fill" style="width: 45%;"></div>
+        </div>
+      </div>
+
+      <!-- Sensor VIIRS / Sentinel (Cian) -->
+      <div class="sensor-row viirs-row">
+        <div class="sensor-tag-line">
+          <span class="sensor-badge viirs-badge">VIIRS / S2</span>
+          <span class="sensor-platform">SUOMI NPP / S2-MSI</span>
+        </div>
+        <div class="sensor-stats-bar">
+          <div class="stat-pill">
+            <span class="pill-label">RESOLUCIÓN</span>
+            <strong class="pill-value">375 m</strong>
+          </div>
+          <div class="stat-pill">
+            <span class="pill-label">BIOMASA ANOM.</span>
+            <strong class="pill-value tel-cyan">4,822</strong>
+          </div>
+          <div class="stat-pill">
+            <span class="pill-label">PUNTOS RAD.</span>
+            <strong class="pill-value">3,040 <em>pts</em></strong>
+          </div>
+        </div>
+        <div class="sensor-progress-track">
+          <div class="sensor-progress-fill viirs-fill" style="width: 82%;"></div>
+        </div>
+      </div>
+
+      <!-- Selector de bandas espectrales -->
+      <div class="spectral-band-selector">
+        <span class="band-label">BANDA ESPECTRAL ACTIVA:</span>
+        <div class="band-chips" id="band-chips">
+          <button class="band-chip active" data-band="NDVI">NDVI (NIR/RED)</button>
+          <button class="band-chip" data-band="SWIR">SWIR (AGUA)</button>
+          <button class="band-chip" data-band="THERMAL">TÉRMICO</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Retícula HUD de Fijación de Objetivo Flotante (Inspirada en Imagen 1 y 2) -->
+    <div class="target-reticle-card" id="target-reticle" aria-live="polite">
+      <div class="reticle-corner top-left"></div>
+      <div class="reticle-corner top-right"></div>
+      <div class="reticle-corner bottom-left"></div>
+      <div class="reticle-corner bottom-right"></div>
+      
+      <div class="reticle-header">
+        <div class="target-crosshair">⌖</div>
+        <div class="target-meta">
+          <span class="target-status-tag">TARGET LOCK // MONITOREO ACTIVO</span>
+          <h3 class="target-name" id="reticle-region-name">BAJÍO DE MÉXICO</h3>
+        </div>
+        <div class="target-badge-live">ENLACE DIRECTO</div>
+      </div>
+
+      <div class="reticle-grid">
+        <div class="reticle-item">
+          <span class="ret-label">COORDENADAS</span>
+          <span class="ret-val" id="reticle-coords">20°37'N 101°15'W</span>
+        </div>
+        <div class="reticle-item">
+          <span class="ret-label">ÍNDICE NDVI</span>
+          <span class="ret-val tel-green" id="reticle-ndvi">0.72</span>
+        </div>
+        <div class="reticle-item">
+          <span class="ret-label">PRECIPITACIÓN</span>
+          <span class="ret-val" id="reticle-rain">64 mm</span>
+        </div>
+        <div class="reticle-item">
+          <span class="ret-label">HUMEDAD SUELO</span>
+          <span class="ret-val tel-cyan" id="reticle-soil">62%</span>
+        </div>
+      </div>
+
+      <div class="reticle-footer">
+        <span class="lead-dot"></span> PASO ORBITAL RECIENTE: HACE 14m · DISPONIBLE EN TIEMPO REAL
+      </div>
+    </div>
+
+    <!-- Panel de Comando y Telemetría Agronómica (Lateral Derecho) -->
+    <section class="command-deck-panel" aria-label="Panel de Telemetría">
+      <div class="panel-bracket-top">
+        <span class="bracket-code">[SEC-AGRO-01]</span>
+        <span class="bracket-title">ANÁLISIS DE TELEMETRÍA REGIONAL</span>
+      </div>
+
+      <header class="panel-header-tactical">
+        <div class="sector-select-wrap">
+          <label for="region" class="sector-label">SECTOR SELECCIONADO:</label>
+          <div class="select-styled">
+            <select id="region" aria-label="Sector o región seleccionada">
+              <option value="mexico">Bajío de México [SECTOR-01]</option>
+              <option value="argentina">Centro-Norte de Argentina [SECTOR-02]</option>
+              <option value="iowa">Iowa Corn Belt, USA [SECTOR-03]</option>
+              <option value="veracruz">Veracruz Costa, México [SECTOR-04]</option>
+            </select>
+            <span class="select-arrow">▼</span>
+          </div>
+        </div>
+        <div class="panel-actions-quick">
+          <button id="bookmark" class="hud-icon-btn" title="Fijar objetivo prioritario" aria-pressed="false">
+            <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4V3Z"/></svg>
+          </button>
+          <button id="more" class="hud-icon-btn" title="Exportar telemetría CSV">
+            <svg viewBox="0 0 24 24"><path d="M4 12h.01M12 12h.01M20 12h.01"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Cuadrante de 4 Indicadores Radiométricos -->
+      <div class="telemetry-gauges-grid">
+        <article class="gauge-cell">
+          <div class="gauge-head">
+            <span class="gauge-code">NDVI-RAD</span>
+            <span class="gauge-delta positive">▲ +8.2%</span>
+          </div>
+          <div class="gauge-body">
+            <strong class="gauge-value tel-green" id="ndvi-value">0.72</strong>
+            <span class="gauge-unit">Índice Vigor</span>
+          </div>
+          <div class="gauge-meter">
+            <div class="gauge-fill gauge-fill-green" style="width: 72%;"></div>
+          </div>
+        </article>
+
+        <article class="gauge-cell">
+          <div class="gauge-head">
+            <span class="gauge-code">PRECIP-IMERG</span>
+            <span class="gauge-delta positive">▲ +12.4%</span>
+          </div>
+          <div class="gauge-body">
+            <strong class="gauge-value tel-cyan" id="rain-value">186 <em>mm</em></strong>
+            <span class="gauge-unit">Acumulado</span>
+          </div>
+          <div class="gauge-meter">
+            <div class="gauge-fill gauge-fill-cyan" style="width: 62%;"></div>
+          </div>
+        </article>
+
+        <article class="gauge-cell">
+          <div class="gauge-head">
+            <span class="gauge-code">TEMP-ERA5</span>
+            <span class="gauge-delta negative">▲ +1.3°C</span>
+          </div>
+          <div class="gauge-body">
+            <strong class="gauge-value tel-amber" id="temp-value">24.1 <em>°C</em></strong>
+            <span class="gauge-unit">Térmica Superficial</span>
+          </div>
+          <div class="gauge-meter">
+            <div class="gauge-fill gauge-fill-amber" style="width: 55%;"></div>
+          </div>
+        </article>
+
+        <article class="gauge-cell">
+          <div class="gauge-head">
+            <span class="gauge-code">RAD-POWER</span>
+            <span class="gauge-delta positive">▲ +5.6%</span>
+          </div>
+          <div class="gauge-body">
+            <strong class="gauge-value" id="solar-value">21.3 <em>MJ/m²</em></strong>
+            <span class="gauge-unit">Radiación Solar</span>
+          </div>
+          <div class="gauge-meter">
+            <div class="gauge-fill gauge-fill-white" style="width: 71%;"></div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Osciloscopio / Gráfico de Evolución del NDVI -->
+      <section class="oscilloscope-card">
+        <header class="oscilloscope-header">
+          <div class="oscilloscope-title">
+            <span class="signal-dot"></span>
+            <h3>FIRMA ESPECTRAL // EVOLUCIÓN NDVI</h3>
+          </div>
+          <div class="chart-period-toggle">
+            <button class="period-btn active" data-period="6">6M</button>
+            <button class="period-btn" data-period="3">3M</button>
+          </div>
+        </header>
+        <div class="oscilloscope-screen">
+          <div class="grid-crosshairs" aria-hidden="true"></div>
+          <svg id="ndvi-chart" viewBox="0 0 490 192" role="img" aria-label="Gráfico de evolución espectral NDVI"></svg>
+        </div>
+      </section>
+
+      <!-- Matriz de Compatibilidad de Cultivos -->
+      <section class="crops-matrix-card">
+        <header class="matrix-header">
+          <h3>MATRIZ DE COMPATIBILIDAD BIOCLIMÁTICA</h3>
+          <button class="hud-info-btn" id="crop-help" title="Metodología de índice">?</button>
+        </header>
+        <div class="crop-matrix-list" id="crop-list">
+          <!-- Renderizado dinámico desde app.js -->
+        </div>
+      </section>
+
+      <footer class="panel-tactical-footer">
+        <span class="status-live-beacon"></span>
+        <span>CALIBRACIÓN SENSOR: <b id="updated-date">28 FEB 2025</b></span>
+        <button class="btn-lock-target" id="btn-lock">LOCALIZAR OBJETIVO</button>
+      </footer>
     </section>
-    <footer class="timeline-bar"><button id="active-layers" class="layers-title"><i data-icon="layers"></i><span>Capas activas (<b class="layer-count">4</b>)</span><i data-icon="up"></i></button><div class="layer-chips" id="layer-chips"><label><input type="checkbox" value="NDVI" checked>NDVI</label><label><input type="checkbox" value="Precipitación" checked>Precipitación</label><label><input type="checkbox" value="Temperatura" checked>Temperatura</label><label><input type="checkbox" value="Límites" checked>Límites</label></div><div class="playback"><button class="play-button" id="play" aria-label="Reproducir evolución"><i data-icon="play"></i></button><input type="range" id="timeline" min="0" max="5" value="5" aria-label="Mes de análisis"><time id="timeline-date">28 feb 2025</time><button class="icon-button" id="previous" aria-label="Mes anterior"><i data-icon="left"></i></button><button class="icon-button" id="next" aria-label="Mes siguiente"><i data-icon="chevron"></i></button></div></footer>
-  </section>
-</main>
-<div id="toast" role="status" hidden></div>
-<dialog id="detail-dialog"><button id="close-dialog" class="icon-button dialog-close" aria-label="Cerrar"><i data-icon="close"></i></button><div class="dialog-mark"><i data-icon="sprout"></i></div><h2 id="dialog-title"></h2><div id="dialog-body"></div><button id="dialog-done" class="primary">Entendido</button></dialog>
-<link rel="stylesheet" href="/vendor/maplibre/maplibre-gl.css">
-<link rel="stylesheet" href="/satellite.css">
-<script src="/vendor/maplibre/maplibre-gl.js" defer></script>
-<script src="/app.js" defer></script>
-<script src="/imagery.js" defer></script>
-<script src="/satellite.js" defer></script>
-</body></html>
+
+    <!-- Barra Inferior de Telemetría (Bottom Telemetry Deck) - Inspirada en Fotos 2 y 3 -->
+    <footer class="bottom-telemetry-deck" aria-label="Dock de telemetría y control temporal">
+      
+      <!-- Ticker de Estadísticas Rápidas (Foto 2 y 3) -->
+      <div class="telemetry-ticker-cluster">
+        <div class="ticker-box">
+          <span class="ticker-metric" id="ticker-modis">1,420</span>
+          <span class="ticker-caption">DETECCIONES MODIS</span>
+          <div class="ticker-underline-amber"></div>
+        </div>
+        <div class="ticker-box">
+          <span class="ticker-metric tel-cyan" id="ticker-viirs">4,892</span>
+          <span class="ticker-caption">BIOMASA / VIIRS</span>
+          <div class="ticker-underline-cyan"></div>
+        </div>
+        <div class="ticker-box">
+          <span class="ticker-metric" id="ticker-res">1,299</span>
+          <span class="ticker-caption">RESOLUCIÓN RAD.</span>
+          <div class="ticker-underline-white"></div>
+        </div>
+        <div class="ticker-box ticker-precision">
+          <span class="precision-badge"><b class="dot-green"></b> ALTA PRECISIÓN</span>
+          <span class="ticker-caption">ESTADO: SINCRONIZADO</span>
+        </div>
+      </div>
+
+      <!-- Barra de Control Temporal Orbital -->
+      <div class="timeline-console">
+        <button class="hud-play-btn" id="play" aria-label="Reproducir evolución temporal">
+          <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
+        </button>
+        <button class="hud-step-btn" id="previous" aria-label="Mes anterior">◀</button>
+        <div class="timeline-track-wrap">
+          <input type="range" id="timeline" min="0" max="5" value="5" aria-label="Paso orbital temporal">
+          <div class="timeline-ticks">
+            <span>SEP 24</span><span>OCT 24</span><span>NOV 24</span><span>DIC 24</span><span>ENE 25</span><span class="active">FEB 25</span>
+          </div>
+        </div>
+        <button class="hud-step-btn" id="next" aria-label="Mes siguiente">▶</button>
+        <time id="timeline-date" class="timeline-date-display">28 FEB 2025</time>
+      </div>
+
+      <!-- Selector de Capas Tácticas -->
+      <div class="tactical-layers-deck" id="layer-chips">
+        <label class="hud-layer-check">
+          <input type="checkbox" value="NDVI" checked>
+          <span class="chk-box"></span>
+          <span>NDVI ESPECTRAL</span>
+        </label>
+        <label class="hud-layer-check">
+          <input type="checkbox" value="Precipitación" checked>
+          <span class="chk-box"></span>
+          <span>IMERG PRECIP</span>
+        </label>
+        <label class="hud-layer-check">
+          <input type="checkbox" value="Temperatura" checked>
+          <span class="chk-box"></span>
+          <span>ERA5 TÉRMICO</span>
+        </label>
+        <label class="hud-layer-check">
+          <input type="checkbox" value="Límites" checked>
+          <span class="chk-box"></span>
+          <span>LÍMITES LOTE</span>
+        </label>
+      </div>
+
+    </footer>
+
+  </main>
+
+  <!-- Notificaciones tipo HUD Toast -->
+  <div id="toast" role="status" hidden></div>
+
+  <!-- Diálogo Modal de Telemetría Táctica -->
+  <dialog id="detail-dialog" class="hud-dialog">
+    <div class="dialog-frame">
+      <button id="close-dialog" class="dialog-close-btn" aria-label="Cerrar modal">✕</button>
+      <div class="dialog-tag">[REPORTE DE SISTEMA AGROX]</div>
+      <h2 id="dialog-title" class="dialog-title"></h2>
+      <div id="dialog-body" class="dialog-content"></div>
+      <div class="dialog-footer">
+        <button id="dialog-done" class="btn-confirm-hud">ENTER / ENTENDIDO</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Scripts principales -->
+  <script src="/vendor/maplibre/maplibre-gl.js" defer></script>
+  <script src="/imagery.js" defer></script>
+  <script src="/app.js" defer></script>
+  <script src="/satellite.js" defer></script>
+</body>
+</html>
