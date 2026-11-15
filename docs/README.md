@@ -31,6 +31,7 @@
 | Ecuaciones, unidades, entradas/salidas | [model-specs](03-models/model-specs.md) |
 | Dónde/por qué se usa cada modelo | [models-catalog](03-models/models-catalog.md) |
 | Fuentes de datos y su estado | [sources](04-data/sources.md) |
+| Cómo usar los datos (API, punto global, límites) | [data-guide](04-data/data-guide.md) |
 | Datos sintéticos | [synthetic-data](04-data/synthetic-data.md) |
 | Fases y checklist sintético→real | [roadmap](05-development/roadmap.md) |
 | Ramas, PRs, revisión | [git-workflow](05-development/git-workflow.md) |

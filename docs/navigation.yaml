@@ -214,6 +214,15 @@ docs:
     audience: [builder, head]
     status: draft
     est_tokens: 1000
+  - id: data-guide
+    path: 04-data/data-guide.md
+    title: Guía de datos
+    summary: Cómo obtener datos (API live con pt_<lat>_<lon> en cualquier lugar, punto.py, scraper), qué fuente hay detrás de cada dato, reglas, límites y pendientes.
+    depends_on: [sources]
+    read_when: Antes de usar datos en cualquier módulo (UI, Rotation Engine, What If).
+    audience: [all]
+    status: draft
+    est_tokens: 2000
   - id: storage-s3
     path: 04-data/storage-s3.md
     title: Almacenamiento S3
@@ -305,8 +314,8 @@ task_paths:
   build-api-endpoints: [glossary, system-architecture, repo-structure, data-contracts, conventions, testing-strategy]
   build-synthetic-data: [glossary, data-contracts, synthetic-data, conventions, testing-strategy]
   implement-twin-engine: [glossary, system-architecture, data-contracts, models-catalog, model-specs, digital-twin-engine, synthetic-data, conventions, testing-strategy]
-  implement-earth-scanner: [glossary, data-contracts, models-catalog, model-specs, earth-scanner, conventions, testing-strategy]
-  implement-rotation-engine: [glossary, data-contracts, crop-catalog, models-catalog, model-specs, rotation-engine, conventions, testing-strategy]
+  implement-earth-scanner: [glossary, data-contracts, sources, data-guide, models-catalog, model-specs, earth-scanner, conventions, testing-strategy]
+  implement-rotation-engine: [glossary, data-contracts, sources, data-guide, crop-catalog, models-catalog, model-specs, rotation-engine, conventions, testing-strategy]
   implement-what-if: [glossary, system-architecture, data-contracts, crop-catalog, models-catalog, model-specs, digital-twin-engine, rotation-engine, what-if-scenarios, conventions, testing-strategy]
   build-3d-scene: [glossary, data-contracts, design-tokens, ui-spec, credits, digital-farm-3d, conventions]
   build-frontend-ui: [glossary, data-contracts, design-tokens, ui-spec, credits, digital-farm-3d, earth-scanner, conventions, testing-strategy]
