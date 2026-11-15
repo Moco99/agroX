@@ -1,3 +1,4 @@
+import { useModuleView } from "../store/module-store";
 import { useRotationView } from "../store/rotation-store";
 import { PointSearch } from "../screens/point/point-search";
 import { useEffect, useState } from "react";
@@ -53,7 +54,7 @@ export function TopBar() {
         </button>
         {searchOpen && (
           <div className="search-pop" role="dialog">
-            <PointSearch onSubmit={() => { setSearchOpen(false); useRotationView.getState().close(); }} />
+            <PointSearch onSubmit={() => { setSearchOpen(false); useRotationView.getState().close(); useModuleView.getState().close(); }} />
           </div>
         )}
       </div>

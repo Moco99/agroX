@@ -15,6 +15,7 @@ import { LoadProgress } from "./screens/geographic/parcel-panels";
 import { PointScreen } from "./screens/point/point-screen";
 import { useParcelStore } from "./store/parcel-store";
 import { usePointStore } from "./store/point-store";
+import { useModuleView } from "./store/module-store";
 import { useStageStore } from "./store/stage-store";
 import { useTwinStore } from "./store/twin-store";
 
@@ -23,6 +24,8 @@ import { useTwinStore } from "./store/twin-store";
 // ─────────────────────────────────────────
 
 const RotationScreen = lazy(() => import("./screens/rotation/rotation-screen"));
+const ClimateScreen = lazy(() => import("./screens/climate/climate-screen"));
+const ReportScreen = lazy(() => import("./screens/reports/report-screen"));
 const GeographicScreen = lazy(() => import("./screens/geographic/geographic-screen"));
 const DigitalTwinScreen = lazy(() =>
   import("./screens/digital-twin/digital-twin-screen").then((m) => ({ default: m.DigitalTwinScreen })),
@@ -34,6 +37,8 @@ const DigitalTwinScreen = lazy(() =>
 
 export function App() {
   const rotationActive = useRotationView((s) => s.active);
+  const moduleActive = useModuleView((s) => s.active);
+  const fullPage = rotationActive || moduleActive !== null;
   const pointActive = usePointStore((s) => s.active);
   const init = useTwinStore((s) => s.init);
   const loading = useTwinStore((s) => s.loading);
@@ -63,8 +68,8 @@ export function App() {
       <Sidebar />
       <div className="main">
         <TopBar />
-        {stage === "twin" && !rotationActive && <DataBanner />}
-        {stage === "twin" && !rotationActive && error && (
+        {stage === "twin" && !fullPage && <DataBanner />}
+        {stage === "twin" && !fullPage && error && (
           <div className="error-box" role="alert">
             {baseline ? error : `${es.app.backendDown} (${error})`}{" "}
             <button type="button" className="ghost-button" onClick={() => void init()}>
@@ -75,7 +80,11 @@ export function App() {
         <div className="stage-host">
           <ErrorBoundary fallback={<div className="error-box" role="alert">{es.app.stageFailed}</div>}>
             <Suspense fallback={loadingBox}>
-              {rotationActive ? (
+              {moduleActive === "climate" ? (
+                <ClimateScreen />
+              ) : moduleActive === "reports" ? (
+                <ReportScreen />
+              ) : rotationActive ? (
                 <RotationScreen />
               ) : geo ? (
                 <GeographicScreen />
@@ -96,14 +105,14 @@ export function App() {
             </Suspense>
           </ErrorBoundary>
           {/* The point overlay sits above the stage so the map underneath keeps its camera and tile cache */}
-          {pointActive && !rotationActive && (
+          {pointActive && !fullPage && (
             <div className="point-overlay">
               <PointScreen />
             </div>
           )}
           <TransitionOverlay />
         </div>
-        {!rotationActive && <footer className="bottom-bar">
+        {!fullPage && <footer className="bottom-bar">
           {geo ? (
             <>
               <MapLayerBar />
