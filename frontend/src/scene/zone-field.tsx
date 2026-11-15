@@ -28,33 +28,68 @@ function toScene([x, y]: [number, number]): THREE.Vector3 {
   return new THREE.Vector3(x * SCENE_SCALE, 0, -y * SCENE_SCALE);
 }
 
-export function ZoneField({ projector, zoneId, cropId, ring, fill, canopy, selected, onSelect }: ZoneFieldProps) {
-  const dem = useTwinStore(s=>s.heightmap);
-  const elevation = useMemo(() => (x:number,y:number) => {
-    if(!dem) return 0;
-    const [wx,ny]=projector.toLocal(dem.bounds.west,dem.bounds.north);
-    const [ex,sy]=projector.toLocal(dem.bounds.east,dem.bounds.south);
-    const col=Math.max(0,Math.min(dem.width-1,Math.round((x-wx)/(ex-wx)*(dem.width-1))));
-    const row=Math.max(0,Math.min(dem.height-1,Math.round((ny-y)/(ny-sy)*(dem.height-1))));
-    return ((dem.elevations_m[row*dem.width+col]??dem.min_m)-dem.min_m)*SCENE_SCALE+.05;
-  },[dem,projector]);
+export function ZoneField({
+  projector,
+  zoneId,
+  cropId,
+  ring,
+  fill,
+  canopy,
+  selected,
+  onSelect,
+}: ZoneFieldProps) {
+  const dem = useTwinStore((s) => s.heightmap);
+  const elevation = useMemo(
+    () => (x: number, y: number) => {
+      if (!dem) return 0;
+      const [wx, ny] = projector.toLocal(dem.bounds.west, dem.bounds.north);
+      const [ex, sy] = projector.toLocal(dem.bounds.east, dem.bounds.south);
+      const col = Math.max(
+        0,
+        Math.min(
+          dem.width - 1,
+          Math.round(((x - wx) / (ex - wx)) * (dem.width - 1)),
+        ),
+      );
+      const row = Math.max(
+        0,
+        Math.min(
+          dem.height - 1,
+          Math.round(((ny - y) / (ny - sy)) * (dem.height - 1)),
+        ),
+      );
+      return (
+        ((dem.elevations_m[row * dem.width + col] ?? dem.min_m) - dem.min_m) *
+          SCENE_SCALE +
+        0.05
+      );
+    },
+    [dem, projector],
+  );
   const meshRef = useRef<THREE.InstancedMesh>(null);
 
   const shapeGeometry = useMemo(() => {
-    const shape = new THREE.Shape(ring.map(([x, y]) => new THREE.Vector2(x * SCENE_SCALE, y * SCENE_SCALE)));
+    const shape = new THREE.Shape(
+      ring.map(([x, y]) => new THREE.Vector2(x * SCENE_SCALE, y * SCENE_SCALE)),
+    );
     const geo = new THREE.ShapeGeometry(shape);
     // Shape lives in XY; the field lies on XZ with north towards -Z
     geo.rotateX(-Math.PI / 2);
-    const pos=geo.attributes.position;
-    if(pos) for(let i=0;i<pos.count;i++) pos.setY(i,elevation(pos.getX(i)/SCENE_SCALE,-pos.getZ(i)/SCENE_SCALE));
+    const pos = geo.attributes.position;
+    if (pos)
+      for (let i = 0; i < pos.count; i++)
+        pos.setY(
+          i,
+          elevation(pos.getX(i) / SCENE_SCALE, -pos.getZ(i) / SCENE_SCALE),
+        );
     geo.computeVertexNormals();
     return geo;
-  }, [ring,elevation]);
+  }, [ring, elevation]);
 
   const border = useMemo(() => {
-    const pts = ring.map((p) => toScene(p).setY(elevation(p[0],p[1])+.03));
+    const pts = ring.map((p) => toScene(p).setY(elevation(p[0], p[1]) + 0.03));
     return new THREE.BufferGeometry().setFromPoints(pts);
-  }, [ring,elevation]);
+  }, [ring, elevation]);
 
   // Deterministic plant positions inside the polygon (seeded by zone id)
   const positions = useMemo(() => {
@@ -62,8 +97,16 @@ export function ZoneField({ projector, zoneId, cropId, ring, fill, canopy, selec
     const xs = ring.map((p) => p[0]);
     const ys = ring.map((p) => p[1]);
     const out: [number, number][] = [];
-    for (let x = Math.min(...xs) + PLANT_SPACING_M / 2; x < Math.max(...xs); x += PLANT_SPACING_M) {
-      for (let y = Math.min(...ys) + PLANT_SPACING_M / 2; y < Math.max(...ys); y += PLANT_SPACING_M * 0.6) {
+    for (
+      let x = Math.min(...xs) + PLANT_SPACING_M / 2;
+      x < Math.max(...xs);
+      x += PLANT_SPACING_M
+    ) {
+      for (
+        let y = Math.min(...ys) + PLANT_SPACING_M / 2;
+        y < Math.max(...ys);
+        y += PLANT_SPACING_M * 0.6
+      ) {
         const jx = x + (rand() - 0.5) * 6;
         const jy = y + (rand() - 0.5) * 4;
         if (insidePolygon(jx, jy, ring)) out.push([jx, jy]);
@@ -74,7 +117,8 @@ export function ZoneField({ projector, zoneId, cropId, ring, fill, canopy, selec
 
   const plantGeometry = useMemo(() => {
     // Corn: tall faceted stalk; soybean and cover crops: low rounded bush
-    if (cropId === "corn") return new THREE.ConeGeometry(0.06, 0.5, 5).translate(0, 0.25, 0);
+    if (cropId === "corn")
+      return new THREE.ConeGeometry(0.06, 0.5, 5).translate(0, 0.25, 0);
     return new THREE.IcosahedronGeometry(0.09, 0).translate(0, 0.09, 0);
   }, [cropId]);
 
@@ -90,8 +134,14 @@ export function ZoneField({ projector, zoneId, cropId, ring, fill, canopy, selec
     const height = 0.08 + 0.92 * Math.max(0, Math.min(1, canopy));
     positions.forEach(([x, y], i) => {
       const jitter = 0.85 + rand() * 0.3;
-      const s = new THREE.Vector3(1, height * jitter, 1).multiplyScalar(cropId === "corn" ? 1 : 0.6 + 0.6 * height);
-      m.compose(new THREE.Vector3(x * SCENE_SCALE, elevation(x,y), -y * SCENE_SCALE), q, s);
+      const s = new THREE.Vector3(1, height * jitter, 1).multiplyScalar(
+        cropId === "corn" ? 1 : 0.6 + 0.6 * height,
+      );
+      m.compose(
+        new THREE.Vector3(x * SCENE_SCALE, elevation(x, y), -y * SCENE_SCALE),
+        q,
+        s,
+      );
       mesh.setMatrixAt(i, m);
       c.copy(base).offsetHSL(0, 0, (rand() - 0.5) * 0.08);
       mesh.setColorAt(i, c);
@@ -114,7 +164,10 @@ export function ZoneField({ projector, zoneId, cropId, ring, fill, canopy, selec
         <meshLambertMaterial color={fill} transparent opacity={0.2} />
       </mesh>
       <lineLoop geometry={border}>
-        <lineBasicMaterial color={selected ? tokens.accent.bright : "#2F3B2A"} linewidth={2} />
+        <lineBasicMaterial
+          color={selected ? tokens.accent.bright : "#2F3B2A"}
+          linewidth={2}
+        />
       </lineLoop>
       <instancedMesh
         ref={meshRef}

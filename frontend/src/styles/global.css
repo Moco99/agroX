@@ -833,3 +833,5 @@ input[type="range"] {
 .timeline-date { display:flex; flex-direction:column; min-width:100px; font-size:11px; }
 .ndvi-player { flex-wrap:wrap; }
 @media(max-width:900px) { .screen { overflow:auto; } .canvas-area { flex:none; } .intro-hint{display:none} }
+.app[data-stage="map"] .intro-controls { left:auto; right:22px; }
+.globe-label { display:flex; flex-direction:column; gap:4px; }
