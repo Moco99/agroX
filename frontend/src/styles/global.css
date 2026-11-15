@@ -20,6 +20,7 @@
   --up: #81d740;
   --down: #f15f48;
   --warn: #f3b406;
+  --overlay-scrim: rgba(9, 13, 19, 0.8);
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
@@ -964,3 +965,84 @@ input[type="range"] {
 .veg-scale { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 11px; color: var(--text-muted); }
 .veg-scale i { flex: 0 0 160px; height: 8px; border-radius: 4px; }
 .veg-events { margin: 8px 0; padding-left: 18px; line-height: 1.6; }
+
+/* ─────────────────────────────────────────
+   Section: Interpretability layer (glossary tooltips, readings, formulas, model note, guide)
+   ───────────────────────────────────────── */
+
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+/* Glossary tooltip: dotted underline + "?" mark; bubble on hover or keyboard/tap focus */
+.term { position:relative; display:inline-flex; align-items:baseline; gap:2px; cursor:help; outline:none; }
+.term-label { border-bottom:1px dotted var(--text-muted); }
+.term-mark { font-size:9px; line-height:12px; width:12px; height:12px; border-radius:50%; border:1px solid var(--text-muted); color:var(--text-muted); text-align:center; display:inline-block; font-weight:700; }
+.term-tip { visibility:hidden; opacity:0; position:absolute; z-index:120; left:0; top:calc(100% + 6px); width:max-content; max-width:min(280px, 70vw); padding:8px 10px; background:var(--bg-app); border:1px solid var(--accent-muted); border-radius:8px; box-shadow:0 8px 30px var(--overlay-scrim); color:var(--text-2); font-size:12px; font-weight:400; line-height:1.45; text-transform:none; letter-spacing:0; white-space:normal; transition:opacity .12s; pointer-events:none; }
+.term-tip strong { color:var(--text); }
+.term:hover .term-tip, .term:focus .term-tip, .term:focus-within .term-tip { visibility:visible; opacity:1; }
+.term.is-right .term-tip { left:auto; right:0; }
+.term.is-dismissed .term-tip { visibility:hidden; opacity:0; }
+.term:focus-visible .term-label { outline:2px solid var(--accent); outline-offset:2px; }
+
+/* Readings: icon + word, colour as a second signal */
+.reading { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; padding:1px 8px 1px 6px; border-radius:999px; border:1px solid currentColor; line-height:1.6; width:fit-content; }
+.reading i { font-style:normal; font-size:11px; }
+.reading.is-good { color:var(--up); background:color-mix(in srgb, var(--up) 10%, transparent); }
+.reading.is-warn { color:var(--warn); background:color-mix(in srgb, var(--warn) 10%, transparent); }
+.reading.is-bad { color:var(--down); background:color-mix(in srgb, var(--down) 10%, transparent); }
+.reading.is-neutral { color:var(--text-2); background:color-mix(in srgb, var(--text) 5%, transparent); }
+
+/* Explained KPI */
+.xmetric { display:flex; flex-direction:column; gap:4px; }
+.xmetric.tone-good { border-left:3px solid var(--up); }
+.xmetric.tone-warn { border-left:3px solid var(--warn); }
+.xmetric.tone-bad { border-left:3px solid var(--down); }
+.xmetric .kpi-value { margin-top:0; }
+.unit-long { font-size:10px; color:var(--text-muted); margin-top:-2px; }
+.xmetric-meaning { margin:0; font-size:11.5px; color:var(--text-2); line-height:1.4; }
+.kpi-grid .xmetric:last-child { grid-column:span 2; }
+
+/* "¿Cómo se calcula?" */
+.how { font-size:11.5px; color:var(--text-2); }
+.how > summary { cursor:pointer; color:var(--accent-soft); font-weight:600; list-style:none; width:fit-content; }
+.how > summary::before { content:"▸ "; }
+.how[open] > summary::before { content:"▾ "; }
+.how-body { margin-top:6px; padding:8px 10px; background:var(--bg-card-raised); border-radius:8px; border:1px solid var(--border); line-height:1.5; }
+.how-body ol { margin:4px 0 6px; padding-left:18px; }
+.how-body p { margin:4px 0; }
+.how-body code { font-size:11px; background:var(--bg-app); padding:1px 5px; border-radius:4px; color:var(--text); white-space:normal; word-break:break-word; }
+.how-title { display:block; color:var(--text); }
+.how-label { font-weight:600; color:var(--text); }
+
+/* Transparent-model note */
+.model-note { border:1px solid var(--accent-muted); background:var(--bg-nav-active); border-radius:var(--radius-md); padding:10px 12px; font-size:12px; color:var(--text-2); line-height:1.45; }
+.model-note strong { color:var(--accent); display:block; margin-bottom:2px; }
+.model-note p { margin:2px 0; }
+.model-note.is-compact { padding:8px 10px; }
+
+/* Data-state legend */
+.state-legend { font-size:12px; color:var(--text-2); }
+.state-legend > summary { cursor:pointer; color:var(--accent-soft); font-weight:600; }
+.state-legend ul { list-style:none; padding:0; margin:6px 0 0; display:flex; flex-direction:column; gap:6px; }
+.state-legend li { display:grid; grid-template-columns:86px 1fr; gap:8px; align-items:start; line-height:1.4; }
+
+/* Section meaning line under card titles and charts */
+.meaning { margin:0; font-size:12px; color:var(--text-2); line-height:1.45; }
+.legend-meaning { margin-top:4px; color:var(--text-2); line-height:1.35; }
+.legend-classes { display:flex; justify-content:space-between; color:var(--text-muted); font-size:9.5px; margin-top:2px; }
+.empty-state { display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
+
+/* Guide panel */
+.guide-button { cursor:pointer; }
+.guide-button.is-active { border-color:var(--accent); color:var(--accent); }
+.guide-scrim { position:fixed; inset:0; z-index:110; background:var(--overlay-scrim); display:flex; justify-content:flex-end; }
+.guide-panel { width:min(520px, 100vw); height:100%; overflow-y:auto; background:var(--bg-panel); border-left:1px solid var(--border); padding:20px; display:flex; flex-direction:column; gap:14px; }
+.guide-body { display:flex; flex-direction:column; gap:16px; font-size:13px; color:var(--text-2); line-height:1.5; }
+.guide-body h4 { margin:0 0 6px; color:var(--text); font-size:14px; }
+.guide-body ol { margin:0; padding-left:20px; }
+.guide-colors { list-style:none; padding:0; margin:0 0 4px; display:flex; flex-direction:column; gap:6px; }
+.guide-search { width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-app); color:var(--text); margin-bottom:8px; }
+.glossary-list { margin:0; display:flex; flex-direction:column; gap:10px; }
+.glossary-list dt { color:var(--text); font-weight:700; }
+.glossary-list dd { margin:2px 0 0; }
+@media print { .how, .term-mark, .term-tip, .guide-scrim { display:none !important; } .term-label { border:0; } }
+.rotation-score .reading { margin-left:8px; vertical-align:middle; }

@@ -32,7 +32,7 @@ export function DataBanner() {
         {!synthetic && <span>· {es.banner.provisional}</span>}
         <span>· {es.app.exploratory}</span>
         {run && (
-          <span className="twin-level" title={es.banner.twinLevelHint}>
+          <span className="twin-level" title={es.twinLevelText[run.twin_level]}>
             {es.banner.twinLevel[run.twin_level]}
           </span>
         )}

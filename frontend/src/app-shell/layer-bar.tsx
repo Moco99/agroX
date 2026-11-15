@@ -10,7 +10,7 @@ export function LayerBar() {
     <div className="layer-bar" role="radiogroup" aria-label={es.layers.title}>
       <span className="layer-bar-title">{es.layers.title}</span>
       {LAYERS.map((l) => (
-        <label key={l} className={`layer-chip${layer === l ? " is-active" : ""}`}>
+        <label key={l} className={`layer-chip${layer === l ? " is-active" : ""}`} title={es.legend.meaning[l]}>
           <input type="radio" name="layer" checked={layer === l} onChange={() => setLayer(l)} />
           {es.layers[l]}
         </label>

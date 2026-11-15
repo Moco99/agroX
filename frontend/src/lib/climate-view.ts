@@ -1,5 +1,8 @@
 import type { ClimateMetric, DataState } from "../types/api";
 import { isRecord } from "../types/guards";
+import { spiLabel } from "./readings";
+
+export { spiLabel };
 
 // ─────────────────────────────────────────
 // Section: Climate indicators helpers (pure; the backend computes every number)
@@ -18,6 +21,20 @@ export function metricOf(indicators: Record<string, unknown>, key: string): Clim
   return { value, unit: m.unit, data_state: m.data_state as DataState, source: typeof m.source === "string" ? m.source : null };
 }
 
+// Backend units are terse codes ("C", "C-day", "days"); the UI shows the conventional symbol instead
+const UNIT_SYMBOL: Record<string, string> = { C: "°C", "C-day": "°C·día", days: "días", index: "" };
+
+export function unitSymbol(unit: string | null | undefined): string {
+  if (!unit) return "";
+  return UNIT_SYMBOL[unit] ?? unit;
+}
+
+// Plain numeric fields of the indicator record (thresholds the backend publishes, e.g. gdd_base_c)
+export function numberOf(indicators: Record<string, unknown>, key: string): number | null {
+  const v = indicators[key];
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
 // Inclusive day count; NaN when a date is invalid
 export function windowDays(start: string, end: string): number {
   return Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) + 1;
@@ -30,17 +47,6 @@ export function windowError(start: string, end: string): string | null {
   if (n < 1) return "La fecha final debe ser igual o posterior a la inicial.";
   if (n > MAX_CLIMATE_DAYS) return `La ventana admite hasta ${MAX_CLIMATE_DAYS} días (elegiste ${n}).`;
   return null;
-}
-
-// SPI classes follow McKee et al. (1993); the label is descriptive, not a forecast
-export function spiLabel(spi: number): string {
-  if (spi >= 2) return "extremadamente húmedo";
-  if (spi >= 1.5) return "muy húmedo";
-  if (spi >= 1) return "moderadamente húmedo";
-  if (spi > -1) return "cercano a lo normal";
-  if (spi > -1.5) return "moderadamente seco";
-  if (spi > -2) return "muy seco";
-  return "extremadamente seco";
 }
 
 export function spiExplanation(spi: number | null): string {

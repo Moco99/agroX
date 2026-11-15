@@ -7,13 +7,23 @@ import { useRotationView } from "../../store/rotation-store";
 import { recommendRotation, type RotationRecommendation, type RotationRequest, type RotationResponse, type RotationWindow } from "./rotation-api";
 import { isRecord } from "../../types/guards";
 import { periodError, rotationPresets, splitPeriod, windowsError } from "../../lib/rotation-dates";
+import { DataStateBadge } from "../../components/data-state-badge";
+import { DataStateLegend } from "../../components/explain/data-state-legend";
+import { HowCalculated } from "../../components/explain/how-calculated";
+import { ModelNote } from "../../components/explain/model-note";
+import { ReadingChip } from "../../components/explain/reading-chip";
+import { Term } from "../../components/explain/term";
+import { es } from "../../i18n/es";
+import { fitReading, scoreReading } from "../../lib/readings";
+import { isDataState } from "../../types/guards";
 import "./rotation.css";
 
-const crops: [string, string][] = [
-  ["corn", "Maíz"], ["bean", "Frijol"], ["soybean", "Soya"], ["wheat", "Trigo"],
-  ["sorghum", "Sorgo"], ["chickpea", "Garbanzo"], ["cover_vetch", "Vicia (cobertura)"],
-];
-const fmt = (v: number | null) => v === null ? "Sin dato" : v.toFixed(1);
+// ─────────────────────────────────────────
+// Section: Rotation comparison (EcoCrop comparative index; every figure explained in plain words)
+// ─────────────────────────────────────────
+
+const crops: [string, string][] = Object.entries(es.rotation.crops);
+const fmt = (v: number | null) => v === null ? es.rotation.noData : v.toFixed(1);
 const EMPTY = { water: 1, soil: 1, climate: 1 };
 
 function InputDetails({ inputs }: { inputs: Record<string, unknown> }) {
@@ -23,9 +33,9 @@ function InputDetails({ inputs }: { inputs: Record<string, unknown> }) {
     const val = isRecord(value) ? value.value : value;
     const source = isRecord(value) && typeof value.source === "string" ? value.source : "";
     const state = isRecord(value) && typeof value.data_state === "string" ? value.data_state : "";
-    const label: Record<string, string> = { days: "Días", t_mean: "Temperatura media", rain_mm: "Precipitación acumulada", soil_ph: "pH del suelo", soil_awc: "Agua disponible", t_extreme_days: "Días de temperatura extrema", start: "Inicio", end: "Fin", farm_id: "Parcela" };
+    const label = es.rotation.inputLabels;
     if (val === undefined || typeof val === "object" && val !== null) return null;
-    return <div key={key}><dt>{label[key] ?? key.replaceAll("_", " ")}</dt><dd>{val === null ? "No declarado" : typeof val === "number" ? val.toFixed(2) : String(val)}{key === "t_mean" ? " °C" : key === "rain_mm" ? " mm" : ""}{key === "soil_ph" && val !== null ? " · Declarado" : ""}{state && <small> · {state}</small>}{source && <small> · {source}</small>}</dd></div>;
+    return <div key={key}><dt>{label[key] ?? key.replaceAll("_", " ")}</dt><dd>{val === null ? es.rotation.notDeclaredValue : typeof val === "number" ? val.toFixed(2) : String(val)}{key === "t_mean" ? " °C" : key === "rain_mm" ? " mm" : ""}{key === "soil_ph" && val !== null ? ` · ${es.rotation.declared}` : ""}{state && (isDataState(state) ? <> <DataStateBadge state={state} compact /></> : <small> · {state}</small>)}{source && <small> · {source}</small>}</dd></div>;
   })}</dl>;
 }
 
@@ -43,29 +53,33 @@ function Ranking({ result, title, canPreview, onPreview }: RankingProps) {
     const score = indexOf(item);
     frequencies.set(score, (frequencies.get(score) ?? 0) + 1);
   }
+  const allScores = result.recommendations.map(indexOf);
   return <section className="rotation-ranking"><h2>{title}</h2>
-    {[...frequencies.values()].some((count) => count > 1) && <p className="muted">En los empates se priorizan menos repeticiones de familia botánica.</p>}
-    {result.recommendations.length === 0 ? <p>No hay secuencias con los filtros elegidos.</p> :
+    {[...frequencies.values()].some((count) => count > 1) && <p className="muted">{es.rotation.tieNote}</p>}
+    {result.recommendations.length === 0 ? <p className="empty-state">{es.rotation.noSequences}</p> :
       result.recommendations.map((item, i) => <article className="rotation-card" key={`${item.sequence.join("-")}-${i}`}>
-        <header><div><span className="eyebrow">OPCIÓN {i + 1}{(frequencies.get(indexOf(item)) ?? 0) > 1 ? " · ÍNDICE EMPATADO" : ""}</span><h3>{item.cycles.map((c) => c.name).join(" → ")}</h3></div>
-          <div className="rotation-score"><strong>{item.overall_score.toFixed(1)}</strong><small> / 100 · índice</small></div></header>
+        <header><div><span className="eyebrow">{es.rotation.option(i + 1, (frequencies.get(indexOf(item)) ?? 0) > 1)}</span><h3>{item.cycles.map((c) => c.name).join(" → ")}</h3></div>
+          <div className="rotation-score" data-testid="rotation-score"><strong>{item.overall_score.toFixed(1)}</strong><small>{es.rotation.scoreSuffix}</small>
+            <ReadingChip reading={scoreReading(indexOf(item), allScores)} /></div></header>
+        <p className="meaning"><Term id="score" />: {es.meaning.score}</p>
         <div className="rotation-indicators">{([
-          ["Compatibilidad lluvia", item.indicators.water], ["Compatibilidad pH", item.indicators.soil], ["Compatibilidad temperatura", item.indicators.climate],
-        ] as const).map(([label, value]) => <div key={label}><small>{label}</small><strong>{fmt(value)}</strong><div className="rotation-track"><i style={{ width: `${Math.max(0, Math.min(100, value ?? 0))}%` }} /></div></div>)}</div>
-        <p className="muted">Pesos efectivos: lluvia {(item.weights.water * 100).toFixed(0)} % · pH {(item.weights.soil * 100).toFixed(0)} % · temperatura {(item.weights.climate * 100).toFixed(0)} %</p>
-        {item.family_repeats !== undefined && <p className="muted">Repeticiones consecutivas de familia: {item.family_repeats}</p>}
-        <ol className="rotation-cycles">{item.cycles.map((cycle) => <li key={`${cycle.cycle}-${cycle.crop_id}`}><strong>Ciclo {cycle.cycle}: {cycle.name}</strong><span>{cycle.family} · Lluvia {cycle.rainfall_fit.toFixed(1)} · Temperatura {cycle.temperature_fit.toFixed(1)}{cycle.ph_fit !== null ? ` · pH ${cycle.ph_fit.toFixed(1)}` : " · pH sin declarar"}</span>
-          {cycle.window && <span>{cycle.window.start} a {cycle.window.end}</span>}
+          [es.rotation.water, item.indicators.water, es.meaning.waterFit], [es.rotation.soil, item.indicators.soil, es.meaning.phFit], [es.rotation.climate, item.indicators.climate, es.meaning.tempFit],
+        ] as const).map(([label, value, meaning]) => <div key={label} title={meaning}><small>{label}</small><strong>{fmt(value)}</strong><div className="rotation-track"><i style={{ width: `${Math.max(0, Math.min(100, value ?? 0))}%` }} /></div><ReadingChip reading={fitReading(value)} /></div>)}</div>
+        <p className="muted">{es.rotation.weights((item.weights.water * 100).toFixed(0), (item.weights.soil * 100).toFixed(0), (item.weights.climate * 100).toFixed(0))}</p>
+        <HowCalculated id="score" current={`${(item.weights.water).toFixed(2)}·${fmt(item.indicators.water)} + ${(item.weights.soil).toFixed(2)}·${fmt(item.indicators.soil)} + ${(item.weights.climate).toFixed(2)}·${fmt(item.indicators.climate)} ≈ ${item.overall_score.toFixed(1)}`} />
+        {item.family_repeats !== undefined && <p className="muted">{es.rotation.familyRepeats(item.family_repeats)}</p>}
+        <ol className="rotation-cycles">{item.cycles.map((cycle) => <li key={`${cycle.cycle}-${cycle.crop_id}`}><strong>{es.rotation.cycle(cycle.cycle, cycle.name)}</strong><span>{es.rotation.cycleDetail(cycle.family, cycle.rainfall_fit.toFixed(1), cycle.temperature_fit.toFixed(1), cycle.ph_fit !== null ? cycle.ph_fit.toFixed(1) : null)}</span>
+          {cycle.window && <span>{es.rotation.window(cycle.window.start, cycle.window.end)}</span>}
           {cycle.warnings.filter((warning) => warning.startsWith("La ventana") || warning.startsWith("Lluvia de")).map((warning) => <span key={warning}>{warning}</span>)}
           {cycle.twin_supported ? (
             <button className="ghost-button rotation-preview" type="button" disabled={!canPreview} onClick={() => onPreview(item, cycle.cycle - 1)}>
-              Simular ciclo {cycle.cycle} en 3D
+              {es.rotation.simulate(cycle.cycle)}
             </button>
-          ) : <span>Sin parámetros para el gemelo 3D.</span>}
+          ) : <span>{es.rotation.noTwin}</span>}
         </li>)}</ol>
-        {item.warnings.length > 0 && <details><summary>Supuestos y limitaciones ({item.warnings.length})</summary><ul>{item.warnings.map((warning, n) => <li key={`${warning}-${n}`}>{warning}</li>)}</ul></details>}
+        {item.warnings.length > 0 && <details><summary>{es.rotation.assumptions(item.warnings.length)}</summary><ul>{item.warnings.map((warning, n) => <li key={`${warning}-${n}`}>{warning}</li>)}</ul></details>}
       </article>)}
-    {result.warnings.length > 0 && <div className="rotation-warning"><strong>Avisos</strong><ul>{result.warnings.map((w, i) => <li key={`${w}-${i}`}>{w}</li>)}</ul></div>}
+    {result.warnings.length > 0 && <div className="rotation-warning"><strong>{es.rotation.warnings}</strong><ul>{result.warnings.map((w, i) => <li key={`${w}-${i}`}>{w}</li>)}</ul></div>}
   </section>;
 }
 
@@ -128,7 +142,7 @@ export default function RotationScreen() {
       return;
     }
     if (weights.water + weights.climate + (ph.trim() ? weights.soil : 0) === 0) {
-      setError("Da prioridad a lluvia o temperatura, o declara el pH para priorizar suelo.");
+      setError(es.rotation.noWeights);
       return;
     }
     abort.current?.abort();
@@ -145,9 +159,9 @@ export default function RotationScreen() {
         recommendRotation(body, controller.signal),
         ...(rain !== 0 || temperature !== 0 ? [recommendRotation({ ...body, scenario: { temp_delta_c: temperature, precip_factor: 1 + rain / 100 } }, controller.signal)] : []),
       ]);
-      if (!controller.signal.aborted && base) { useModuleView.getState().setRotation({ farmId, baseline: base, scenario: alternative ?? null }); setBaseline(base); setScenario(alternative ?? null); setSubmitted(rain !== 0 || temperature !== 0 ? `Lluvia ${rain > 0 ? "+" : ""}${rain} % · temperatura ${temperature > 0 ? "+" : ""}${temperature} °C` : null); }
+      if (!controller.signal.aborted && base) { useModuleView.getState().setRotation({ farmId, baseline: base, scenario: alternative ?? null }); setBaseline(base); setScenario(alternative ?? null); setSubmitted(rain !== 0 || temperature !== 0 ? es.rotation.scenarioSummary(`${rain > 0 ? "+" : ""}${rain}`, `${temperature > 0 ? "+" : ""}${temperature}`) : null); }
     } catch (err) {
-      if (!controller.signal.aborted) { setError(err instanceof Error ? err.message : "No se pudo obtener el ranking."); setLoading(false); controller.abort(); }
+      if (!controller.signal.aborted) { setError(err instanceof Error ? err.message : es.rotation.failed); setLoading(false); controller.abort(); }
     } finally { if (!controller.signal.aborted) setLoading(false); }
   }
 
@@ -172,34 +186,35 @@ export default function RotationScreen() {
       }
     } catch (err) {
       if (mounted.current && !(err instanceof DOMException && err.name === "AbortError")) {
-        setPreviewError(err instanceof Error ? err.message : "No se pudo simular el ciclo.");
+        setPreviewError(err instanceof Error ? err.message : es.twinCopy.cycleFailed);
       }
     }
   }
 
   return <section className="rotation-screen" aria-labelledby="rotation-title">
-    <div className="rotation-header"><div><span className="eyebrow">AGROX · ECOCROP</span><h1 id="rotation-title">Rotaciones de cultivo</h1>
-      <p>{farm?.farm.name ?? farmId} · compara secuencias para las condiciones disponibles.</p></div>
-      <button className="ghost-button" type="button" onClick={close}>Volver a la vista anterior</button></div>
-    <div className="rotation-disclaimer">Índices comparativos exploratorios, no probabilidades ni pronósticos de rendimiento. Las reglas y el modelo requieren validación en campo.</div>
+    <div className="rotation-header"><div><span className="eyebrow">{es.rotation.eyebrow}</span><h1 id="rotation-title">{es.rotation.title}</h1>
+      <p>{es.rotation.subtitle(farm?.farm.name ?? farmId)}</p></div>
+      <button className="ghost-button" type="button" onClick={close}>{es.rotation.back}</button></div>
+    <div className="rotation-disclaimer">{es.rotation.disclaimer}</div>
+    <ModelNote />
     <div className="rotation-layout"><form className="rotation-form" onChange={invalidate} onSubmit={(e) => void run(e)}>
-      <section className="card"><h2>Datos de la parcela</h2><p className="muted">Se usa el clima disponible para esta ubicación y periodo; la compatibilidad con suelo requiere pH declarado.</p>
+      <section className="card"><h2>{es.rotation.farmData}</h2><p className="muted">{es.rotation.farmDataHint}</p>
         <div className="rotation-grid">{!useWindows && <>
-          <label>Desde<input type="date" required value={start} onChange={(e) => setStart(e.target.value)} /></label>
-          <label>Hasta<input type="date" required value={end} onChange={(e) => setEnd(e.target.value)} /></label>
+          <label>{es.rotation.from}<input type="date" required value={start} onChange={(e) => setStart(e.target.value)} /></label>
+          <label>{es.rotation.to}<input type="date" required value={end} onChange={(e) => setEnd(e.target.value)} /></label>
         </>}
-          <label>Ciclos<select value={cycles} onChange={(e) => {
+          <label>{es.rotation.cycles}<select value={cycles} onChange={(e) => {
             const n = Number(e.target.value);
             // Keep the overall period and re-split it when per-cycle dates are on
             if (useWindows) setWindows(splitPeriod(windows[0]?.start ?? start, windows[cycles - 1]?.end ?? end, n));
             setCycles(n);
           }}><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option></select></label>
-          <label>pH declarado (opcional)<input type="number" min={0} max={14} step="0.1" placeholder="Sin declarar" value={ph} onChange={(e) => setPh(e.target.value)} /></label>
-          <label>Cultivo anterior<select value={previous} onChange={(e) => setPrevious(e.target.value)}><option value="">No declarado</option>{crops.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
-          <label>Cultivo inicial<select value={startCrop} onChange={(e) => setStartCrop(e.target.value)}><option value="">Automático</option>{crops.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label></div>
-        <label className="rotation-checkbox"><input type="checkbox" checked={sameFamily} onChange={(e) => setSameFamily(e.target.checked)} /> Evitar familia botánica consecutiva</label><p className="muted">Filtro opcional; su aplicación depende del cultivo y del manejo local.</p>
-        <label className="rotation-checkbox"><input type="checkbox" checked={twinOnly} onChange={(e) => setTwinOnly(e.target.checked)} /> Solo cultivos que se pueden simular en el gemelo</label>
-        {!useWindows && <div className="rotation-presets" role="group" aria-label="Periodos rápidos">
+          <label>{es.rotation.ph}<input type="number" min={0} max={14} step="0.1" placeholder={es.rotation.phPlaceholder} value={ph} onChange={(e) => setPh(e.target.value)} /></label>
+          <label>{es.rotation.previous}<select value={previous} onChange={(e) => setPrevious(e.target.value)}><option value="">{es.rotation.notDeclared}</option>{crops.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+          <label>{es.rotation.startCrop}<select value={startCrop} onChange={(e) => setStartCrop(e.target.value)}><option value="">{es.rotation.auto}</option>{crops.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label></div>
+        <label className="rotation-checkbox"><input type="checkbox" checked={sameFamily} onChange={(e) => setSameFamily(e.target.checked)} /> {es.rotation.sameFamily}</label><p className="muted">{es.rotation.sameFamilyHint}</p>
+        <label className="rotation-checkbox"><input type="checkbox" checked={twinOnly} onChange={(e) => setTwinOnly(e.target.checked)} /> {es.rotation.twinOnly}</label>
+        {!useWindows && <div className="rotation-presets" role="group" aria-label={es.rotation.presetsAria}>
           {rotationPresets(Number(span.start.slice(0, 4)) || new Date().getFullYear(), new Date().toISOString().slice(0, 10)).map((p) =>
             <button key={p.id} type="button" className="ghost-button" onClick={() => { setStart(p.range.start); setEnd(p.range.end); invalidate(); }}>{p.label}</button>)}
         </div>}
@@ -207,13 +222,13 @@ export default function RotationScreen() {
           // Start filled with consecutive windows so every cycle has valid, editable dates
           if (e.target.checked) setWindows(splitPeriod(start, end, cycles));
           setUseWindows(e.target.checked);
-        }} /> Usar fechas distintas por ciclo</label>
+        }} /> {es.rotation.perCycle}</label>
         {useWindows && windows.slice(0, cycles).map((window, index) => (
           <fieldset key={index} className="rotation-window">
-            <legend>Ciclo {index + 1}</legend>
+            <legend>{es.rotation.cycleLegend(index + 1)}</legend>
             <div className="rotation-grid">
               {(["start", "end"] as const).map((key) => (
-                <label key={key}>{key === "start" ? "Desde" : "Hasta"}
+                <label key={key}>{key === "start" ? es.rotation.from : es.rotation.to}
                   <input type="date" required value={window[key]} onChange={(e) => {
                     const value = e.target.value;
                     setWindows((current) => current.map((w, i) => i === index ? { ...w, [key]: value } : w));
@@ -224,36 +239,34 @@ export default function RotationScreen() {
           </fieldset>
         ))}
       </section>
-      <details className="card rotation-help"><summary>¿Cómo subir el índice?</summary>
+      <details className="card rotation-help"><summary>{es.rotation.raiseTitle}</summary>
         <ul>
-          <li><strong>Lluvia:</strong> la lluvia de tu ventana se lleva a la duración del ciclo del cultivo y se compara con su rango óptimo EcoCrop. Una ventana más lluviosa o más seca que ese rango baja el valor.</li>
-          <li><strong>Temperatura:</strong> la temperatura media de la ventana debe caer dentro del rango óptimo del cultivo; cambiar las fechas de siembra mueve este valor.</li>
-          <li><strong>pH:</strong> declara el pH de tu suelo para activar este componente; sin declararlo no cuenta en el índice. Cuanto más cerca del rango óptimo del cultivo, mayor el valor.</li>
-          <li>El índice es comparativo: 100 significa que todos los factores están en su rango óptimo para la ventana y el lugar elegidos. No es una probabilidad ni un rendimiento esperado.</li>
+          {es.rotation.raise.map(([k, text]) => <li key={k}><strong>{k}:</strong> {text}</li>)}
+          <li>{es.rotation.raiseNote} <Term id="ecocrop" /></li>
         </ul></details>
-      <section className="card"><h2>Prioridades</h2><p className="muted">Los pesos se normalizan al comparar alternativas.</p>
-        {([ ["water", "Agua"], ["soil", "Suelo"], ["climate", "Clima"] ] as const).map(([key, label]) => <label className="rotation-slider" key={key}>{label} <strong>{weights[key]}</strong><input type="range" min={0} max={10} value={weights[key]} onChange={(e) => setWeights((w) => ({ ...w, [key]: Number(e.target.value) }))} /></label>)}
+      <section className="card"><h2>{es.rotation.priorities}</h2><p className="muted">{es.rotation.prioritiesHint}</p>
+        {(["water", "soil", "climate"] as const).map((key) => [key, es.rotation.weightLabels[key]] as const).map(([key, label]) => <label className="rotation-slider" key={key}>{label} <strong>{weights[key]}</strong><input type="range" min={0} max={10} value={weights[key]} onChange={(e) => setWeights((w) => ({ ...w, [key]: Number(e.target.value) }))} /></label>)}
       </section>
-      <section className="card"><h2>¿Qué pasaría si…?</h2><p className="muted">Ajustes simulados sobre el clima de referencia.</p>
-        <label className="rotation-slider">Cambio de precipitación <strong>{rain > 0 ? "+" : ""}{rain} %</strong><input type="range" min={-80} max={50} step={5} value={rain} onChange={(e) => setRain(Number(e.target.value))} /></label>
-        <label className="rotation-slider">Cambio de temperatura <strong>{temperature > 0 ? "+" : ""}{temperature} °C</strong><input type="range" min={-3} max={5} step={0.5} value={temperature} onChange={(e) => setTemperature(Number(e.target.value))} /></label>
+      <section className="card"><h2>{es.rotation.whatIf}</h2><p className="muted">{es.rotation.whatIfHint}</p>
+        <label className="rotation-slider">{es.rotation.precip} <strong>{rain > 0 ? "+" : ""}{rain} %</strong><input type="range" min={-80} max={50} step={5} value={rain} onChange={(e) => setRain(Number(e.target.value))} /></label>
+        <label className="rotation-slider">{es.rotation.temp} <strong>{temperature > 0 ? "+" : ""}{temperature} °C</strong><input type="range" min={-3} max={5} step={0.5} value={temperature} onChange={(e) => setTemperature(Number(e.target.value))} /></label>
       </section>
-      <button className="play-button rotation-submit" type="submit" disabled={loading}>{loading ? "Calculando…" : "Comparar rotaciones"}</button>
+      <button className="play-button rotation-submit" type="submit" disabled={loading}>{loading ? es.rotation.calculating : es.rotation.submit}</button>
       {error && <div className="error-box" role="alert">{error}</div>}
     </form><div className="rotation-results">
-      {!baseline && !loading && <div className="card rotation-empty"><h2>Compara tres alternativas</h2><p>Elige el periodo y tus prioridades. Se mostrará el índice y el desglose disponible para cada secuencia.</p></div>}
-      {loading && <div className="card" role="status">Consultando datos y calculando secuencias…</div>}
+      {!baseline && !loading && <div className="card rotation-empty"><h2>{es.rotation.emptyTitle}</h2><p>{es.rotation.emptyBody}</p><DataStateLegend /></div>}
+      {loading && <div className="card" role="status">{es.rotation.loading}</div>}
       {previewError && <div className="error-box" role="alert">{previewError}</div>}
-      {baseline && !twinReady && <p className="muted" role="status">El gemelo está preparando la simulación de la parcela.</p>}
+      {baseline && !twinReady && <p className="muted" role="status">{es.rotation.twinPreparing}</p>}
       {baseline && <>
-        <div className="card"><h2>Datos utilizados</h2><InputDetails inputs={baseline.inputs} />
-          <p className="muted">{baseline.methodology} · Clima: {String(baseline.inputs.climate_source ?? "—")} · {baseline.inputs.climate_data_state === "SYNTHETIC" ? "Sintético" : baseline.inputs.climate_data_state === "MEASURED" ? "Medido" : String(baseline.inputs.climate_data_state ?? "—")}</p>
+        <div className="card"><h2>{es.rotation.inputsTitle}</h2><InputDetails inputs={baseline.inputs} />
+          <p className="muted">{es.rotation.climateLine(baseline.methodology, String(baseline.inputs.climate_source ?? "—"), isDataState(baseline.inputs.climate_data_state) ? es.dataState[baseline.inputs.climate_data_state] : String(baseline.inputs.climate_data_state ?? "—"))}</p>
         </div>
-        <Ranking result={baseline} title="Clima de referencia" canPreview={twinReady} onPreview={(item, index) => void openPreview(item, index, false)} />
+        <Ranking result={baseline} title={es.rotation.reference} canPreview={twinReady} onPreview={(item, index) => void openPreview(item, index, false)} />
       </>}
       {scenario && <>
-        <div className="rotation-disclaimer">Escenario simulado: {submitted}.</div>
-        <Ranking result={scenario} title="Escenario climático" canPreview={twinReady} onPreview={(item, index) => void openPreview(item, index, true)} />
+        <div className="rotation-disclaimer">{es.rotation.scenarioBanner(submitted ?? "")}</div>
+        <Ranking result={scenario} title={es.rotation.scenarioTitle} canPreview={twinReady} onPreview={(item, index) => void openPreview(item, index, true)} />
       </>}
     </div></div>
   </section>;

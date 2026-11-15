@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { PointSearch } from "../point/point-search";
 import { DataStateBadge } from "../../components/data-state-badge";
+import { ReadingChip } from "../../components/explain/reading-chip";
+import { Term, type GlossaryTermId } from "../../components/explain/term";
+import { ndviReading } from "../../lib/readings";
 import { es, fmt } from "../../i18n/es";
 import { EXPLORE_PLACES } from "../../lib/globe-view";
 import { areaHa, canConfirm, canFinish, overlapsExisting } from "../../lib/draw";
@@ -113,15 +116,15 @@ function DrawParcelCard() {
 // ─────────────────────────────────────────
 
 function unitLabel(unit: string): string {
-  return unit === "index" ? "índice" : unit;
+  return unit === "index" ? es.units.index : unit;
 }
 
 // One labelled figure with its provenance badge; null values render as "—" instead of a made-up number
-function Metric({ name, item }: { name: string; item: RegionMetric | undefined }) {
+function Metric({ name, item, term, meaning }: { name: string; item: RegionMetric | undefined; term?: GlossaryTermId; meaning?: string }) {
   if (!item) return null;
   return (
-    <div>
-      <small>{name}</small>
+    <div title={meaning}>
+      <small>{term ? <Term id={term}>{name}</Term> : name}</small>
       <strong>
         {item.value === null ? "—" : fmt(item.value, 2)} <small>{unitLabel(item.unit)}</small>
       </strong>
@@ -138,9 +141,9 @@ function SeasonMetrics({ withNdvi }: { withNdvi: boolean }) {
   return (
     <>
       <div className="regional-metrics">
-        {withNdvi && <Metric name={es.globe.ndvi} item={region.ndvi} />}
-        <Metric name={es.globe.precipitation} item={region.precipitation} />
-        <Metric name={es.globe.temperature} item={region.temperature} />
+        {withNdvi && <Metric name={es.globe.ndvi} item={region.ndvi} term="ndvi" meaning={es.meaning.ndvi} />}
+        <Metric name={es.globe.precipitation} item={region.precipitation} term="power" meaning={es.meaning.precipTotal} />
+        <Metric name={es.globe.temperature} item={region.temperature} meaning={es.meaning.tMean} />
         <Metric name={es.globe.radiation} item={region.radiation} />
       </div>
       <small className="muted">
@@ -251,7 +254,10 @@ export function FarmPanel() {
       {pilot ? (
         <>
           <section className="card">
-            <h3>{es.geo.zoneNdvi}</h3>
+            <h3>
+              <Term id="ndvi">{es.geo.zoneNdvi}</Term>
+            </h3>
+            <p className="meaning">{es.meaning.ndvi}</p>
             {zones.some((z) => z.ndvi !== null) ? (
               <ul className="zone-ndvi-list">
                 {zones.map((z) => (
@@ -261,7 +267,8 @@ export function FarmPanel() {
                       <small className="muted"> · {es.crops[z.crop_id] ?? z.crop_id}</small>
                     </span>
                     <span>
-                      <strong>{z.ndvi === null ? "—" : fmt(z.ndvi, 2)}</strong> <DataStateBadge state={z.ndvi_state} compact />
+                      <strong>{z.ndvi === null ? "—" : fmt(z.ndvi, 2)}</strong>{" "}
+                      {z.ndvi !== null && <ReadingChip reading={ndviReading(z.ndvi)} />} <DataStateBadge state={z.ndvi_state} compact />
                       {z.ndvi_date && <small className="muted"> {z.ndvi_date}</small>}
                     </span>
                   </li>
