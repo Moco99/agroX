@@ -20,6 +20,7 @@ from app.engine.config import (
 from app.engine.monte_carlo import run_monte_carlo
 from app.engine.scenarios import expand_scenario, perturb_series, resolve_irrigation
 from app.providers.factory import Providers, weather_for
+from app.providers.live.projection import FIRST_DAY as PROJECTION_FIRST_DAY
 from app.providers.ports import DataNotFoundError, WeatherProvider
 from app.schemas.common import DataState, Provenance, TwinLevel
 from app.schemas.crops import CropCatalog, CropParams
@@ -29,6 +30,7 @@ from app.schemas.twin import (
     ComparisonMetrics,
     Discrepancy,
     FarmSummary,
+    ModelSeasonOutcome,
     TwinScenario,
     TwinSimulateRequest,
     TwinSimulateResponse,
@@ -38,7 +40,7 @@ from app.schemas.twin import (
     ZoneStateSnapshot,
 )
 from app.schemas.weather import WeatherSeries
-from app.services import farm_load_service
+from app.services import climate_projection, farm_load_service
 from app.services.errors import InvalidRequestError
 from app.services.farm_service import NDVI_LOADING_WARNING, latest_ndvi_by_zone, ndvi_ready
 from app.services.weather_reference import analogue_weather
@@ -79,12 +81,17 @@ def _crop_state(zone: FarmZone, year: int, declared: str | None) -> DataState:
     return DataState.MEASURED if any(h.year == year for h in zone.cdl_history) else DataState.DECLARED
 
 
-def _validate_period(weather: WeatherProvider, start: date, end: date, reference_year: int | None = None) -> None:
+def _validate_period(
+    weather: WeatherProvider, start: date, end: date, reference_year: int | None = None, projection: bool = False
+) -> None:
     if end < start:
         raise InvalidRequestError("end must be on or after start")
     # One season per run; southern seasons cross 1 January, so the rule is a length, not a calendar year
     if (end - start).days + 1 > MAX_SEASON_DAYS:
         raise InvalidRequestError(f"period longer than one season ({MAX_SEASON_DAYS} days)")
+    if projection:
+        climate_projection.check_window(start, end)
+        return
     if reference_year is not None:
         return
     cov_start, cov_end = weather.coverage()
@@ -212,11 +219,35 @@ def _is_neutral(s: TwinScenario) -> bool:
 # ─────────────────────────────────────────
 
 
+def _run_zone(
+    inputs: twin.SeasonInputs, scenario: TwinScenario, fork_date: date | None
+) -> tuple[list[TwinState], list[TwinState]]:
+    """(baseline, run under the scenario): the scenario forks from fork_date, or replays the whole season."""
+    baseline = twin.run_season(inputs)
+    if _is_neutral(scenario):
+        return baseline, baseline
+    anchor = next((s for s in baseline if s.date == fork_date), None) if fork_date else None
+    return baseline, twin.fork(anchor, inputs, scenario)
+
+
+def _model_outcome(
+    model: str, inputs: twin.SeasonInputs, scenario: TwinScenario, req: TwinSimulateRequest, start: date, end: date
+) -> ModelSeasonOutcome:
+    _, states = _run_zone(inputs, scenario, req.fork_date)
+    trimmed = [s for s in states if start <= s.date <= end]
+    summary = twin.summarise(trimmed, inputs.crop, inputs.planting_date)
+    outcome = twin.season_outcome(trimmed, inputs.crop, inputs.planting_date, summary)
+    return ModelSeasonOutcome(
+        model=model, status=outcome.status, stress_days=outcome.stress_days, season_precip_mm=summary.total_precip_mm
+    )
+
+
 def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
     pt = farm_load_service.ensure_supported(p, req.farm_id)
+    projection = climate_projection.wants_projection(req)
     weather_src = weather_for(p, req.farm_id)
     start, end = _resolve_period(req, pt)
-    _validate_period(weather_src, start, end, req.reference_year)
+    _validate_period(weather_src, start, end, req.reference_year, projection)
     try:
         scenario = expand_scenario(req.scenario)
     except ValueError as exc:
@@ -238,21 +269,29 @@ def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
     crops = {z.zone_id: crop_for_year(z, year, catalog, declared_crops.get(z.zone_id)) for z in zones}
     planting_info = _plantings(req, zones, crops, start, end, pt)
     plantings = {zid: d for zid, (d, _) in planting_info.items()}
-    cov_start, _ = weather_src.coverage()
     desired_start = min([start, *(d - timedelta(days=SPIN_UP_DAYS) for d in plantings.values())])
-    run_start = desired_start if req.reference_year is not None else max(cov_start, desired_start)
-    weather = (
-        analogue_weather(weather_src, run_start, end, req.reference_year, start.year)
-        if req.reference_year is not None
-        else weather_src.get_daily(run_start, end)
-    )
+    proj: climate_projection.ProjectionRun | None = None
+    if projection:
+        assert req.projection is not None
+        run_start = max(PROJECTION_FIRST_DAY, desired_start)
+        lat, lon = pt if pt is not None else (farm.centroid.lat, farm.centroid.lon)
+        proj = climate_projection.projected_weather(p, lat, lon, req.projection, run_start, start, end)
+        weather = proj.series[proj.animated]
+    else:
+        cov_start, _ = weather_src.coverage()
+        run_start = desired_start if req.reference_year is not None else max(cov_start, desired_start)
+        weather = (
+            analogue_weather(weather_src, run_start, end, req.reference_year, start.year)
+            if req.reference_year is not None
+            else weather_src.get_daily(run_start, end)
+        )
     if not weather.days:
         raise InvalidRequestError("no weather days in the requested period")
     output_state = _output_state(weather)
     hypothetical_crop = bool(req.crop_overrides) and req.crop_override_state == "SIMULATED"
     if hypothetical_crop and output_state is not DataState.SYNTHETIC:
         output_state = DataState.SIMULATED
-    warnings: list[str] = list(p.warnings) + list(weather.warnings)
+    warnings: list[str] = list(p.warnings) + list(weather.warnings) + (proj.warnings if proj else [])
     if run_start < start:
         warnings.append(f"spin-up from {run_start} (planting minus {SPIN_UP_DAYS} days); outputs trimmed to start")
     if req.start is None or req.end is None:
@@ -266,7 +305,7 @@ def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
     if req.reference_year is not None:
         warnings.append("La temporada usa clima histórico de referencia; no es un pronóstico ni observación futura.")
         warnings.append("No se compara esta simulación con observaciones. El último NDVI conserva su fecha real.")
-    compare_observations = req.include_comparison and req.reference_year is None and not hypothetical_crop
+    compare_observations = req.include_comparison and req.reference_year is None and not hypothetical_crop and not proj
     if compare_observations and not s2_ready:
         warnings.append(NDVI_LOADING_WARNING.format(farm_id=req.farm_id) + "; Sentinel-2 comparison skipped")
     modis = _safe_series(p, req.farm_id, "modis_ndvi") if compare_observations else None
@@ -286,12 +325,7 @@ def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
             irrigation_level=zone.irrigation_level,
             output_state=output_state,
         )
-        baseline = twin.run_season(inputs)
-        if _is_neutral(scenario):
-            states = baseline
-        else:
-            anchor = next((s for s in baseline if s.date == req.fork_date), None) if req.fork_date else None
-            states = twin.fork(anchor, inputs, scenario)
+        baseline, states = _run_zone(inputs, scenario, req.fork_date)
         trimmed = [s for s in states if start <= s.date <= end]
         base_trim = [s for s in baseline if start <= s.date <= end]
         summary = twin.summarise(trimmed, crop, inputs.planting_date)
@@ -350,6 +384,14 @@ def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
                 else [],
                 monte_carlo=mc,
                 outcome=twin.season_outcome(trimmed, crop, inputs.planting_date, summary),
+                projection_range=climate_projection.season_range(
+                    [
+                        _model_outcome(m, replace(inputs, days=series.days), scenario, req, start, end)
+                        for m, series in sorted(proj.series.items())
+                    ]
+                )
+                if proj
+                else None,
                 data_state=zone_state,
                 warnings=zone_warnings,
             )
@@ -397,7 +439,9 @@ def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
     return TwinSimulateResponse(
         catalog_version=catalog.catalog_version,
         data_mode=p.mode,
-        twin_level=TwinLevel.DIGITAL_MODEL if req.reference_year is not None or hypothetical_crop else _twin_level(p),
+        twin_level=TwinLevel.DIGITAL_MODEL
+        if req.reference_year is not None or hypothetical_crop or proj
+        else _twin_level(p),
         farm_id=farm.farm_id,
         start=start,
         end=end,
@@ -417,6 +461,7 @@ def simulate(p: Providers, req: TwinSimulateRequest) -> TwinSimulateResponse:
         ),
         warnings=list(dict.fromkeys(warnings)),
         provenance=provenance,
+        climate_projection=proj.info if proj else None,
     )
 
 

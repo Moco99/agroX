@@ -68,6 +68,10 @@ FROST_T_MIN_C = 0.0
 # Product parameter (not science): longest run of missing days of a reference year that is filled by
 # interpolating its neighbours; longer gaps reject the reference year (docs/00-overview/decisions.md)
 REFERENCE_MAX_FILL_DAYS = 3
+# Product parameter (not science): a climate-projection gap longer than REFERENCE_MAX_FILL_DAYS (the API
+# drops a run of late-December days every year) is filled with the mean of the model's own available days
+# up to this many days on each side of the gap; every filled day is flagged (ADR-024)
+PROJECTION_GAP_WINDOW_DAYS = 15
 
 
 def stress_class_for(mean_ks: float) -> StressClass:
