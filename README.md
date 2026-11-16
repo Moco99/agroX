@@ -84,4 +84,4 @@ AGROX usa datos de NASA (POWER, GIBS), ESA Sentinel-2 vía Microsoft Planetary C
 
 ## Licencia
 
-Pendiente de definir por los mantenedores. Hasta que exista un archivo `LICENSE`, el código no tiene una licencia de uso explícita.
+El código de AGROX se distribuye bajo la licencia [MIT](LICENSE). Los datos de terceros (NASA, ESA, ISRIC, USDA, FAO, Esri y otros) y las imágenes **no** quedan cubiertos por esa licencia: cada fuente conserva sus propios términos (ver [créditos](docs/07-design/credits.md)).
