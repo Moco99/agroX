@@ -61,6 +61,10 @@ Las decisiones importantes se registran como ADR en [`docs/00-overview/decisions
 
 Los agentes de codificación deben leer [`CLAUDE.md`](CLAUDE.md) y empezar por [`docs/navigation.yaml`](docs/navigation.yaml), que indica qué documentos cargar según la tarea. Quien envía el PR es responsable de lo que contiene: revisa y prueba lo que genere el agente.
 
+## Licencia de tus contribuciones
+
+Al enviar un PR aceptas que tu aportación se publique bajo la licencia [MIT](LICENSE) del proyecto.
+
 ## Reportar problemas de seguridad
 
 No abras un issue público con datos sensibles. Contacta a los mantenedores en privado (por ejemplo, mediante un aviso de seguridad privado de GitHub).
