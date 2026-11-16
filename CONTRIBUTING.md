@@ -67,8 +67,8 @@ Al enviar un PR aceptas que tu aportación se publique bajo la licencia [MIT](LI
 
 ## Reportar problemas de seguridad
 
-No abras un issue público con datos sensibles. Contacta a los mantenedores en privado (por ejemplo, mediante un aviso de seguridad privado de GitHub).
+Sigue la [política de seguridad](SECURITY.md): no abras un issue público con datos sensibles.
 
 ## Código de conducta
 
-Sé respetuoso y constructivo. Las críticas van sobre el código y las ideas, no sobre las personas.
+Al participar aceptas el [código de conducta](CODE_OF_CONDUCT.md). En resumen: sé respetuoso y constructivo; las críticas van sobre el código y las ideas, no sobre las personas.
