@@ -4,6 +4,7 @@ import { activeRun } from "../lib/derive";
 import { useTwinStore } from "../store/twin-store";
 import { isPilotFarm } from "../lib/parcel";
 import { parcelSources } from "../lib/farm-labels";
+import { scenarioLabel } from "../lib/climate-projection";
 
 // ─────────────────────────────────────────
 // Section: Data-state banner (mandatory: says what is real, synthetic, provisional or simulated)
@@ -29,6 +30,7 @@ export function DataBanner() {
             : farm && !isPilotFarm(farm.farm.farm_id)
               ? es.banner.realFrom(parcelSources(farm, climate, sentinel2))
               : es.banner.real}</strong>
+        {run?.climate_projection && <span data-testid="banner-projection">· {es.banner.projection(scenarioLabel(run.climate_projection.scenario))}</span>}
         {!synthetic && <span>· {es.banner.provisional}</span>}
         <span>· {es.app.exploratory}</span>
         {run && (

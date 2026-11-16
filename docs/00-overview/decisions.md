@@ -183,3 +183,20 @@ Formato: Contexto · Decisión · Consecuencias · Estado. Nuevos ADRs: numeraci
 **Decisión:** las teselas globales requieren internet. Sin red se muestra un aviso explícito, un mosaico Blue Marble de 2048 px (Web Mercator, 447 kB, cosido de GIBS nivel 3) empaquetado en `frontend/public/textures/earth/` y, en el piloto, la ortofoto NAIP servida por el backend. **Pendiente:** verificar los términos de Esri World Imagery antes de un despliegue público o comercial (ver [credits](../07-design/credits.md)); el proveedor es configurable por variables `VITE_SATELLITE_*`.
 
 **Estado:** aceptada (términos de Esri: abierto).
+
+## ADR-024 · Proyecciones climáticas de NASA como fuente opcional del clima futuro
+
+**Decisión.** El gemelo acepta `climate_source: "projection"` con `projection.scenario` (`ssp126`, `ssp245`, `ssp370`). El clima sale de la *Climate Projection API* de NASA POWER (NEX-GDDP-CMIP6, por punto). Sin `climate_source` no cambia nada: el año histórico de referencia sigue siendo el camino por defecto.
+
+**Por qué.** Un año histórico responde "¿y si se parece a 2024?"; una proyección responde "¿qué esperan los modelos climáticos para ese año bajo un escenario de emisiones?". La API responde por punto en segundos, igual que el clima histórico.
+
+**Reglas.**
+- **Nunca el promedio de modelos (`ensemble`) para el balance de agua:** su media diaria borra los días secos y las tormentas (verificado: 0 días secos de mayo a septiembre frente a 49 con un modelo). Se rechaza con 422.
+- **Conjunto de modelos:** `ec_earth3`, `gfdl_esm4`, `ipsl_cm6a_lr`, `mpi_esm1_2_lr` (parámetro de producto, `DAILY_MODELS` en `providers/live/projection.py`). Se simula cada uno; el 3D anima el de lluvia mediana del periodo y cada zona informa el **rango entre modelos** (`projection_range`). Cada modelo es un futuro posible, no un pronóstico ni una probabilidad.
+- **Conversiones:** radiación de W/m² a MJ/m²/día (× 0.0864; la API la etiqueta mal); viento de 10 m a 2 m con FAO-56 ec. 47 (× 0.748).
+- **Días faltantes:** la API omite días de fin de diciembre y, según el calendario del modelo, el 29 de febrero. Se rellenan con la media de los días disponibles del propio modelo en una ventana de `PROJECTION_GAP_WINDOW_DAYS` (15) a cada lado, se marcan y se avisan.
+- **Estado:** todo `SIMULATED`. El NDVI observado no se compara en estas corridas.
+- **Fallo de la API (beta):** 503 con mensaje; la interfaz ofrece volver al año de referencia.
+
+**Límites.** La radiación de NEX-GDDP-CMIP6 resultó mayor que la histórica de POWER en los puntos revisados, así que la ET0 puede salir más alta que con clima observado; se avisa en la respuesta. Rotaciones no usa proyecciones todavía.
+

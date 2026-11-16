@@ -9,7 +9,8 @@ import { DataStateBadge } from "../data-state-badge";
 const ALL: DataState[] = ["MEASURED", "DECLARED", "ESTIMATED", "SIMULATED", "SYNTHETIC"];
 
 // Collapsible by default so it can sit on every screen without pushing the numbers down
-export function DataStateLegend({ open = false, states = ALL }: { open?: boolean; states?: DataState[] }) {
+// `sources` names where the figures of the current view come from (e.g. the climate projection of a run)
+export function DataStateLegend({ open = false, states = ALL, sources = [] }: { open?: boolean; states?: DataState[]; sources?: string[] }) {
   return (
     <details className="state-legend" open={open} data-testid="data-state-legend">
       <summary>{es.dataStateTitle}</summary>
@@ -19,6 +20,7 @@ export function DataStateLegend({ open = false, states = ALL }: { open?: boolean
             <DataStateBadge state={s} /> <span>{es.dataStateHelp[s]}</span>
           </li>
         ))}
+        {sources.map((s) => <li key={s} data-testid="legend-source">{s}</li>)}
       </ul>
     </details>
   );

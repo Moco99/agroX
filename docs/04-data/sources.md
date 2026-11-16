@@ -14,6 +14,7 @@ Leyenda estado: ✅ descargado y revisado · 🔑 requiere llave (variable de en
 | id | Fuente | Qué aporta | Estado | Uso en AGROX | MVP |
 |---|---|---|---|---|---|
 | `power` | NASA POWER (AG, diario) | T2M, T2M_MAX, T2M_MIN, PRECTOTCORR, RH2M, ALLSKY_SFC_SW_DWN, WS2M, GWETROOT, GWETTOP, FROST_DAYS | ✅ | Clima del gemelo y Earth Scanner | **Sí (base)** |
+| `power-projection` | NASA POWER Climate Projection API (NEX-GDDP-CMIP6, beta) | T2M, T2M_MAX, T2M_MIN, PRECTOTCORR, RH2M, ALLSKY_SFC_SW_DWN, WS10M; escenarios ssp126/245/370 | ✅ (en vivo) | Clima futuro opcional del gemelo (ADR-024) | Opcional |
 | `nwis` | USGS NWIS | Caudal y nivel freático del condado | ✅ (sin pozos diarios en Story) | Contexto | No |
 | `cdl` | CropScape CDL 2021–2024 | Cultivo por píxel 30 m | ✅ | Parcela piloto + historial de rotación | **Sí** |
 | `ssurgo` | SSURGO / STATSGO2 | Suelos (zips) | ✅ (falta extraer propiedades) | AWC, textura, drenaje → `SoilProfile` | **Sí** |

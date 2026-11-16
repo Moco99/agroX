@@ -1,6 +1,7 @@
 import { DataStateBadge } from "../../components/data-state-badge";
 import { es } from "../../i18n/es";
 import { outcomeText } from "../../lib/season-outcome";
+import { rangeText } from "../../lib/climate-projection";
 import type { TwinSimulateResponse } from "../../types/api";
 
 // ─────────────────────────────────────────
@@ -18,10 +19,16 @@ export function SeasonOutcomeList({ run }: { run: TwinSimulateResponse }) {
             <strong>{z.name}</strong> <DataStateBadge state={z.outcome.data_state} compact />{" "}
             {outcomeText(z.outcome)}
             {!z.outcome.planted_in_window && z.outcome.status !== "NOT_PLANTED" && ` ${es.seasonOutcome.plantedOutside}`}
+            {z.projection_range && (
+              <span className="projection-range" data-testid="projection-range">
+                {" "}<DataStateBadge state={z.projection_range.data_state} compact /> {rangeText(z.projection_range)}
+              </span>
+            )}
           </li>
         ))}
       </ul>
       <small className="muted">{es.seasonOutcome.note}</small>
+      {run.climate_projection && <small className="muted"> {es.projection.rangeNote}</small>}
     </>
   );
 }

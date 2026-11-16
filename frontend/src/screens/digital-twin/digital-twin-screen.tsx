@@ -6,6 +6,7 @@ import { es, fmt, fmtDate } from "../../i18n/es";
 import { layerColor, layerLabel, zoneViews } from "../../lib/derive";
 import { makeProjector } from "../../lib/geo";
 import { isPilotFarm } from "../../lib/parcel";
+import { scenarioLabel } from "../../lib/climate-projection";
 import { navigateTo } from "../../app-shell/sidebar";
 import { DataStateBadge } from "../../components/data-state-badge";
 import { DataStateLegend } from "../../components/explain/data-state-legend";
@@ -70,8 +71,9 @@ export function DigitalTwinScreen() {
 
   const projector = useMemo(() => (farm ? makeProjector(farm.farm) : null), [farm]);
   const referenceYear = useTwinStore((s) => s.referenceYear);
-  // Observations belong to the real parcel and dates: never pair them with a reference-year or hypothetical-crop run
-  const hideObserved = referenceYear !== null || rotation !== null;
+  const projection = useTwinStore((s) => s.projection);
+  // Observations belong to the real parcel and dates: never pair them with a simulated-climate or hypothetical-crop run
+  const hideObserved = referenceYear !== null || projection !== null || rotation !== null;
   const views = useMemo(
     () => zoneViews(baseline, scenario, dayIndex, hideObserved ? [] : [sentinel2, modis]),
     [baseline, scenario, dayIndex, sentinel2, modis, hideObserved],
@@ -257,7 +259,11 @@ export function DigitalTwinScreen() {
               {es.twinCopy.monteCarlo(mc.n, fmt(mc.mean_ks_p10, 2), fmt(mc.mean_ks_p90, 2), fmt(mc.stress_days_p10, 0), fmt(mc.stress_days_p90, 0))}
             </p>
           )}
-          <DataStateLegend />
+          <DataStateLegend
+            sources={baseline.climate_projection
+              ? [es.banner.projection(scenarioLabel(baseline.climate_projection.scenario)) + ` (${baseline.climate_projection.models_used.join(", ")})`]
+              : []}
+          />
         </section>
         <ExplanationBox baseline={baseline} scenario={scenario} selectedZoneId={selected?.zone.zone_id ?? null} />
         {baseZone && (

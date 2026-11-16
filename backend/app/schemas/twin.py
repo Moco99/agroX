@@ -172,8 +172,61 @@ class ZoneResult(BaseModel):
     expected_canopy: list[dict[str, float | str]] = Field(default_factory=list)
     monte_carlo: MonteCarloSummary | None = None
     outcome: SeasonOutcome | None = None
+    # Only for climate-projection runs: the same zone simulated with every climate model that answered
+    projection_range: ProjectionRange | None = None
     data_state: DataState
     warnings: list[str] = Field(default_factory=list)
+
+
+class ModelSeasonOutcome(BaseModel):
+    model: str
+    status: Literal["COMPLETED", "NOT_MATURE", "NOT_PLANTED"]
+    stress_days: int
+    season_precip_mm: float
+    data_state: DataState = DataState.SIMULATED
+
+
+class ProjectionRange(BaseModel):
+    """Spread of the season outcome across climate models; each model is one possible future, not a forecast."""
+
+    n_models: int
+    matured_models: int
+    stress_days_min: int
+    stress_days_max: int
+    season_precip_min_mm: float
+    season_precip_max_mm: float
+    by_model: list[ModelSeasonOutcome]
+    data_state: DataState = DataState.SIMULATED
+    note: str = "range across climate models (one possible future each); not a probability nor a forecast"
+
+
+# ─────────────────────────────────────────
+# Section: Climate source (optional, opt-in future climate)
+# ─────────────────────────────────────────
+
+
+class ProjectionRequest(StrictRequest):
+    scenario: Literal["ssp126", "ssp245", "ssp370"]
+    # None = the documented model set; 'ensemble' is rejected (its daily mean smooths away dry days)
+    model: str | None = None
+
+
+class ClimateProjectionInfo(BaseModel):
+    """Exactly what fed a projection run, for the "Datos que usa esta simulación" block."""
+
+    source: str
+    scenario: str
+    models_requested: list[str]
+    models_used: list[str]
+    models_failed: dict[str, str] = Field(default_factory=dict)
+    animated_model: str
+    animated_rule: str
+    variables: list[str]
+    conversions: list[str]
+    filled_days: dict[str, list[str]] = Field(default_factory=dict)
+    api_first_day: date
+    api_last_day: date
+    data_state: DataState = DataState.SIMULATED
 
 
 # ─────────────────────────────────────────
@@ -190,6 +243,9 @@ class TwinSimulateRequest(StrictRequest):
     reference_year: int | None = Field(
         default=None, ge=1900, le=9997, description="Historical analogue year; simulated weather, not a forecast"
     )
+    # None = behaviour unchanged (observed weather, or reference_year when given)
+    climate_source: Literal["reference_year", "projection"] | None = None
+    projection: ProjectionRequest | None = None
     fork_date: date | None = Field(default=None, description="observed weather up to this day, scenario after it")
     zone_ids: list[str] | None = None
     planting_dates: dict[str, date] | None = Field(
@@ -231,6 +287,7 @@ class TwinSimulateResponse(BaseModel):
     farm_summary: FarmSummary
     warnings: list[str] = Field(default_factory=list)
     provenance: dict[str, Provenance]
+    climate_projection: ClimateProjectionInfo | None = None
     # When the run was computed (UTC); start/end are the simulated window, not this
     computed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

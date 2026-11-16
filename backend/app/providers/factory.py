@@ -18,6 +18,7 @@ from app.providers.live.imagery import PointImageryProvider
 from app.providers.live.land_cover import LandCoverProvider
 from app.providers.live.observations import LiveObservationProvider
 from app.providers.live.parcel import point_farm
+from app.providers.live.projection import ProjectionProvider
 from app.providers.live.soil import LiveSoilProvider
 from app.providers.live.weather import LivePowerWeatherProvider
 from app.providers.ports import (
@@ -57,6 +58,8 @@ class Providers:
     land_cover: LandCoverProvider | None = None
     live_soil: LiveSoilProvider | None = None
     live_observations: LiveObservationProvider | None = None
+    # Opt-in CMIP6 projections for future windows (network); None in synthetic mode
+    projection: ProjectionProvider | None = None
 
     @property
     def any_parcel_supported(self) -> bool:
@@ -113,6 +116,7 @@ def _build(
             land_cover=LandCoverProvider(live_cache_dir) if mode == "live" else None,
             live_soil=live_soil,
             live_observations=live_obs,
+            projection=ProjectionProvider(cache),
         )
     warnings: tuple[str, ...] = ()
     if mode in ("real", "live"):
