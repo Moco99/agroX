@@ -1,11 +1,11 @@
 # Fuentes de datos
 
-> TL;DR: Las fuentes del recolector (26; 27 ids porque ECOSTRESS tiene dos), su estado, qué módulo las usa y si entran al MVP. Detalle operativo (cómo correr, llaves) en el README raíz.
+> TL;DR: Las fuentes del recolector (26; 27 ids porque ECOSTRESS tiene dos), su estado, qué módulo las usa y si entran al MVP. Detalle operativo (cómo correr, llaves) en `scraper-and-live-data.md`.
 > Depende de: nada.
-> Estado: draft (estado de fuentes al 2026-11-14, según README del scraper)
+> Estado: draft (estado de fuentes al 2026-11-14, según `scraper-and-live-data.md`)
 > Última revisión: 2026-11-14
 
-Config: `scraper/sources.json` (área: bbox `[-93.55, 41.95, -93.43, 42.04]`, Story County IA, FIPS 19169, `IA169`, 2023-01-01..2024-12-31). Guía de uso y obtención de llaves: `README.md` raíz.
+Config: `scraper/sources.json` (área: bbox `[-93.55, 41.95, -93.43, 42.04]`, Story County IA, FIPS 19169, `IA169`, 2023-01-01..2024-12-31). Guía de uso y obtención de llaves: `scraper-and-live-data.md`.
 
 Leyenda estado: ✅ descargado y revisado · 🔑 requiere llave (variable de entorno) · ⚠️ escrito, no probado · ⛔ apagada.
 
@@ -52,7 +52,7 @@ Leyenda estado: ✅ descargado y revisado · 🔑 requiere llave (variable de en
 
 ## Volumen
 
-- Zona de prueba según README: ~400 MB sin llave + ~1 GB con token (casi todo ECOSTRESS).
+- Zona de prueba según `scraper-and-live-data.md`: ~400 MB sin llave + ~1 GB con token (casi todo ECOSTRESS).
 - Un integrante tiene ~30 GB descargados; se subirán a S3 `raw/`. En local se usan ~2 GB. Ver [storage-s3](storage-s3.md).
 
 ## Reglas

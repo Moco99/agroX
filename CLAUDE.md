@@ -6,7 +6,7 @@ AGROX es una plataforma web para comparar rotaciones de cultivos con datos de NA
 
 | Carpeta | Estado |
 |---|---|
-| `scraper/` | Existe. Baja datos de ~26 fuentes a `data/raw/` (ver `README.md`). |
+| `scraper/` | Existe. Baja datos de ~26 fuentes a `data/raw/` (ver `docs/04-data/scraper-and-live-data.md`). |
 | `docs/` | Existe. Contexto, decisiones y plan del proyecto. |
 | `pipeline/`, `backend/`, `frontend/` | Por crear (fase F0). Estructura objetivo en `docs/01-architecture/repo-structure.md`. |
 | `data/` | Fuera de git. Nunca la leas completa ni la subas. |
