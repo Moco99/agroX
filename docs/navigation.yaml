@@ -223,6 +223,15 @@ docs:
     audience: [all]
     status: draft
     est_tokens: 2000
+  - id: scraper-and-live-data
+    path: 04-data/scraper-and-live-data.md
+    title: Ejecución local, datos en vivo y recolector
+    summary: make setup/dev, modos synthetic/live, parcelas pt_<lat>_<lon>, variables de entorno y S3, llaves del scraper, agregar fuentes, consulta de punto y rotaciones por API.
+    depends_on: [sources]
+    read_when: Levantar el proyecto en local, configurar llaves o añadir una fuente al recolector.
+    audience: [all]
+    status: draft
+    est_tokens: 4500
   - id: storage-s3
     path: 04-data/storage-s3.md
     title: Almacenamiento S3
